@@ -4,7 +4,7 @@ import type { IDataObject, INode, INodeExecutionData, ITriggerResponse, Workflow
 import type { ServerConfig } from './config';
 import type { Database, WorkflowEntity } from './db';
 import type { ExecutionService } from './execution-service';
-import type { Push } from './push';
+import type { PushSender } from './push';
 import { resolveWebhook, webhookNodesOf, type WebhookService } from './webhooks';
 
 interface ActiveState {
@@ -49,6 +49,8 @@ export function pollTimesToCron(param: unknown): string[] {
 export class ActiveWorkflows {
   private readonly active = new Map<string, ActiveState>();
   private readonly errors = new Map<string, string>();
+  /** Called after a workflow's webhooks/triggers were set up or removed (queue mode tells webhook processes). */
+  onChange?: (workflowId: string, active: boolean) => void;
 
   constructor(
     private readonly config: ServerConfig,
@@ -56,7 +58,7 @@ export class ActiveWorkflows {
     private readonly nodeTypes: NodeTypesRegistry,
     private readonly executions: ExecutionService,
     private readonly webhooks: WebhookService,
-    private readonly push: Push,
+    private readonly push: PushSender,
   ) {}
 
   isActive(id: string) {
@@ -78,8 +80,21 @@ export class ActiveWorkflows {
     }
   }
 
+  /**
+   * Webhook processes (queue mode) only route production webhooks: registrations without
+   * triggers, pollers or registering with external services (main does that).
+   */
+  registerWebhooksOnly(wf: WorkflowEntity) {
+    this.webhooks.removeProductionForWorkflow(wf.id);
+    if (!wf.active) return;
+    for (const { node, description } of webhookNodesOf(this.nodeTypes, wf.nodes)) {
+      this.webhooks.registerProduction({ workflowId: wf.id, nodeName: node.name, webhookName: description.name, ...resolveWebhook(this.nodeTypes, node, description) });
+    }
+  }
+
+  /** Stops listening without telling webhook processes: the workflows are still active. */
   async shutdown() {
-    for (const id of [...this.active.keys()]) await this.remove(id);
+    for (const id of [...this.active.keys()]) await this.remove(id, false);
   }
 
   private hasTrigger(wf: WorkflowEntity) {
@@ -178,12 +193,14 @@ export class ActiveWorkflows {
     this.active.set(wf.id, state);
     this.errors.delete(wf.id);
     this.push.send({ type: 'workflowActivated', data: { workflowId: wf.id } });
+    this.onChange?.(wf.id, true);
   }
 
-  async remove(workflowId: string) {
+  async remove(workflowId: string, notify = true) {
     const state = this.active.get(workflowId);
     this.webhooks.removeProductionForWorkflow(workflowId);
     if (!state) return;
+    if (notify) this.onChange?.(workflowId, false);
     this.active.delete(workflowId);
     await this.teardown(workflowId, state);
     this.push.send({ type: 'workflowDeactivated', data: { workflowId } });

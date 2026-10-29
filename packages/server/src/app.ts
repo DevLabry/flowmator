@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
-import Fastify, { type FastifyInstance } from 'fastify';
-import type { ServerConfig } from './config';
+import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
+import type { ConfigOverrides } from './config';
 import { createContext, type AppContext } from './context';
 import { credentialRoutes } from './routes/credentials';
 import { HttpError } from './routes/errors';
@@ -41,7 +41,56 @@ function basicAuthHook(app: FastifyInstance) {
   });
 }
 
-export async function createApp(overrides: Partial<ServerConfig> = {}): Promise<App> {
+function errorHandler(error: Error, _req: unknown, reply: FastifyReply) {
+  const status = error instanceof HttpError ? error.statusCode : ((error as { statusCode?: number }).statusCode ?? 500);
+  if (status >= 500) console.error(error);
+  reply.code(status).send({ code: status, message: error.message, ...(error instanceof HttpError && error.hint ? { hint: error.hint } : {}) });
+}
+
+/**
+ * Queue mode webhook process: only production webhooks, forms and waiting-execution URLs.
+ * Executions go to the workers; triggers, the editor and the API stay on main.
+ */
+export async function createWebhookApp(overrides: ConfigOverrides = {}): Promise<App> {
+  const ctx = createContext(overrides, 'webhook');
+  if (!ctx.scaling) throw new Error('The webhook process needs queue mode: set EXECUTIONS_MODE=queue');
+  const app = Fastify({ logger: false, bodyLimit: 32 * 1024 * 1024 });
+  await app.register(cors, { origin: true });
+  app.setErrorHandler(errorHandler);
+  app.get('/healthz', async () => ({ status: 'ok' }));
+  await webhookRoutes(app, ctx);
+
+  const load = (workflowId: string) => {
+    const wf = ctx.db.getWorkflow(workflowId);
+    try {
+      if (wf) ctx.activeWorkflows.registerWebhooksOnly(wf);
+      else ctx.webhooks.removeProductionForWorkflow(workflowId);
+    } catch (e) {
+      console.error(`Webhooks of workflow ${workflowId} not registered: ${(e as Error).message}`);
+    }
+  };
+
+  let started = false;
+  return {
+    app,
+    ctx,
+    async start() {
+      await ctx.executions.connectQueue();
+      await ctx.scaling!.subscribe((m) => m.type === 'workflowChanged' && load(m.workflowId));
+      for (const wf of ctx.db.listWorkflows({ active: true })) load(wf.id);
+      const url = await app.listen({ port: ctx.config.port, host: process.env.N8N_LISTEN_ADDRESS ?? '0.0.0.0' });
+      started = true;
+      return url;
+    },
+    async stop() {
+      if (started) await app.close();
+      await ctx.scaling!.close();
+      ctx.db.close();
+    },
+  };
+}
+
+export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
   const ctx = createContext(overrides);
   const app = Fastify({ logger: false, bodyLimit: 32 * 1024 * 1024 });
 
@@ -49,11 +98,7 @@ export async function createApp(overrides: Partial<ServerConfig> = {}): Promise<
   await app.register(websocket);
   basicAuthHook(app);
 
-  app.setErrorHandler((error: Error, _req, reply) => {
-    const status = error instanceof HttpError ? error.statusCode : ((error as { statusCode?: number }).statusCode ?? 500);
-    if (status >= 500) console.error(error);
-    reply.code(status).send({ code: status, message: error.message, ...(error instanceof HttpError && error.hint ? { hint: error.hint } : {}) });
-  });
+  app.setErrorHandler(errorHandler);
 
   app.get('/rest/push', { websocket: true }, (socket, req) => {
     const pushRef = String((req.query as { pushRef?: string }).pushRef ?? Math.random().toString(36).slice(2));
@@ -85,7 +130,7 @@ export async function createApp(overrides: Partial<ServerConfig> = {}): Promise<
     app,
     ctx,
     async start() {
-      ctx.executions.start();
+      await ctx.executions.start();
       await ctx.activeWorkflows.init();
       const url = await app.listen({ port: ctx.config.port, host: process.env.N8N_LISTEN_ADDRESS ?? '0.0.0.0' });
       started = true;
@@ -94,6 +139,7 @@ export async function createApp(overrides: Partial<ServerConfig> = {}): Promise<
     async stop() {
       await ctx.activeWorkflows.shutdown();
       await ctx.executions.stopAll();
+      await ctx.scaling?.close();
       ctx.push.closeAll();
       if (started) await app.close();
       ctx.db.close();

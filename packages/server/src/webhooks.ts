@@ -14,7 +14,7 @@ import {
 import { parseSubmission, renderForm, renderSubmitted, type FormField } from '@8n8/nodes-base';
 import type { ServerConfig } from './config';
 import type { ExecutionService } from './execution-service';
-import type { Push } from './push';
+import type { PushSender } from './push';
 
 export interface WebhookRegistration {
   workflowId: string;
@@ -91,7 +91,7 @@ export class WebhookService {
     private readonly config: ServerConfig,
     private readonly nodeTypes: NodeTypesRegistry,
     private readonly executions: ExecutionService,
-    private readonly push: Push,
+    private readonly push: PushSender,
     private readonly loadWorkflow: (id: string) => IWorkflowBase | null,
   ) {}
 

@@ -19,8 +19,11 @@
     "@fastify/formbody": "^9.0.1",
     "@fastify/static": "8.0.3",
     "@fastify/websocket": "^11.3.4",
+    "bullmq": "^6.5.1",
     "croner": "^11.0.0",
-    "fastify": "^5.12.7"
+    "fastify": "^5.12.7",
+    "ioredis": "^6.0.0",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@types/ws": "^8.18.2"

@@ -25,6 +25,7 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
       endpointFormWaiting: config.endpoints.formWaiting,
       saveManualExecutions: config.executions.saveManual,
       executionTimeout: config.executions.timeoutSeconds,
+      executionMode: config.executions.mode,
     },
   }));
 
