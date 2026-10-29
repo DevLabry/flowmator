@@ -113,7 +113,7 @@
 .notice { background: var(--warning-soft); color: var(--text); border-left: 3px solid var(--warning); padding: 8px 10px; border-radius: 4px; font-size: 12px; }
 .collection { border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 10px; background: var(--surface-2); }
 .collection-item { border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; position: relative; }
-.collection-item > .remove { position: absolute; right: 6px; top: 6px; }
+.collection-item > .remove { position: absolute; right: -10px; top: -10px; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 50%; }
 .expr-box { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
 .expr-box.focused { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .expr-box .cm-editor { font-size: 12px; }

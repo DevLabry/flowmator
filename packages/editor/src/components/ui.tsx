@@ -91,6 +91,19 @@ const ICON_MAP: Record<string, keyof typeof Icons> = {
   clock: 'Clock',
   globe: 'Globe',
   bug: 'Bug',
+  calendar: 'Calendar',
+  key: 'KeyRound',
+  edit: 'TextCursorInput',
+  table: 'Sigma',
+  equals: 'GitCompare',
+  'file-code': 'FileCode',
+  markdown: 'FileText',
+  file: 'File',
+  'file-export': 'FileOutput',
+  'file-import': 'FileInput',
+  envelope: 'Mail',
+  terminal: 'Terminal',
+  'list-alt': 'ClipboardList',
 };
 
 export function NodeIcon({ icon, color, size = 18, label }: { icon?: string; color?: string; size?: number; label?: string }) {

@@ -42,12 +42,12 @@ Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are a
 - [x] Code node (JS in node:vm; Python via python3 subprocess, untested)
 
 ### Core nodes
-Done: Manual Trigger, Webhook, Schedule Trigger, Error Trigger, HTTP Request (auth, pagination, batching, files), Respond to Webhook, Execute Workflow Trigger, If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Sticky Note.
+Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename Keys, Summarize, Compare Datasets, XML, HTML, Markdown, Extract from File (CSV/XLSX/PDF/JSON/HTML/text), Convert to File (CSV/XLSX/JSON/HTML/text/base64), Read/Write Files from Disk, Send Email (SMTP), Execute Command, Webhook, Schedule Trigger, Error Trigger, HTTP Request (auth, pagination, batching, files), Respond to Webhook, Execute Workflow Trigger, If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Sticky Note.
 
-- [ ] Triggers: Manual, Webhook, Schedule, Form, Chat, Execute Workflow Trigger, Error Trigger, Local File Trigger, Email (IMAP)
-- [ ] Flow: If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Respond to Webhook
-- [ ] Data: Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Summarize, Compare Datasets, Rename Keys, Date & Time, Crypto, XML, HTML, Markdown, Extract from File, Convert to File, Item Lists, Read/Write Files
-- [ ] Network: HTTP Request (auth, pagination, cURL import), Send Email (SMTP), SSH, FTP, Execute Command
+- [ ] Triggers still missing: Chat, Local File Trigger, Email (IMAP)
+- [x] Flow: If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Respond to Webhook
+- [ ] Data still missing: ODS/RTF/iCal file formats, multi-page Form node
+- [ ] Network still missing: SSH, FTP, cURL import in the editor
 
 ### Platform
 - [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys (data tables pending)

@@ -81,4 +81,18 @@ export const OAuth2Api: ICredentialType = {
   ],
 };
 
-export const credentials: ICredentialType[] = [HttpBasicAuth, HttpHeaderAuth, HttpQueryAuth, HttpBearerAuth, HttpCustomAuth, OAuth2Api];
+export const Smtp: ICredentialType = {
+  name: 'smtp',
+  displayName: 'SMTP',
+  properties: [
+    { displayName: 'User', name: 'user', type: 'string', default: '' },
+    { displayName: 'Password', name: 'password', type: 'string', typeOptions: password, default: '' },
+    { displayName: 'Host', name: 'host', type: 'string', default: '' },
+    { displayName: 'Port', name: 'port', type: 'number', default: 465 },
+    { displayName: 'SSL/TLS', name: 'secure', type: 'boolean', default: true, description: 'On for port 465; off for 587 (STARTTLS)' },
+    { displayName: 'Disable STARTTLS', name: 'disableStartTls', type: 'boolean', default: false, displayOptions: { show: { secure: [false] } } },
+    { displayName: 'Client Host Name', name: 'hostName', type: 'string', default: '' },
+  ],
+};
+
+export const credentials: ICredentialType[] = [Smtp, HttpBasicAuth, HttpHeaderAuth, HttpQueryAuth, HttpBearerAuth, HttpCustomAuth, OAuth2Api];

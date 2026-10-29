@@ -9,6 +9,12 @@ import { HttpRequest } from './nodes/http-request';
 import { ScheduleTrigger } from './nodes/schedule';
 import { RespondToWebhook, Webhook } from './nodes/webhook';
 import { credentials as credentialTypes } from './credentials';
+import { ConvertToFile, ExtractFromFile, ReadWriteFile } from './nodes/files';
+import { FormTrigger } from './nodes/form';
+import { Html, Markdown, Xml } from './nodes/markup';
+import { CompareDatasets, Summarize } from './nodes/summarize-compare';
+import { ExecuteCommand, SendEmail } from './nodes/system';
+import { CryptoNode, DateTimeNode, RenameKeys } from './nodes/transform';
 
 export const nodes: INodeType[] = [
   ManualTrigger,
@@ -35,11 +41,26 @@ export const nodes: INodeType[] = [
   RespondToWebhook,
   ScheduleTrigger,
   HttpRequest,
+  DateTimeNode,
+  CryptoNode,
+  RenameKeys,
+  Summarize,
+  CompareDatasets,
+  Xml,
+  Html,
+  Markdown,
+  ExtractFromFile,
+  ConvertToFile,
+  ReadWriteFile,
+  SendEmail,
+  ExecuteCommand,
+  FormTrigger,
 ];
 
 export const credentials: ICredentialType[] = credentialTypes;
 
 export { ruleToCron } from './nodes/schedule';
+export { renderForm, renderSubmitted, parseSubmission, type FormField } from './nodes/form';
 
 export * from './utils/filter';
 export * from './utils/object';

@@ -409,3 +409,72 @@ describe('variables', () => {
     expect(r.body.data.data.runData.Set[0].data.main[0][0].json.url).toBe('https://example.com/x');
   });
 });
+
+describe('forms', () => {
+  const multipart = (fields: Array<[string, string]>) => {
+    const boundary = '----8n8form';
+    const body = fields.map(([k, v]) => `--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`).join('') + `--${boundary}--\r\n`;
+    return { body, headers: { 'content-type': `multipart/form-data; boundary=${boundary}` } };
+  };
+  const contactFields = {
+    values: [
+      { fieldLabel: 'Name', fieldType: 'text', requiredField: true },
+      { fieldLabel: 'Age', fieldType: 'number' },
+      { fieldLabel: 'Topics', fieldType: 'checkbox', fieldOptions: { values: [{ option: 'A' }, { option: 'B' }] } },
+    ],
+  };
+
+  it('serves the form and starts the workflow on submit', async () => {
+    const wf = await createWorkflow({
+      name: 'Contact form',
+      nodes: [node('Form', 'formTrigger', { path: 'contact', formTitle: 'Contact <us>', formFields: contactFields }), node('Noop', 'noOp')],
+      connections: chain('Form', 'Noop'),
+    });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    const page = await api('GET', '/form/contact');
+    expect(page.status).toBe(200);
+    expect(page.headers['content-type']).toContain('text/html');
+    expect(page.body).toContain('Contact &#60;us&#62;');
+    expect(page.body).toContain('name="field-2" value="B"');
+
+    const { body, headers } = multipart([['field-0', 'Ada'], ['field-1', '36'], ['field-2', 'A'], ['field-2', 'B']]);
+    const submitted = await api('POST', '/form/contact', body, headers);
+    expect(submitted.body).toContain('Your response has been recorded');
+    const exec = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success'));
+    const json = app.ctx.db.getExecution(exec.id)!.data!.resultData.runData.Noop![0]!.data!.main![0]![0]!.json;
+    expect(json).toMatchObject({ Name: 'Ada', Age: 36, Topics: ['A', 'B'], formMode: 'production' });
+  });
+
+  it('keeps the test form open until it is submitted', async () => {
+    const wf = await createWorkflow({ name: 'Test form', nodes: [node('Form', 'formTrigger', { path: 'try-form', formTitle: 'Try', formFields: contactFields })], connections: {} });
+    const run = await api('POST', `/rest/workflows/${wf.id}/run`, {});
+    expect(run.body.data.testUrls).toEqual(['http://localhost:5678/form-test/try-form']);
+    expect((await api('GET', '/form-test/try-form')).status).toBe(200);
+    expect((await api('GET', '/form-test/try-form')).status).toBe(200);
+    const { body, headers } = multipart([['field-0', 'Bob']]);
+    expect((await api('POST', '/form-test/try-form', body, headers)).status).toBe(200);
+    await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success' && e.mode === 'manual'));
+    expect((await api('GET', '/form-test/try-form')).status).toBe(404);
+  });
+
+  it('resumes a Wait node from a submitted form', async () => {
+    const wf = await createWorkflow({
+      name: 'Form approval',
+      nodes: [
+        node('Webhook', 'webhook', { path: 'needs-approval' }),
+        node('Wait', 'wait', { resume: 'form', formTitle: 'Approve?', formFields: { values: [{ fieldLabel: 'Decision', fieldType: 'text' }] } }),
+        node('After', 'noOp'),
+      ],
+      connections: chain('Webhook', 'Wait', 'After'),
+    });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    await api('GET', '/webhook/needs-approval');
+    const waiting = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'waiting'));
+    const page = await api('GET', `/form-waiting/${waiting.id}`);
+    expect(page.body).toContain('Approve?');
+    const { body, headers } = multipart([['field-0', 'yes']]);
+    expect((await api('POST', `/form-waiting/${waiting.id}`, body, headers)).body).toContain('Your response has been recorded');
+    const done = await waitFor(() => app.ctx.db.getExecution(waiting.id)?.status === 'success' && app.ctx.db.getExecution(waiting.id));
+    expect(done!.data!.resultData.runData.After![0]!.data!.main![0]![0]!.json).toMatchObject({ Decision: 'yes' });
+  });
+});

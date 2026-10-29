@@ -23,9 +23,22 @@ const CATEGORY: Record<string, string> = {
   '8n8.removeDuplicates': 'Data transformation',
   '8n8.httpRequest': 'Network',
   '8n8.respondToWebhook': 'Network',
+  '8n8.dateTime': 'Data transformation',
+  '8n8.crypto': 'Data transformation',
+  '8n8.renameKeys': 'Data transformation',
+  '8n8.summarize': 'Data transformation',
+  '8n8.compareDatasets': 'Data transformation',
+  '8n8.xml': 'Data transformation',
+  '8n8.html': 'Data transformation',
+  '8n8.markdown': 'Data transformation',
+  '8n8.extractFromFile': 'Files',
+  '8n8.convertToFile': 'Files',
+  '8n8.readWriteFile': 'Files',
+  '8n8.emailSend': 'Network',
+  '8n8.executeCommand': 'Core',
   '8n8.stickyNote': 'Canvas',
 };
-const ORDER = ['Triggers', 'Flow', 'Data transformation', 'Network', 'Canvas', 'Other'];
+const ORDER = ['Triggers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
 
 interface Props {
   onPick: (type: string) => void;

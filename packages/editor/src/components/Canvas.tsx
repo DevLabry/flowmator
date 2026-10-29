@@ -369,9 +369,9 @@ function WebhookBanner() {
     <div className="webhook-banner">
       <span className="spin" style={{ display: 'inline-flex' }}>⟳</span>
       <div className="grow">
-        <div style={{ fontWeight: 600 }}>Waiting for a test event</div>
+        <div style={{ fontWeight: 600 }}>{urls.some((u) => u.includes('/form-test/')) ? 'Open the form and submit it' : 'Waiting for a test event'}</div>
         {urls.map((u) => (
-          <div key={u} className="mono ellipsis" style={{ fontSize: 11 }}>{u}</div>
+          <a key={u} href={u} target="_blank" rel="noreferrer" className="mono ellipsis" style={{ fontSize: 11, display: 'block' }}>{u}</a>
         ))}
       </div>
       <button className="sm" onClick={() => navigator.clipboard.writeText(urls[0] ?? '')}><Copy size={12} /> Copy URL</button>
