@@ -104,6 +104,12 @@ const ICON_MAP: Record<string, keyof typeof Icons> = {
   envelope: 'Mail',
   terminal: 'Terminal',
   'list-alt': 'ClipboardList',
+  robot: 'Bot',
+  brain: 'BrainCircuit',
+  server: 'Server',
+  database: 'Database',
+  calculator: 'Calculator',
+  comments: 'MessagesSquare',
 };
 
 export function NodeIcon({ icon, color, size = 18, label }: { icon?: string; color?: string; size?: number; label?: string }) {

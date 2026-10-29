@@ -78,7 +78,7 @@ interface WorkflowState {
   setSelected(names: string[]): void;
   refreshIO(name: string): void;
   save(): Promise<WorkflowData>;
-  run(opts?: { destinationNode?: string; triggerNode?: string }): Promise<void>;
+  run(opts?: { destinationNode?: string; triggerNode?: string; triggerData?: INodeExecutionData[] }): Promise<void>;
   stop(): Promise<void>;
   clearRunData(): void;
   applyPush(event: { type: string; data: any }): void;
@@ -411,7 +411,7 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
         {
           workflowData: { name: workflow.name, nodes: workflow.nodes, connections: workflow.connections, settings: workflow.settings, pinData: workflow.pinData },
           destinationNode: opts.destinationNode,
-          triggerToStartFrom: opts.triggerNode ? { name: opts.triggerNode } : undefined,
+          triggerToStartFrom: opts.triggerNode ? { name: opts.triggerNode, ...(opts.triggerData ? { data: { main: [opts.triggerData] } } : {}) } : undefined,
           runData: partial ? get().runData : undefined,
           dirtyNodeNames: partial ? get().dirtyNodes : undefined,
         },

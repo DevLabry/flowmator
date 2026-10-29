@@ -17,11 +17,12 @@ import {
   type OnSelectionChangeParams,
 } from '@xyflow/react';
 import type { ConnectionType, IConnections, INode } from '@8n8/workflow';
-import { Play, Plus, Trash2, Square, Copy } from 'lucide-react';
+import { Play, Plus, Trash2, Square, Copy, MessageCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getNodeType, useApp } from '../store/app';
 import { useWorkflow } from '../store/workflow';
 import { CanvasNode, StickyNode, type CanvasNodeData } from './CanvasNode';
+import { ChatPanel } from './ChatPanel';
 import { NodeCreator } from './NodeCreator';
 
 const nodeTypes = { wf: CanvasNode, sticky: StickyNode };
@@ -98,10 +99,12 @@ function CanvasInner() {
   const status = useWorkflow((s) => s.status);
   const store = useWorkflow.getState;
   const flow = useReactFlow();
-  const [creator, setCreator] = useState<null | { from?: { node: string; output: number; type: string }; position?: [number, number] }>(null);
+  const [creator, setCreator] = useState<null | { from?: { node: string; output: number; type: string }; to?: { node: string; type: string }; position?: [number, number] }>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const [rfNodes, setRfNodes] = useState<Node[]>([]);
 
   const onAddFrom = useCallback((node: string, output: number, type: string) => setCreator({ from: { node, output, type } }), []);
+  const onAddSubNode = useCallback((node: string, type: string) => setCreator({ to: { node, type } }), []);
 
   // store → React Flow nodes (keep RF's own selection/drag state)
   useEffect(() => {
@@ -115,14 +118,14 @@ function CanvasInner() {
           id: n.name,
           type: isSticky ? 'sticky' : 'wf',
           position: { x: n.position[0], y: n.position[1] },
-          data: { name: n.name, onAddFrom } satisfies CanvasNodeData,
+          data: { name: n.name, onAddFrom, onAddSubNode } satisfies CanvasNodeData,
           selected: old?.selected ?? store().selected.includes(n.name),
           zIndex: isSticky ? -1 : 0,
           ...(isSticky ? { style: { width: p.width ?? 240, height: p.height ?? 160 } } : {}),
         } as Node;
       });
     });
-  }, [wf.nodes, onAddFrom, store]);
+  }, [wf.nodes, onAddFrom, onAddSubNode, store]);
 
   const edges = useMemo<Edge[]>(() => {
     const out: Edge[] = [];
@@ -196,6 +199,20 @@ function CanvasInner() {
         const center = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
         pos = [Math.round(center.x - 42), Math.round(center.y - 42)];
       }
+    }
+    if (creator?.to) {
+      // sub-node: below the root node, next to its siblings on the same input, connected upwards
+      const root = s.workflow.nodes.find((n) => n.name === creator.to!.node);
+      if (root) {
+        const siblings = Object.values(s.workflow.connections).filter((byType) => byType[creator.to!.type as ConnectionType]?.some((t) => t?.some((c) => c.node === root.name))).length;
+        const order = ['ai_languageModel', 'ai_memory', 'ai_tool', 'ai_outputParser'].indexOf(creator.to.type);
+        pos = [root.position[0] - 120 + Math.max(0, order) * 110 + siblings * 100, root.position[1] + 200];
+      }
+      const sub = s.addNode(type, pos ?? [0, 0]);
+      if (sub && root) s.connect(sub.name, 0, root.name, 0, creator.to.type as ConnectionType);
+      setCreator(null);
+      if (sub) s.setOpenNode(sub.name);
+      return;
     }
     const node = s.addNode(type, pos, { connectFrom });
     setCreator(null);
@@ -279,6 +296,7 @@ function CanvasInner() {
   const realNodes = wf.nodes.filter((n) => !n.type.endsWith('stickyNote'));
   const triggers = wf.nodes.filter((n) => getNodeType(n.type)?.isTrigger && !n.disabled);
   const running = status === 'running' || status === 'waitingForWebhook';
+  const chatTrigger = triggers.find((t) => t.type.endsWith('chatTrigger'));
 
   return (
     <div
@@ -349,6 +367,7 @@ function CanvasInner() {
           {Object.keys(runData).length > 0 && !running && (
             <button onClick={() => store().clearRunData()} title="Clear execution data"><Trash2 size={14} /></button>
           )}
+          {chatTrigger && <button onClick={() => setChatOpen(!chatOpen)}><MessageCircle size={14} /> Chat</button>}
           <button onClick={() => setCreator({})} title="Add node (Tab)"><Plus size={14} /></button>
         </div>
       )}
@@ -356,7 +375,8 @@ function CanvasInner() {
       <WebhookBanner />
       <ErrorBanner />
 
-      {creator && <NodeCreator triggersFirst={!hasTrigger && !creator.from} onPick={(t) => placeNode(t)} onClose={() => setCreator(null)} />}
+      {creator && <NodeCreator triggersFirst={!hasTrigger && !creator.from && !creator.to} subNodeType={creator.to?.type} onPick={(t) => placeNode(t)} onClose={() => setCreator(null)} />}
+      {chatOpen && chatTrigger && <ChatPanel trigger={chatTrigger.name} onClose={() => setChatOpen(false)} />}
     </div>
   );
 }

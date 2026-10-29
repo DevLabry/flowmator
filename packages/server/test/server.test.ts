@@ -478,3 +478,37 @@ describe('forms', () => {
     expect(done!.data!.resultData.runData.After![0]!.data!.main![0]![0]!.json).toMatchObject({ Decision: 'yes' });
   });
 });
+
+describe('chat trigger', () => {
+  const chatWorkflow = (isPublic: boolean) => ({
+    nodes: [
+      node('Chat', 'chatTrigger', { public: isPublic, title: 'Help desk' }, { webhookId: `hook-${isPublic}` }),
+      node('Reply', 'code', { mode: 'runOnceForEachItem', jsCode: 'return { output: `echo: ${$json.chatInput} (${$json.sessionId})` };' }),
+    ],
+    connections: chain('Chat', 'Reply'),
+  });
+  // chat nodes live in the AI package (8n8-ai.*)
+  const asAi = (wf: ReturnType<typeof chatWorkflow>) => ({ ...wf, nodes: wf.nodes.map((n) => (n.name === 'Chat' ? { ...n, type: '8n8-ai.chatTrigger' } : n)) });
+
+  it('serves a public chat page and answers messages', async () => {
+    const wf = await createWorkflow({ name: 'Public chat', ...asAi(chatWorkflow(true)) });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    const page = await api('GET', '/webhook/hook-true/chat');
+    expect(page.status).toBe(200);
+    expect(page.body).toContain('<title>Help desk</title>');
+    const reply = await api('POST', '/webhook/hook-true/chat', { action: 'sendMessage', sessionId: 'abc', chatInput: 'hello' });
+    expect(reply.body).toEqual({ output: 'echo: hello (abc)' });
+  });
+
+  it('keeps a private chat closed to the outside but usable from the editor', async () => {
+    const wf = await createWorkflow({ name: 'Private chat', ...asAi(chatWorkflow(false)) });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    expect((await api('GET', '/webhook/hook-false/chat')).status).toBe(404);
+    expect((await api('POST', '/webhook/hook-false/chat', { chatInput: 'hi' })).status).toBe(404);
+    // the editor's chat panel runs the workflow with the message as trigger data
+    const r = await api('POST', `/rest/workflows/${wf.id}/run?wait=true`, {
+      triggerToStartFrom: { name: 'Chat', data: { main: [[{ json: { sessionId: 'ed', action: 'sendMessage', chatInput: 'from editor' } }]] } },
+    });
+    expect(r.body.data.data.runData.Reply[0].data.main[0][0].json).toEqual({ output: 'echo: from editor (ed)' });
+  });
+});

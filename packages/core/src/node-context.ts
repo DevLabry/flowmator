@@ -350,7 +350,14 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
         runIndex: this.runIndex,
         contextData: this.contextData,
       }) as unknown as ISupplyDataFunctions;
-      const supplied = await subType.supplyData.call(subContext, itemIndex);
+      let supplied;
+      try {
+        supplied = await subType.supplyData.call(subContext, itemIndex);
+      } catch (e) {
+        // the error surfaces on the root node, so say which sub-node it came from
+        const err = e as Error & { description?: string };
+        throw new NodeOperationError(this.node, `${subNode.name}: ${err.message}`, { description: err.description, itemIndex });
+      }
       results.push(supplied.response);
     }
     if (typeof inputConfig === 'object' && inputConfig.required && results.length === 0) {

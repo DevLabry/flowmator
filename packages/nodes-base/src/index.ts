@@ -9,6 +9,8 @@ import { HttpRequest } from './nodes/http-request';
 import { ScheduleTrigger } from './nodes/schedule';
 import { RespondToWebhook, Webhook } from './nodes/webhook';
 import { credentials as credentialTypes } from './credentials';
+import { aiCredentials, AiAgent, ChatTrigger } from './ai/agent';
+import { AnthropicChatModel, CalculatorTool, CodeTool, HttpRequestTool, OllamaChatModel, OpenAiChatModel, SimpleMemory, StructuredOutputParser, WorkflowTool } from './ai/subnodes';
 import { ConvertToFile, ExtractFromFile, ReadWriteFile } from './nodes/files';
 import { FormTrigger } from './nodes/form';
 import { Html, Markdown, Xml } from './nodes/markup';
@@ -55,9 +57,23 @@ export const nodes: INodeType[] = [
   SendEmail,
   ExecuteCommand,
   FormTrigger,
+  AiAgent,
+  ChatTrigger,
+  AnthropicChatModel,
+  OpenAiChatModel,
+  OllamaChatModel,
+  SimpleMemory,
+  CalculatorTool,
+  CodeTool,
+  HttpRequestTool,
+  WorkflowTool,
+  StructuredOutputParser,
 ];
 
-export const credentials: ICredentialType[] = credentialTypes;
+export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials];
+
+export * from './ai/llm';
+export { calculate, extractJson, schemaFromExample } from './ai/subnodes';
 
 export { ruleToCron } from './nodes/schedule';
 export { renderForm, renderSubmitted, parseSubmission, type FormField } from './nodes/form';
