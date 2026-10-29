@@ -119,6 +119,7 @@ const ICON_MAP: Record<string, keyof typeof Icons> = {
   discord: 'Gamepad2',
   airtable: 'TableProperties',
   'google-drive': 'HardDrive',
+  'data-table': 'Table2',
 };
 
 export function NodeIcon({ icon, color, size = 18, label }: { icon?: string; color?: string; size?: number; label?: string }) {

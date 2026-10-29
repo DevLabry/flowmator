@@ -66,13 +66,14 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename
 - [ ] Still missing: HubSpot, Stripe, MongoDB, Redis, S3, Microsoft (Outlook, Teams, OneDrive), Jira, Trello, …
 
 ### Platform
-- [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys (data tables pending)
+- [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys, data tables
 - [x] Activation: webhook registration, pollers, cron
 - [x] Test vs production webhook URLs
 - [x] Executions list, retry, stop, delete, pruning (debug-in-editor is an editor feature)
 - [x] Credentials: AES-256-GCM, OAuth2 (code, PKCE, client credentials, refresh), test (OAuth1 pending)
 - [x] Workflow version history and restore
-- [x] Variables, tags, folders (data tables pending)
+- [x] Variables, tags, folders
+- [x] Data tables: typed columns (string, number, boolean, date) stored in SQLite; Data Table node (insert, get, update, upsert, delete, if row exists / does not exist, dry run; create, list, rename, delete tables); editor page with inline editing, sorting, search, CSV import and export; public API `/api/v1/data-tables`
 - [x] Public API with API keys
 - [x] Queue mode (EXECUTIONS_MODE=queue): BullMQ/Redis, `8n8 worker` (concurrency, health check, graceful shutdown), `8n8 webhook` processes; editor events, Respond to Webhook, waits, stop and retry relayed through Redis; manual runs stay on main unless OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
 - [x] CLI (`bin/8n8.mjs`): start, worker, webhook, execute, import/export workflows and credentials (n8n exports work, --decrypted, --backup), list/update workflows
@@ -84,6 +85,7 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename
 - [x] Canvas: add/connect/move/delete, sticky notes, minimap, undo/redo, copy/paste JSON
 - [x] Node creator panel with search
 - [x] Node detail view with generated parameter forms, input/output (table/JSON/schema/binary), drag-to-map
+- [x] Resource locator "From list" search and resource mapper (column mapping loaded from the node)
 - [x] Expression editor with autocomplete and live preview
 - [x] Live execution, run data per node, pin data
 - [x] Executions view, workflow settings, version history, debug in editor

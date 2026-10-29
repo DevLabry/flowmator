@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ExecutionStatus } from '@8n8/workflow';
 import { normalizeWorkflow, type AppContext } from '../context';
+import { dataTableRowRoutes } from './data-tables';
 import { HttpError } from './errors';
 
 /**
@@ -89,6 +90,21 @@ export async function publicApiRoutes(app: FastifyInstance, ctx: AppContext) {
       db.deleteExecutions([id]);
       return e;
     });
+
+    api.get('/data-tables', async (req) => {
+      const q = req.query as { limit?: string; cursor?: string; name?: string };
+      return page(ctx.dataTables.listTablesSync({ name: q.name }), Number(q.limit ?? 100), q.cursor);
+    });
+    api.post('/data-tables', async (req) => {
+      const b = req.body as { name: string; columns?: Array<{ name: string; type: 'string' }> };
+      return ctx.dataTables.createTableSync(b.name, b.columns ?? []);
+    });
+    api.get('/data-tables/:id', async (req) => ctx.dataTables.requireTable((req.params as { id: string }).id));
+    api.delete('/data-tables/:id', async (req) => {
+      await ctx.dataTables.deleteTable((req.params as { id: string }).id);
+      return { success: true };
+    });
+    dataTableRowRoutes(api, ctx.dataTables, '/data-tables');
 
     api.get('/tags', async () => ({ data: db.listTags() }));
     api.get('/variables', async () => ({ data: db.listVariables() }));

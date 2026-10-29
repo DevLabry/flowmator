@@ -1,6 +1,7 @@
 import type { ICredentialType, INodeType } from '@8n8/workflow';
 import { Code } from './nodes/code';
 import { Aggregate, Limit, RemoveDuplicates, Sort, SplitOut } from './nodes/data';
+import { DataTable } from './nodes/data-table';
 import { ExecuteWorkflow, ExecuteWorkflowTrigger } from './nodes/execute-workflow';
 import { ErrorTrigger, Filter, If, ManualTrigger, NoOp, StickyNote, StopAndError, Switch } from './nodes/flow';
 import { LoopOverItems, Merge, Wait } from './nodes/merge-loop-wait';
@@ -53,6 +54,7 @@ export const nodes: INodeType[] = [
   RemoveDuplicates,
   ExecuteWorkflow,
   ExecuteWorkflowTrigger,
+  DataTable,
   Webhook,
   RespondToWebhook,
   ScheduleTrigger,

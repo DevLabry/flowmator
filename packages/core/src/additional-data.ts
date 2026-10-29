@@ -1,6 +1,7 @@
 import type {
   ExecutionMode,
   IDataObject,
+  IDataTableService,
   IExecuteWorkflowInfo,
   IExecuteWorkflowResult,
   IExecutionState,
@@ -47,6 +48,8 @@ export interface IWorkflowExecuteAdditionalData {
   logger?: ILogger;
   signal?: AbortSignal;
   binaryData?: BinaryDataStore;
+  /** Data tables stored by the server (Data Table node). */
+  dataTables?: IDataTableService;
   /** Runs another workflow (by id or inline code). The core falls back to in-process execution of inline code. */
   executeWorkflow?(
     info: IExecuteWorkflowInfo,

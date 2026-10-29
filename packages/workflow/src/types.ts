@@ -215,6 +215,32 @@ export interface INodePropertyOption {
   action?: string;
 }
 
+export type FieldType = 'string' | 'number' | 'boolean' | 'dateTime' | 'time' | 'object' | 'array' | 'options';
+
+/** A field offered by a resourceMapper parameter (a table column, a sheet header...). */
+export interface ResourceMapperField {
+  id: string;
+  displayName: string;
+  required: boolean;
+  defaultMatch: boolean;
+  display: boolean;
+  type?: FieldType;
+  canBeUsedToMatch?: boolean;
+  removed?: boolean;
+  readOnly?: boolean;
+  options?: INodePropertyOption[];
+}
+
+/** Value stored by a resourceMapper parameter. */
+export interface ResourceMapperValue {
+  mappingMode: 'defineBelow' | 'autoMapInputData';
+  value: Record<string, unknown> | null;
+  matchingColumns: string[];
+  schema: ResourceMapperField[];
+  attemptToConvertTypes?: boolean;
+  convertFieldsToString?: boolean;
+}
+
 export interface INodePropertyCollection {
   name: string;
   displayName: string;
@@ -251,8 +277,17 @@ export interface INodeProperties {
     loadOptionsMethod?: string;
     loadOptionsDependsOn?: string[];
     sortable?: boolean;
+    /** resourceMapper: fields come from `methods.resourceMapping[resourceMapperMethod]` */
+    resourceMapper?: {
+      resourceMapperMethod: string;
+      mode: 'add' | 'update' | 'upsert' | 'map';
+      fieldWords?: { singular: string; plural: string };
+      addAllFields?: boolean;
+      multiKeyMatch?: boolean;
+      supportAutoMap?: boolean;
+    };
   };
-  modes?: Array<{ displayName: string; name: string; type: 'string' | 'list'; placeholder?: string }>;
+  modes?: Array<{ displayName: string; name: string; type: 'string' | 'list' | 'url'; placeholder?: string; typeOptions?: { searchListMethod?: string; searchable?: boolean } }>;
 }
 
 export type NodeGroup = 'trigger' | 'input' | 'output' | 'transform' | 'organization' | 'schedule';

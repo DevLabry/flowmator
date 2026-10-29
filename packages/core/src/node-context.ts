@@ -9,6 +9,7 @@ import {
   type ConnectionType,
   type IBinaryData,
   type IDataObject,
+  type IDataTableService,
   type IExecuteData,
   type IExecuteFunctions,
   type IExecuteWorkflowInfo,
@@ -69,6 +70,11 @@ export class BaseNodeContext {
 
   getNode(): INode {
     return this.node;
+  }
+
+  getDataTables(): IDataTableService {
+    if (!this.additionalData.dataTables) throw new NodeOperationError(this.node, 'Data tables are not available here');
+    return this.additionalData.dataTables;
   }
 
   getWorkflow(): IWorkflowMeta {
