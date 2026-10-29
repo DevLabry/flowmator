@@ -66,8 +66,9 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename
 - [x] Credentials: AES-256-GCM, OAuth2 (code, PKCE, client credentials, refresh), test (OAuth1 pending)
 - [x] Workflow version history and restore
 - [x] Variables, tags, folders (data tables pending)
-- [x] Public API with API keys (CLI pending)
-- [ ] Queue mode with workers
+- [x] Public API with API keys
+- [x] Queue mode (EXECUTIONS_MODE=queue): BullMQ/Redis, `8n8 worker` (concurrency, health check, graceful shutdown), `8n8 webhook` processes; editor events, Respond to Webhook, waits, stop and retry relayed through Redis; manual runs stay on main unless OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
+- [x] CLI (`bin/8n8.mjs`): start, worker, webhook, execute, import/export workflows and credentials (n8n exports work, --decrypted, --backup), list/update workflows
 - [ ] Source control (git), external secrets, log streaming, insights
 - [ ] Community nodes from npm, node SDK
 - [ ] Templates

@@ -14,8 +14,13 @@ export type PushEvent =
   | { type: 'workflowDeactivated'; data: { workflowId: string } }
   | { type: 'workflowFailedToActivate'; data: { workflowId: string; errorMessage: string } };
 
+/** Anything that can deliver editor events: the WebSocket fan-out, or (on workers) the Redis relay to main. */
+export interface PushSender {
+  send(event: PushEvent, pushRef?: string): void;
+}
+
 /** Fan-out of live events to connected editors over WebSocket. Clients identify with ?pushRef=. */
-export class Push {
+export class Push implements PushSender {
   private readonly clients = new Map<string, WebSocket>();
 
   add(pushRef: string, ws: WebSocket) {

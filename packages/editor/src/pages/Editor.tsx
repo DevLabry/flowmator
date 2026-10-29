@@ -158,7 +158,7 @@ function ExecutionsTab({ workflowId }: { workflowId: string }) {
                 <button className="sm" onClick={() => Api.retryExecution(current.id, false).then(() => refresh(), errorToast('Retry failed'))}>Retry with original</button>
               </>
             )}
-            {(current.status === 'running' || current.status === 'waiting') && <button className="sm danger" onClick={() => Api.stopExecution(current.id).then(refresh)}>Stop</button>}
+            {['running', 'waiting', 'new'].includes(current.status) && <button className="sm danger" onClick={() => Api.stopExecution(current.id).then(refresh)}>Stop</button>}
             <button className="sm" onClick={debugInEditor}><Bug size={12} /> Debug in editor</button>
             <button className="sm icon danger" title="Delete" onClick={async () => { await Api.deleteExecution(current.id); setCurrent(null); navigate(`/workflow/${workflowId}/executions`); refresh(); }}><Trash2 size={12} /></button>
           </div>

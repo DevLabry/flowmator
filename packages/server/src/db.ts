@@ -113,13 +113,28 @@ export interface ExecutionSummary extends Omit<ExecutionEntity, 'data' | 'workfl
 
 type Row = Record<string, unknown>;
 
+function retryWhileLocked(fn: () => void, timeoutMs = 10_000) {
+  const until = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      return fn();
+    } catch (e) {
+      if (!/database is locked|SQLITE_BUSY/i.test((e as Error).message) || Date.now() > until) throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25 + Math.random() * 50);
+    }
+  }
+}
+
 export class Database {
   readonly db: DatabaseSyncType;
 
   constructor(file: string) {
     this.db = new DatabaseSync(file);
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
-    this.db.exec(SCHEMA);
+    this.db.exec('PRAGMA busy_timeout = 5000;');
+    // workers and webhook processes open the same file; switching a new database to WAL takes an
+    // exclusive lock that SQLite doesn't wait for, so concurrent first opens retry instead
+    retryWhileLocked(() => this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;'));
+    retryWhileLocked(() => this.db.exec(SCHEMA));
   }
 
   close() {
@@ -435,9 +450,10 @@ export class Database {
     for (const id of ids) this.db.prepare('DELETE FROM executions WHERE id = ?').run(id);
   }
 
-  /** Marks executions left "running" by a crash. */
-  markCrashedExecutions(): number {
-    return Number(this.db.prepare("UPDATE executions SET status = 'crashed', stoppedAt = ? WHERE status IN ('running', 'new')").run(now()).changes);
+  /** Marks executions left "running" by a crash, except `keep` (still queued or on a worker). */
+  markCrashedExecutions(keep: string[] = []): number {
+    const exclude = keep.length ? ` AND id NOT IN (${keep.map(() => '?').join(',')})` : '';
+    return Number(this.db.prepare(`UPDATE executions SET status = 'crashed', stoppedAt = ? WHERE status IN ('running', 'new')${exclude}`).run(now(), ...keep).changes);
   }
 
   pruneExecutions(maxAgeHours: number, maxCount: number): string[] {
