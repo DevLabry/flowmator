@@ -25,7 +25,10 @@ export const integrationCredentials: ICredentialType[] = [
     name: 'slackApi',
     displayName: 'Slack API (token)',
     documentationUrl: 'https://api.slack.com/apps',
-    properties: [{ displayName: 'Access Token', name: 'accessToken', type: 'string', typeOptions: password, default: '', placeholder: 'xoxb-…', description: 'Bot User OAuth Token of your Slack app' }],
+    properties: [
+      { displayName: 'Access Token', name: 'accessToken', type: 'string', typeOptions: password, default: '', placeholder: 'xoxb-…', description: 'Bot User OAuth Token of your Slack app' },
+      { displayName: 'Signature Secret', name: 'signatureSecret', type: 'string', typeOptions: password, default: '', description: 'Signing Secret from "Basic Information" in your Slack app. The Slack Trigger uses it to reject forged requests.' },
+    ],
     authenticate: { type: 'generic', properties: { headers: { Authorization: '=Bearer {{$credentials.accessToken}}' } } },
     test: { request: { url: 'https://slack.com/api/auth.test', method: 'POST' } },
   },
@@ -73,6 +76,18 @@ export const integrationCredentials: ICredentialType[] = [
     properties: oauth2({ ...GOOGLE, scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file' }),
   },
   {
+    name: 'googleDriveOAuth2Api',
+    displayName: 'Google Drive OAuth2',
+    extends: ['googleOAuth2Api', 'oAuth2Api'],
+    properties: oauth2({ ...GOOGLE, scope: 'https://www.googleapis.com/auth/drive' }),
+  },
+  {
+    name: 'googleCalendarOAuth2Api',
+    displayName: 'Google Calendar OAuth2',
+    extends: ['googleOAuth2Api', 'oAuth2Api'],
+    properties: oauth2({ ...GOOGLE, scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events' }),
+  },
+  {
     name: 'googleApi',
     displayName: 'Google Service Account',
     documentationUrl: 'https://cloud.google.com/iam/docs/service-accounts-create',
@@ -84,7 +99,7 @@ export const integrationCredentials: ICredentialType[] = [
         displayName: 'Scopes',
         name: 'scopes',
         type: 'string',
-        default: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.modify',
+        default: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.modify',
         description: 'Space separated',
       },
     ],
@@ -120,6 +135,47 @@ export const integrationCredentials: ICredentialType[] = [
     properties: [
       { displayName: 'GitHub Server', name: 'server', type: 'string', default: 'https://api.github.com' },
       ...oauth2({ authUrl: 'https://github.com/login/oauth/authorize', accessTokenUrl: 'https://github.com/login/oauth/access_token', scope: 'repo,admin:repo_hook,admin:org,user:email', authentication: 'body' }),
+    ],
+  },
+
+  /* ---------- Discord ---------- */
+  {
+    name: 'discordBotApi',
+    displayName: 'Discord Bot',
+    documentationUrl: 'https://discord.com/developers/applications',
+    properties: [{ displayName: 'Bot Token', name: 'botToken', type: 'string', typeOptions: password, default: '', description: 'From the "Bot" page of your Discord application' }],
+    authenticate: { type: 'generic', properties: { headers: { Authorization: '=Bot {{$credentials.botToken}}' } } },
+    test: { request: { url: 'https://discord.com/api/v10/users/@me' } },
+  },
+  {
+    name: 'discordWebhookApi',
+    displayName: 'Discord Webhook',
+    documentationUrl: 'https://support.discord.com/hc/en-us/articles/228383668',
+    properties: [{ displayName: 'Webhook URL', name: 'webhookUri', type: 'string', typeOptions: password, default: '', placeholder: 'https://discord.com/api/webhooks/…' }],
+  },
+
+  /* ---------- Airtable ---------- */
+  {
+    name: 'airtableTokenApi',
+    displayName: 'Airtable Personal Access Token',
+    documentationUrl: 'https://airtable.com/create/tokens',
+    properties: [{ displayName: 'Access Token', name: 'accessToken', type: 'string', typeOptions: password, default: '', description: 'Needs data.records:read/write and schema.bases:read scopes' }],
+    authenticate: { type: 'generic', properties: { headers: { Authorization: '=Bearer {{$credentials.accessToken}}' } } },
+    test: { request: { url: 'https://api.airtable.com/v0/meta/whoami' } },
+  },
+
+  /* ---------- MySQL ---------- */
+  {
+    name: 'mySql',
+    displayName: 'MySQL',
+    properties: [
+      { displayName: 'Host', name: 'host', type: 'string', default: 'localhost' },
+      { displayName: 'Database', name: 'database', type: 'string', default: 'mysql' },
+      { displayName: 'User', name: 'user', type: 'string', default: 'root' },
+      { displayName: 'Password', name: 'password', type: 'string', typeOptions: password, default: '' },
+      { displayName: 'Port', name: 'port', type: 'number', default: 3306 },
+      { displayName: 'SSL', name: 'ssl', type: 'boolean', default: false },
+      { displayName: 'Verify SSL Certificate', name: 'sslVerify', type: 'boolean', default: true, displayOptions: { show: { ssl: [true] } } },
     ],
   },
 

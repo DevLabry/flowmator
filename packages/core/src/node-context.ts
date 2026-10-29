@@ -37,6 +37,13 @@ function getPath(obj: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => (acc && typeof acc === 'object' ? (acc as IDataObject)[key] : undefined), obj);
 }
 
+
+/** Copy for credentials to sign; the body is shared because FormData and streams can't be cloned. */
+function cloneRequest(options: IHttpRequestOptions): IHttpRequestOptions {
+  const { body, ...rest } = options;
+  return { ...structuredClone(rest), ...(body !== undefined ? { body } : {}) };
+}
+
 export interface BaseContextParams {
   workflow: Workflow;
   node: INode;
@@ -128,7 +135,7 @@ export class BaseNodeContext {
         const helper = self.additionalData.credentialsHelper;
         if (!helper) throw new NodeOperationError(self.node, 'No credentials helper configured');
         let credentials = await helper.getDecrypted(self.node, credentialType);
-        const authed = await helper.authenticate(credentialType, credentials, structuredClone(options), self.node);
+        const authed = await helper.authenticate(credentialType, credentials, cloneRequest(options), self.node);
         try {
           return await httpRequest(authed, signal);
         } catch (e) {
@@ -136,7 +143,7 @@ export class BaseNodeContext {
             const refreshed = await helper.refresh(self.node, credentialType, credentials);
             if (refreshed) {
               credentials = refreshed;
-              const retry = await helper.authenticate(credentialType, credentials, structuredClone(options), self.node);
+              const retry = await helper.authenticate(credentialType, credentials, cloneRequest(options), self.node);
               return httpRequest(retry, signal).catch((err) => self.wrapHttpError(err));
             }
           }

@@ -1,4 +1,4 @@
-import { getParameterDisplayed, type INode, type INodeExecutionData, type INodeParameters } from '@8n8/workflow';
+import { getNodeParametersWithDefaults, getParameterDisplayed, type INode, type INodeExecutionData, type INodeParameters } from '@8n8/workflow';
 import { ArrowLeft, Copy, Pencil, Pin, PinOff, Play, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Api } from '../lib/api';
@@ -160,7 +160,8 @@ function CredentialsSection({ node }: { node: INode }) {
   const credentials = useApp((s) => s.credentials);
   const credentialTypes = useApp((s) => s.credentialTypes);
   const [modal, setModal] = useState<{ type: string; id?: string } | null>(null);
-  const params = node.parameters;
+  // saved workflows (and n8n exports) leave out parameters that are at their default
+  const params = getNodeParametersWithDefaults(type.properties, node.parameters, node.typeVersion);
 
   const wanted = new Set<string>();
   for (const c of type.credentials ?? []) if (getParameterDisplayed({ displayOptions: c.displayOptions } as never, params)) wanted.add(c.name);

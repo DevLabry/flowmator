@@ -19,6 +19,7 @@
     "fast-xml-parser": "4.5.1",
     "luxon": "^3.5.0",
     "marked": "15.0.4",
+    "mysql2": "^3.24.6",
     "nodemailer": "6.9.16",
     "papaparse": "5.4.1",
     "pg": "8.13.1",

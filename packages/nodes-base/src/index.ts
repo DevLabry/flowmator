@@ -15,7 +15,13 @@ import { Gmail, GmailTrigger } from './nodes/integrations/gmail';
 import { Notion } from './nodes/integrations/notion';
 import { Postgres } from './nodes/integrations/postgres';
 import { GoogleSheets } from './nodes/integrations/sheets';
-import { Slack } from './nodes/integrations/slack';
+import { Slack, SlackTrigger } from './nodes/integrations/slack';
+import { Airtable } from './nodes/integrations/airtable';
+import { Discord } from './nodes/integrations/discord';
+import { GoogleCalendar, GoogleCalendarTrigger } from './nodes/integrations/google-calendar';
+import { GoogleDrive, GoogleDriveTrigger } from './nodes/integrations/google-drive';
+import { MySql } from './nodes/integrations/mysql';
+import { OpenAi } from './ai/openai';
 import { Telegram, TelegramTrigger } from './nodes/integrations/telegram';
 import { aiCredentials, AiAgent, ChatTrigger } from './ai/agent';
 import { AnthropicChatModel, CalculatorTool, CodeTool, HttpRequestTool, OllamaChatModel, OpenAiChatModel, SimpleMemory, StructuredOutputParser, WorkflowTool } from './ai/subnodes';
@@ -86,6 +92,15 @@ export const nodes: INodeType[] = [
   GmailTrigger,
   GoogleSheets,
   Postgres,
+  SlackTrigger,
+  Discord,
+  Airtable,
+  GoogleDrive,
+  GoogleDriveTrigger,
+  GoogleCalendar,
+  GoogleCalendarTrigger,
+  MySql,
+  OpenAi,
 ];
 
 export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials, ...integrationCredentials];
@@ -94,6 +109,11 @@ export { buildMime, simplifyMessage } from './nodes/integrations/gmail';
 export { columnLetter, spreadsheetId } from './nodes/integrations/sheets';
 export { notionId, simplifyPage, toNotionProperties } from './nodes/integrations/notion';
 export { buildWhere, quoteIdent } from './nodes/integrations/postgres';
+export { verifySlackSignature } from './nodes/integrations/slack';
+export { airtableId, matchFormula } from './nodes/integrations/airtable';
+export { buildDriveQuery, driveId, multipartRelated } from './nodes/integrations/google-drive';
+export { buildEvent, dateOnly, eventTime } from './nodes/integrations/google-calendar';
+export { buildMySqlWhere, mysqlConnector, quoteMySqlIdent, type MySqlSession } from './nodes/integrations/mysql';
 
 export * from './ai/llm';
 export { calculate, extractJson, schemaFromExample } from './ai/subnodes';

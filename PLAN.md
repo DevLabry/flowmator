@@ -56,7 +56,14 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename
 - [x] Notion (database pages, pages, databases, blocks)
 - [x] Gmail + Gmail Trigger (polling); Google Sheets (OAuth2 or service account)
 - [x] Postgres (SQL with parameters, insert/upsert/update/select/delete, transactions)
-- [ ] Still missing: Slack trigger, Discord, Airtable, HubSpot, Stripe, MySQL, MongoDB, Redis, S3, Google Drive/Calendar, OpenAI node, …
+- [x] Slack Trigger (Events API: signing secret, URL challenge, retries skipped, event/channel/bot filters)
+- [x] Discord (bot: messages with embeds/files, channels, member roles; webhook posting)
+- [x] Airtable (records: create, upsert on fields, update by id or field, search with formulas; bases and schemas)
+- [x] Google Drive + Drive Trigger (upload, download with Docs export, copy, move, share, delete, search; polling for new/changed files)
+- [x] Google Calendar + Calendar Trigger (events with Meet links, all-day, recurrence; availability; created/updated/cancelled/started/ended)
+- [x] MySQL / MariaDB (same operations as Postgres; ON DUPLICATE KEY upsert, INSERT IGNORE)
+- [x] OpenAI (message a model with JSON output, moderation, image generation and analysis, speech, transcription and translation)
+- [ ] Still missing: HubSpot, Stripe, MongoDB, Redis, S3, Microsoft (Outlook, Teams, OneDrive), Jira, Trello, …
 
 ### Platform
 - [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys (data tables pending)

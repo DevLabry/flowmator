@@ -79,3 +79,25 @@ export function jsonParam(value: unknown, what: string): IDataObject {
     throw new Error(`${what} is not valid JSON`);
   }
 }
+
+/** "Poll Times" for polling triggers (turned into cron schedules by the server). */
+export const pollTimesProp: INodeProperties = {
+  displayName: 'Poll Times',
+  name: 'pollTimes',
+  type: 'fixedCollection',
+  typeOptions: { multipleValues: true },
+  default: { item: [{ mode: 'everyMinute' }] },
+  options: [
+    {
+      name: 'item',
+      displayName: 'Item',
+      values: [
+        { displayName: 'Mode', name: 'mode', type: 'options', default: 'everyMinute',
+          options: [{ name: 'Every Minute', value: 'everyMinute' }, { name: 'Every Hour', value: 'everyHour' }, { name: 'Every X', value: 'everyX' }, { name: 'Custom (Cron)', value: 'custom' }] },
+        { displayName: 'Value', name: 'value', type: 'number', default: 5, displayOptions: { show: { mode: ['everyX'] } } },
+        { displayName: 'Unit', name: 'unit', type: 'options', default: 'minutes', displayOptions: { show: { mode: ['everyX'] } }, options: [{ name: 'Minutes', value: 'minutes' }, { name: 'Hours', value: 'hours' }] },
+        { displayName: 'Cron Expression', name: 'cronExpression', type: 'string', default: '*/5 * * * *', displayOptions: { show: { mode: ['custom'] } } },
+      ],
+    },
+  ],
+};

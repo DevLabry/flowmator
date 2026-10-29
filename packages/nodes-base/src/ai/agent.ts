@@ -286,6 +286,7 @@ export const aiCredentials: ICredentialType[] = [
       { displayName: 'Base URL', name: 'url', type: 'string', default: 'https://api.openai.com/v1', description: 'Any OpenAI-compatible endpoint works' },
       { displayName: 'Organization ID', name: 'organizationId', type: 'string', default: '' },
     ],
+    authenticate: { type: 'generic', properties: { headers: { Authorization: '=Bearer {{$credentials.apiKey}}' } } },
     test: { request: { url: '={{$credentials.url || "https://api.openai.com/v1"}}/models', headers: { authorization: '=Bearer {{$credentials.apiKey}}' } } },
   },
   {
