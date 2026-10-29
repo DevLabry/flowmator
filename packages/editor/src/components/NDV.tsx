@@ -313,7 +313,7 @@ export function NDV() {
                 onBlur={() => setName(useWorkflow.getState().renameNode(node.name, name))}
                 onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
               />
-              {!readOnly && (
+              {!readOnly && !type.supplyData && (
                 <button className="primary sm" onClick={() => useWorkflow.getState().run({ destinationNode: node.name })}>
                   <Play size={12} /> {type.isTrigger ? 'Test step' : 'Execute step'}
                 </button>
@@ -345,7 +345,14 @@ export function NDV() {
             )}
           </div>
         </div>
-        <OutputPanel node={node} />
+        {type.supplyData ? (
+          <div className="ndv-panel">
+            <div className="ndv-panel-head"><strong>Output</strong></div>
+            <div className="empty">This is a sub-node. It runs inside the node it is connected to (for example an AI Agent), so run that node to try it.</div>
+          </div>
+        ) : (
+          <OutputPanel node={node} />
+        )}
       </div>
     </div>
   );

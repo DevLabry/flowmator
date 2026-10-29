@@ -73,8 +73,8 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename
 - [x] Credentials (incl. OAuth2 connect), variables, settings pages
 
 ### AI
-- [ ] AI Agent with sub-node slots (Model, Memory, Tools, Output Parser)
-- [ ] Chat models: Anthropic, OpenAI, Ollama, Gemini
-- [ ] Memory, vector stores, embeddings, document loaders, text splitters
-- [ ] Workflow as tool, MCP server trigger, MCP client tool
-- [ ] Chat UI, evaluations
+- [x] AI Agent with sub-node slots (Model, Memory, Tools, Output Parser), tool loop, iteration limit
+- [x] Chat models: Anthropic (official SDK, refusal fallback, effort), OpenAI-compatible, Ollama (Gemini pending)
+- [ ] Simple Memory done; still missing: persistent memory, vector stores, embeddings, document loaders, text splitters
+- [ ] Workflow tool, HTTP Request tool, Code tool, Calculator done; still missing: MCP server trigger, MCP client tool
+- [ ] Chat trigger with hosted page and editor chat panel done; still missing: evaluations

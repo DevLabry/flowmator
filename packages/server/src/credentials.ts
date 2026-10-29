@@ -222,7 +222,13 @@ export async function testCredential(service: CredentialsService, helper: Creden
   const credType = service.types.get(type);
   if (!credType.test) return { status: 'OK', message: 'Credential saved (this type has no automatic test)' };
   try {
-    const req = await helper.authenticate(type, data, structuredClone(credType.test.request));
+    // test requests may use {{ $credentials.x }} in their URL and headers
+    const resolve = (v: unknown): unknown =>
+      isExpression(v) ? evaluateExpression(v, { $credentials: data })
+      : Array.isArray(v) ? v.map(resolve)
+      : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)]))
+      : v;
+    const req = await helper.authenticate(type, data, resolve(structuredClone(credType.test.request)) as IHttpRequestOptions);
     await httpRequest(req);
     return { status: 'OK', message: 'Connection tested successfully' };
   } catch (e) {

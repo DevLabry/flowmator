@@ -37,17 +37,22 @@ const CATEGORY: Record<string, string> = {
   '8n8.emailSend': 'Network',
   '8n8.executeCommand': 'Core',
   '8n8.stickyNote': 'Canvas',
+  '8n8-ai.agent': 'AI',
 };
-const ORDER = ['Triggers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
+const ORDER = ['Triggers', 'AI', 'Chat Models', 'Memory', 'Tools', 'Output Parsers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
+const SUB_CATEGORY: Record<string, string> = { ai_languageModel: 'Chat Models', ai_memory: 'Memory', ai_tool: 'Tools', ai_outputParser: 'Output Parsers' };
+const outputTypes = (t: NodeTypeDescription): string[] => t.outputs.map((o) => (typeof o === 'string' ? o : o.type));
 
 interface Props {
   onPick: (type: string) => void;
   onClose: () => void;
   /** Only show triggers (empty workflow) */
   triggersFirst: boolean;
+  /** Only sub-nodes that output this connection type (adding to an agent's input) */
+  subNodeType?: string;
 }
 
-export function NodeCreator({ onPick, onClose, triggersFirst }: Props) {
+export function NodeCreator({ onPick, onClose, triggersFirst, subNodeType }: Props) {
   const nodeTypes = useApp((s) => s.nodeTypes);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
@@ -64,12 +69,16 @@ export function NodeCreator({ onPick, onClose, triggersFirst }: Props) {
     const byCat = new Map<string, NodeTypeDescription[]>();
     for (const t of Object.values(nodeTypes)) {
       if (!matches(t)) continue;
-      const cat = t.isTrigger ? 'Triggers' : (CATEGORY[t.name] ?? 'Other');
+      if (subNodeType && !outputTypes(t).includes(subNodeType)) continue;
+      // sub-nodes only make sense attached to a root node: list them when searching or attaching
+      if (!subNodeType && t.supplyData && !needle) continue;
+      const sub = t.supplyData ? SUB_CATEGORY[outputTypes(t)[0]] : undefined;
+      const cat = t.isTrigger ? 'Triggers' : (sub ?? CATEGORY[t.name] ?? 'Other');
       byCat.set(cat, [...(byCat.get(cat) ?? []), t]);
     }
     const order = triggersFirst ? ORDER : [...ORDER.slice(1, -1), 'Other', 'Triggers'];
     return order.filter((c) => byCat.has(c)).map((c) => ({ cat: c, items: byCat.get(c)!.sort((a, b) => a.displayName.localeCompare(b.displayName)) }));
-  }, [nodeTypes, q, triggersFirst]);
+  }, [nodeTypes, q, triggersFirst, subNodeType]);
 
   const flat = groups.flatMap((g) => g.items);
 
@@ -82,7 +91,7 @@ export function NodeCreator({ onPick, onClose, triggersFirst }: Props) {
     }}>
       <div className="creator-head">
         <div className="row">
-          <h3 className="grow">{triggersFirst ? 'What triggers this workflow?' : 'What happens next?'}</h3>
+          <h3 className="grow">{subNodeType ? `Add ${SUB_CATEGORY[subNodeType] ?? 'sub-node'}` : triggersFirst ? 'What triggers this workflow?' : 'What happens next?'}</h3>
           <button className="ghost icon sm" onClick={onClose}><X size={15} /></button>
         </div>
         <div className="row" style={{ position: 'relative' }}>
