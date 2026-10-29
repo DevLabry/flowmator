@@ -1,0 +1,33 @@
+{
+  "name": "@8n8/editor",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@8n8/workflow": "workspace:*",
+    "@codemirror/autocomplete": "6.18.3",
+    "@codemirror/lang-javascript": "6.2.2",
+    "@codemirror/lang-json": "6.0.1",
+    "@codemirror/lang-python": "6.1.6",
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.35.3",
+    "@uiw/react-codemirror": "4.23.7",
+    "@xyflow/react": "12.3.6",
+    "lucide-react": "0.468.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.28.0",
+    "zustand": "5.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "vite": "5.4.11"
+  }
+}

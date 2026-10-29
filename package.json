@@ -1,0 +1,25 @@
+{
+  "name": "8n8",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "turbo run typecheck",
+    "dev": "turbo run dev --parallel",
+    "start": "pnpm --filter @8n8/server start",
+    "dev:server": "pnpm --filter @8n8/server dev",
+    "dev:editor": "pnpm --filter @8n8/editor dev",
+    "build": "pnpm --filter @8n8/editor build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

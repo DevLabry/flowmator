@@ -1,0 +1,21 @@
+{
+  "name": "@8n8/workflow",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "acorn": "^8.19.0",
+    "jmespath": "^0.16.0",
+    "luxon": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/jmespath": "^0.15.2",
+    "@types/luxon": "^3.4.2"
+  }
+}
