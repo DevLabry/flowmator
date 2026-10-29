@@ -150,7 +150,12 @@ export function workflowRoutes(app: FastifyInstance, ctx: AppContext) {
     const startType = nodeTypes.getByNameAndVersion(start.type, start.typeVersion);
     const hasData = !!pinData?.[start.name] || !!body.runData?.[start.name] || !!body.triggerToStartFrom?.data;
     if (startType.webhook && startType.description.group.includes('trigger') && !hasData) {
-      const testUrls = webhooks.registerTest(workflowData, { pushRef, destinationNode: body.destinationNode, triggerNode: start.name });
+      let testUrls: string[];
+      try {
+        testUrls = await webhooks.registerTest(workflowData, { pushRef, destinationNode: body.destinationNode, triggerNode: start.name });
+      } catch (e) {
+        throw new HttpError(400, (e as Error).message);
+      }
       return { data: { waitingForWebhook: true, testUrls } };
     }
 

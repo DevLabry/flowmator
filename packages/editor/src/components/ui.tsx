@@ -110,6 +110,12 @@ const ICON_MAP: Record<string, keyof typeof Icons> = {
   database: 'Database',
   calculator: 'Calculator',
   comments: 'MessagesSquare',
+  slack: 'Hash',
+  telegram: 'Send',
+  github: 'Github',
+  notion: 'NotebookText',
+  gmail: 'Mail',
+  'google-sheets': 'Sheet',
 };
 
 export function NodeIcon({ icon, color, size = 18, label }: { icon?: string; color?: string; size?: number; label?: string }) {

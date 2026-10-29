@@ -215,7 +215,10 @@ function AssignmentsInput({ value, onChange, nodeName }: { value: Value; onChang
 
 function CollectionInput({ prop, value, onChange, nodeName, root, typeVersion }: ParamProps & { root: INodeParameters }) {
   const v = (value && typeof value === 'object' ? value : {}) as INodeParameters;
-  const options = (prop.options ?? []).filter((o): o is INodeProperties => !!o && typeof o === 'object' && 'type' in o);
+  // options can be conditional too (e.g. only for some operations, via "/operation")
+  const options = (prop.options ?? [])
+    .filter((o): o is INodeProperties => !!o && typeof o === 'object' && 'type' in o)
+    .filter((o) => getParameterDisplayed(o, v, root, typeVersion));
   const unused = options.filter((o) => v[o.name] === undefined);
   const present = options.filter((o) => v[o.name] !== undefined);
   return (

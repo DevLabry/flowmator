@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createSign, randomBytes } from 'node:crypto';
 import type { CredentialTypesRegistry, ICredentialsHelper } from '@8n8/core';
 import { httpRequest } from '@8n8/core';
 import {
@@ -73,7 +73,12 @@ export class CredentialsService {
   getDecrypted(id: string): IDataObject & { __type: string; __name: string } {
     const c = this.db.getCredential(id);
     if (!c) throw new Error(`Credential with ID "${id}" does not exist`);
-    return { ...this.cipher.decrypt(c.data), __type: c.type, __name: c.name };
+    const data = this.cipher.decrypt(c.data);
+    // fixed settings (e.g. a provider's OAuth URLs) are hidden properties that only exist as defaults
+    for (const p of this.types.get(c.type).properties) {
+      if (data[p.name] === undefined && p.default !== undefined && p.default !== '') data[p.name] = structuredClone(p.default) as never;
+    }
+    return { ...data, __type: c.type, __name: c.name };
   }
 
   create(name: string, type: string, data: IDataObject) {
@@ -139,6 +144,7 @@ export class CredentialsHelper implements ICredentialsHelper {
 
   async authenticate(type: string, credentials: IDataObject, request: IHttpRequestOptions): Promise<IHttpRequestOptions> {
     if (this.isOAuth2(type)) return this.authenticateOAuth2(credentials, request);
+    if (type === 'googleApi') return this.authenticateServiceAccount(credentials, request);
     if (type === 'httpCustomAuth') {
       const custom = typeof credentials.json === 'string' ? JSON.parse(credentials.json) : (credentials.json as IDataObject);
       request.headers = { ...(request.headers ?? {}), ...(custom.headers ?? {}) };
@@ -166,7 +172,37 @@ export class CredentialsHelper implements ICredentialsHelper {
       this.persistToken(credentials, token);
     }
     if (!token.access_token) throw new Error('OAuth2 credential is not connected. Open the credential and click "Connect".');
-    request.headers = { ...(request.headers ?? {}), Authorization: `${token.token_type && String(token.token_type).toLowerCase() !== 'bearer' ? token.token_type : 'Bearer'} ${token.access_token}` };
+    // always Bearer: some providers report other token_type values (Slack says "bot")
+    request.headers = { ...(request.headers ?? {}), Authorization: `Bearer ${token.access_token}` };
+    return request;
+  }
+
+  private serviceTokens = new Map<string, { token: string; expires: number }>();
+
+  /** Google service account: a signed JWT is exchanged for a short-lived access token (cached until expiry). */
+  private async authenticateServiceAccount(credentials: IDataObject, request: IHttpRequestOptions) {
+    const email = String(credentials.email ?? '');
+    const scopes = String(credentials.scopes ?? '').trim();
+    const sub = String(credentials.delegatedEmail ?? '');
+    const key = `${email}|${scopes}|${sub}`;
+    let cached = this.serviceTokens.get(key);
+    if (!cached || cached.expires < Date.now() + 60_000) {
+      const now = Math.floor(Date.now() / 1000);
+      const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({ iss: email, scope: scopes, aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600, ...(sub ? { sub } : {}) })}`;
+      const privateKey = String(credentials.privateKey ?? '').replace(/\\n/g, '\n');
+      const signature = createSign('RSA-SHA256').update(unsigned).sign(privateKey, 'base64url');
+      const res = (await httpRequest({
+        url: 'https://oauth2.googleapis.com/token',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${signature}` },
+        json: true,
+      })) as { access_token: string; expires_in: number };
+      cached = { token: res.access_token, expires: Date.now() + res.expires_in * 1000 };
+      this.serviceTokens.set(key, cached);
+    }
+    request.headers = { ...(request.headers ?? {}), Authorization: `Bearer ${cached.token}` };
     return request;
   }
 

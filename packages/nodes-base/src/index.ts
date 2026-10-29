@@ -9,6 +9,14 @@ import { HttpRequest } from './nodes/http-request';
 import { ScheduleTrigger } from './nodes/schedule';
 import { RespondToWebhook, Webhook } from './nodes/webhook';
 import { credentials as credentialTypes } from './credentials';
+import { integrationCredentials } from './credentials/integrations';
+import { GitHub, GitHubTrigger } from './nodes/integrations/github';
+import { Gmail, GmailTrigger } from './nodes/integrations/gmail';
+import { Notion } from './nodes/integrations/notion';
+import { Postgres } from './nodes/integrations/postgres';
+import { GoogleSheets } from './nodes/integrations/sheets';
+import { Slack } from './nodes/integrations/slack';
+import { Telegram, TelegramTrigger } from './nodes/integrations/telegram';
 import { aiCredentials, AiAgent, ChatTrigger } from './ai/agent';
 import { AnthropicChatModel, CalculatorTool, CodeTool, HttpRequestTool, OllamaChatModel, OpenAiChatModel, SimpleMemory, StructuredOutputParser, WorkflowTool } from './ai/subnodes';
 import { ConvertToFile, ExtractFromFile, ReadWriteFile } from './nodes/files';
@@ -68,9 +76,24 @@ export const nodes: INodeType[] = [
   HttpRequestTool,
   WorkflowTool,
   StructuredOutputParser,
+  Slack,
+  Telegram,
+  TelegramTrigger,
+  GitHub,
+  GitHubTrigger,
+  Notion,
+  Gmail,
+  GmailTrigger,
+  GoogleSheets,
+  Postgres,
 ];
 
-export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials];
+export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials, ...integrationCredentials];
+
+export { buildMime, simplifyMessage } from './nodes/integrations/gmail';
+export { columnLetter, spreadsheetId } from './nodes/integrations/sheets';
+export { notionId, simplifyPage, toNotionProperties } from './nodes/integrations/notion';
+export { buildWhere, quoteIdent } from './nodes/integrations/postgres';
 
 export * from './ai/llm';
 export { calculate, extractJson, schemaFromExample } from './ai/subnodes';

@@ -512,3 +512,124 @@ describe('chat trigger', () => {
     expect(r.body.data.data.runData.Reply[0].data.main[0][0].json).toEqual({ output: 'echo: from editor (ed)' });
   });
 });
+
+describe('integration triggers and credentials', () => {
+  type Fake = { method: string; url: URL; body: any; headers: Record<string, string> };
+  let external: Fake[] = [];
+  /** Fakes third-party hosts; local requests (echo server, the app) still go through. */
+  const fakeExternal = (respond: (c: Fake) => unknown) => {
+    external = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL, init: RequestInit = {}) => {
+      const url = new URL(String(input));
+      if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return real(input, init);
+      let body: any = init.body;
+      if (typeof body === 'string') body = body.startsWith('{') ? JSON.parse(body) : Object.fromEntries(new URLSearchParams(body));
+      else if (body instanceof URLSearchParams) body = Object.fromEntries(body);
+      const headers = Object.fromEntries(Object.entries((init.headers as Record<string, string>) ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+      const call = { method: init.method ?? 'GET', url, body, headers };
+      external.push(call);
+      return new Response(JSON.stringify(respond(call) ?? {}), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof fetch;
+    return () => (globalThis.fetch = real);
+  };
+
+  it('registers a Telegram test webhook with its secret and only accepts calls carrying it', async () => {
+    const restore = fakeExternal(() => ({ ok: true, result: true }));
+    try {
+      const cred = (await api('POST', '/rest/credentials', { name: 'Bot', type: 'telegramApi', data: { accessToken: '9:XYZ' } })).body.data;
+      const wf = await createWorkflow({
+        name: 'Telegram bot',
+        nodes: [node('Telegram Trigger', 'telegramTrigger', { updates: ['message'] }, { webhookId: 'tg-hook', credentials: { telegramApi: { id: cred.id, name: cred.name } } }), node('Noop', 'noOp')],
+        connections: chain('Telegram Trigger', 'Noop'),
+      });
+      const run = await api('POST', `/rest/workflows/${wf.id}/run`, {});
+      expect(run.body.data.testUrls).toEqual(['http://localhost:5678/webhook-test/tg-hook/webhook']);
+      const setWebhook = external.find((c) => c.url.pathname.endsWith('/setWebhook'))!;
+      expect(setWebhook.url.pathname).toBe('/bot9:XYZ/setWebhook');
+      expect(setWebhook.body).toMatchObject({ url: 'http://localhost:5678/webhook-test/tg-hook/webhook', allowed_updates: ['message'] });
+      const secret = setWebhook.body.secret_token;
+      expect(secret).toMatch(/^[a-f0-9]{48}$/);
+
+      const update = { update_id: 1, message: { message_id: 1, chat: { id: 7 }, from: { id: 3 }, text: 'hi' } };
+      expect((await api('POST', '/webhook-test/tg-hook/webhook', update)).status).toBe(403);
+      // the 403 did not consume the test registration: a call with the secret still works
+      const ok = await api('POST', '/webhook-test/tg-hook/webhook', update, { 'x-telegram-bot-api-secret-token': secret });
+      expect(ok.body).toEqual({ ok: true });
+      const exec = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success'));
+      expect(app.ctx.db.getExecution(exec.id)!.data!.resultData.runData.Noop![0]!.data!.main![0]![0]!.json).toMatchObject({ message: { text: 'hi' } });
+      await waitFor(() => external.some((c) => c.url.pathname.endsWith('/deleteWebhook')));
+    } finally {
+      restore();
+    }
+  });
+
+  it('creates the GitHub hook on activation and verifies delivery signatures', async () => {
+    const restore = fakeExternal((c) => (c.method === 'POST' && c.url.pathname.endsWith('/hooks') ? { id: 99 } : {}));
+    try {
+      const cred = (await api('POST', '/rest/credentials', { name: 'GH', type: 'githubApi', data: { accessToken: 'ghp_x' } })).body.data;
+      const wf = await createWorkflow({
+        name: 'On push',
+        nodes: [node('GitHub Trigger', 'githubTrigger', { owner: 'octo', repository: 'demo', events: ['push'] }, { webhookId: 'gh-hook', credentials: { githubApi: { id: cred.id, name: cred.name } } }), node('Noop', 'noOp')],
+        connections: chain('GitHub Trigger', 'Noop'),
+      });
+      await api('POST', `/rest/workflows/${wf.id}/activate`);
+      const create = external.find((c) => c.method === 'POST')!;
+      expect(create.url.href).toBe('https://api.github.com/repos/octo/demo/hooks');
+      expect(create.headers.authorization).toBe('Bearer ghp_x');
+      expect(create.body.config.url).toBe('http://localhost:5678/webhook/gh-hook/webhook');
+      const secret = create.body.config.secret;
+      expect(app.ctx.db.getWorkflow(wf.id)!.staticData).toMatchObject({ 'node:GitHub Trigger': { webhookId: 99, secret } });
+
+      const payload = JSON.stringify({ ref: 'refs/heads/main' });
+      const { createHmac } = await import('node:crypto');
+      const sign = (s: string) => `sha256=${createHmac('sha256', s).update(payload).digest('hex')}`;
+      const send = (sig: string) => app.app.inject({ method: 'POST', url: '/webhook/gh-hook/webhook', payload, headers: { 'content-type': 'application/json', 'x-github-event': 'push', 'x-hub-signature-256': sig } });
+      expect((await send(sign('wrong'))).statusCode).toBe(401);
+      expect((await send(sign(secret))).statusCode).toBe(200);
+      const exec = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success'));
+      expect(app.ctx.db.getExecution(exec.id)!.data!.resultData.runData.Noop![0]!.data!.main![0]![0]!.json).toMatchObject({ event: 'push', body: { ref: 'refs/heads/main' } });
+
+      await api('POST', `/rest/workflows/${wf.id}/deactivate`);
+      expect(external.at(-1)).toMatchObject({ method: 'DELETE' });
+      expect(external.at(-1)!.url.pathname).toBe('/repos/octo/demo/hooks/99');
+    } finally {
+      restore();
+    }
+  });
+
+  it('signs in Google service accounts with a JWT and caches the token', async () => {
+    const { generateKeyPairSync, createVerify } = await import('node:crypto');
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+    const restore = fakeExternal((c) => (c.url.hostname === 'oauth2.googleapis.com' ? { access_token: 'ya29.sa', expires_in: 3600 } : { values: [['a'], ['1']] }));
+    try {
+      const cred = (await api('POST', '/rest/credentials', { name: 'SA', type: 'googleApi', data: { email: 'bot@p.iam.gserviceaccount.com', privateKey: privateKey.replace(/\n/g, '\\n') } })).body.data;
+      const wf = await createWorkflow({
+        name: 'Sheets SA',
+        nodes: [node('Start', 'manualTrigger'), node('Sheet', 'googleSheets', { authentication: 'serviceAccount', resource: 'sheet', operation: 'read', documentId: 'doc', sheetName: 'S' }, { credentials: { googleApi: { id: cred.id, name: cred.name } } })],
+        connections: chain('Start', 'Sheet'),
+      });
+      await api('POST', `/rest/workflows/${wf.id}/run?wait=true`, {});
+      await api('POST', `/rest/workflows/${wf.id}/run?wait=true`, {});
+      const tokenCalls = external.filter((c) => c.url.hostname === 'oauth2.googleapis.com');
+      expect(tokenCalls).toHaveLength(1);
+      const [h, claims, sig] = tokenCalls[0].body.assertion.split('.');
+      expect(JSON.parse(Buffer.from(claims, 'base64url').toString())).toMatchObject({ iss: 'bot@p.iam.gserviceaccount.com', aud: 'https://oauth2.googleapis.com/token' });
+      expect(createVerify('RSA-SHA256').update(`${h}.${claims}`).verify(publicKey, sig, 'base64url')).toBe(true);
+      const sheetCalls = external.filter((c) => c.url.hostname === 'sheets.googleapis.com');
+      expect(sheetCalls.map((c) => c.headers.authorization)).toEqual(['Bearer ya29.sa', 'Bearer ya29.sa']);
+    } finally {
+      restore();
+    }
+  });
+
+  it('builds the Gmail OAuth consent URL from the built-in Google settings', async () => {
+    const cred = (await api('POST', '/rest/credentials', { name: 'Mail', type: 'gmailOAuth2', data: { clientId: 'cid', clientSecret: 'cs' } })).body.data;
+    const url = new URL((await api('GET', `/rest/oauth2-credential/auth?id=${cred.id}`)).body.data);
+    expect(url.origin + url.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
+    expect(url.searchParams.get('client_id')).toBe('cid');
+    expect(url.searchParams.get('scope')).toContain('https://www.googleapis.com/auth/gmail.modify');
+    expect(url.searchParams.get('access_type')).toBe('offline');
+    expect(url.searchParams.get('redirect_uri')).toBe('http://localhost:5678/rest/oauth2-credential/callback');
+  });
+});

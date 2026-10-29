@@ -193,8 +193,11 @@ function CanvasInner() {
       const lastNode = selected ?? s.workflow.nodes.filter((n) => !n.type.endsWith('stickyNote')).at(-1);
       if (lastNode && !getNodeType(type)?.isTrigger) {
         pos = [lastNode.position[0] + 200, lastNode.position[1]];
+        // auto-connect only main output → main input (never from a sub-node's AI output)
+        const isMain = (io: string | { type: string }) => (typeof io === 'string' ? io : io.type) === 'main';
         const lastType = getNodeType(lastNode.type);
-        if (lastType?.outputs.length) connectFrom = { node: lastNode.name, output: 0 };
+        const newType = getNodeType(type);
+        if (lastType?.outputs.some(isMain) && newType?.inputs.some(isMain)) connectFrom = { node: lastNode.name, output: 0 };
       } else {
         const center = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
         pos = [Math.round(center.x - 42), Math.round(center.y - 42)];
