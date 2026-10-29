@@ -38,8 +38,15 @@ const CATEGORY: Record<string, string> = {
   '8n8.executeCommand': 'Core',
   '8n8.stickyNote': 'Canvas',
   '8n8-ai.agent': 'AI',
+  '8n8.slack': 'Apps',
+  '8n8.telegram': 'Apps',
+  '8n8.github': 'Apps',
+  '8n8.notion': 'Apps',
+  '8n8.gmail': 'Apps',
+  '8n8.googleSheets': 'Apps',
+  '8n8.postgres': 'Apps',
 };
-const ORDER = ['Triggers', 'AI', 'Chat Models', 'Memory', 'Tools', 'Output Parsers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
+const ORDER = ['Triggers', 'AI', 'Apps', 'Chat Models', 'Memory', 'Tools', 'Output Parsers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
 const SUB_CATEGORY: Record<string, string> = { ai_languageModel: 'Chat Models', ai_memory: 'Memory', ai_tool: 'Tools', ai_outputParser: 'Output Parsers' };
 const outputTypes = (t: NodeTypeDescription): string[] => t.outputs.map((o) => (typeof o === 'string' ? o : o.type));
 

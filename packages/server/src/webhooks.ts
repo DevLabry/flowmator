@@ -1,4 +1,4 @@
-import { WebhookContext, type NodeTypesRegistry } from '@8n8/core';
+import { HookContext, WebhookContext, type NodeTypesRegistry } from '@8n8/core';
 import {
   evaluateExpression,
   getNodeParametersWithDefaults,
@@ -118,9 +118,11 @@ export class WebhookService {
    * Arms test webhooks for a manual run of a workflow whose start node is a webhook trigger.
    * Returns the URLs waiting for a call (they expire after two minutes).
    */
-  registerTest(workflowData: IWorkflowBase, opts: { pushRef?: string; destinationNode?: string; triggerNode?: string }) {
+  async registerTest(workflowData: IWorkflowBase, opts: { pushRef?: string; destinationNode?: string; triggerNode?: string }) {
     this.cancelTest(workflowData.id!);
     const urls: string[] = [];
+    const cleanups: Array<() => Promise<unknown>> = [];
+    const workflow = this.executions.buildWorkflow(workflowData);
     for (const { node, description } of webhookNodesOf(this.nodeTypes, workflowData.nodes)) {
       if (opts.triggerNode && node.name !== opts.triggerNode) continue;
       const r = resolveWebhook(this.nodeTypes, node, description);
@@ -138,9 +140,33 @@ export class WebhookService {
       });
       const endpoint = isFormNode(node) ? this.config.endpoints.formTest : this.config.endpoints.webhookTest;
       urls.push(`${this.config.webhookUrl}${endpoint}/${r.path}`);
+
+      // services that push to us (Telegram, GitHub…) must be told about the test URL
+      const methods = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion).webhookMethods?.[description.name];
+      if (methods) {
+        const hookCtx = new HookContext(
+          {
+            workflow,
+            node: workflow.getNode(node.name)!,
+            additionalData: { executionId: '', mode: 'manual', credentialsHelper: this.executions.credentialsHelper, timezone: this.config.timezone },
+          },
+          description.name,
+          () => this.webhookUrlFor(node, 'test'),
+        );
+        try {
+          await methods.create.call(hookCtx);
+        } catch (e) {
+          this.cancelTest(workflowData.id!, false);
+          throw new WebhookError(400, `Could not register the test webhook for "${node.name}": ${(e as Error).message}`);
+        }
+        cleanups.push(() => methods.delete.call(hookCtx));
+      }
     }
+    if (cleanups.length) this.testCleanups.set(workflowData.id!, cleanups);
     return [...new Set(urls)];
   }
+
+  private readonly testCleanups = new Map<string, Array<() => Promise<unknown>>>();
 
   /** `notify` is false when a test call consumed the registration: the editor then gets executionStarted instead. */
   cancelTest(workflowId: string, notify = true) {
@@ -151,6 +177,8 @@ export class WebhookService {
       this.test.delete(k);
       removed = true;
     }
+    for (const cleanup of this.testCleanups.get(workflowId) ?? []) cleanup().catch((e) => console.warn(`Removing test webhook failed: ${(e as Error).message}`));
+    this.testCleanups.delete(workflowId);
     if (removed && notify) this.push.send({ type: 'testWebhookDeleted', data: { workflowId } });
     return removed;
   }
@@ -194,8 +222,10 @@ export class WebhookService {
     }
     const t = found.reg;
     // GET on a form only renders it; the submission (POST) is the test event
-    if (t.webhookName !== 'setup') this.cancelTest(t.workflowId, false);
-    return this.execute(t.workflowData, t.nodeName, t.webhookName, { ...request, params: found.params }, 'manual', t.pushRef, t.destinationNode);
+    // consumed only once the trigger accepts the call: a rejected request (bad secret, form page view) leaves it armed
+    return this.execute(t.workflowData, t.nodeName, t.webhookName, { ...request, params: found.params }, 'manual', t.pushRef, t.destinationNode, () =>
+      this.cancelTest(t.workflowId, false),
+    );
   }
 
   /** /webhook-waiting/:executionId — resumes an execution paused in a Wait node set to "On Webhook Call". */
@@ -273,6 +303,7 @@ export class WebhookService {
     mode: 'manual' | 'webhook',
     pushRef?: string,
     destinationNode?: string,
+    onAccepted?: () => void,
   ): Promise<IWebhookResponse> {
     const node = workflowData.nodes.find((n) => n.name === nodeName);
     if (!node) throw new WebhookError(404, `Node "${nodeName}" not found`);
@@ -280,6 +311,7 @@ export class WebhookService {
     const ctx = this.webhookContext(workflowData, node, webhookName, request, mode);
     const result = await nodeType.webhook!.call(ctx);
     if (!result.workflowData) return result.webhookResponse ?? { statusCode: 200, body: { message: 'Webhook call received' } };
+    onAccepted?.();
 
     const params = getNodeParametersWithDefaults(nodeType.description.properties, node.parameters, node.typeVersion);
     const options = (params.options ?? {}) as IDataObject;

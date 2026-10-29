@@ -49,6 +49,15 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename
 - [ ] Data still missing: ODS/RTF/iCal file formats, multi-page Form node
 - [ ] Network still missing: SSH, FTP, cURL import in the editor
 
+### App integrations
+- [x] Slack (messages, channels, users, reactions; token or OAuth2)
+- [x] Telegram + Telegram Trigger (webhook registered with Telegram, secret token checked)
+- [x] GitHub + GitHub Trigger (repo webhook created on activation, HMAC signature checked)
+- [x] Notion (database pages, pages, databases, blocks)
+- [x] Gmail + Gmail Trigger (polling); Google Sheets (OAuth2 or service account)
+- [x] Postgres (SQL with parameters, insert/upsert/update/select/delete, transactions)
+- [ ] Still missing: Slack trigger, Discord, Airtable, HubSpot, Stripe, MySQL, MongoDB, Redis, S3, Google Drive/Calendar, OpenAI node, …
+
 ### Platform
 - [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys (data tables pending)
 - [x] Activation: webhook registration, pollers, cron

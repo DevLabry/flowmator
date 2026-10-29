@@ -13,6 +13,8 @@
     "@8n8/workflow": "workspace:*"
   },
   "devDependencies": {
-    "@8n8/nodes-base": "workspace:^"
+    "@8n8/nodes-base": "workspace:^",
+    "@electric-sql/pglite": "0.5.13",
+    "@electric-sql/pglite-socket": "^0.2.16"
   }
 }
