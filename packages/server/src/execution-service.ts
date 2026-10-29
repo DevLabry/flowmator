@@ -8,6 +8,7 @@ import {
   Workflow,
   type ExecutionMode,
   type IDataObject,
+  type IDataTableService,
   type IExecuteData,
   type IExecuteWorkflowInfo,
   type IExecutionState,
@@ -84,6 +85,8 @@ export class ExecutionService {
   private waitPoller?: NodeJS.Timeout;
   private prunePoller?: NodeJS.Timeout;
   readonly binaryData: FilesystemBinaryDataStore;
+  /** Set by the app context; the Data Table node reads and writes through it. */
+  dataTables?: IDataTableService;
 
   constructor(
     private readonly config: ServerConfig,
@@ -189,6 +192,7 @@ export class ExecutionService {
       formWaitingBaseUrl: this.baseUrl(this.config.endpoints.formWaiting),
       signal: abort.signal,
       binaryData: this.binaryData,
+      dataTables: this.dataTables,
       sendResponse: req.onResponse,
       executionCustomData: {},
       executeWorkflow: (info, items, options) => this.executeSubWorkflow(info, items, executionId, options.waitForSubWorkflow),

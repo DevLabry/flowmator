@@ -11,6 +11,10 @@ import type {
   ExecutionMode,
   IDataObject,
   INodePropertyOption,
+  ResourceMapperField,
+  IDataTable,
+  DataTableColumnType,
+  DataTableRow,
 } from '@8n8/workflow';
 
 export class ApiError extends Error {
@@ -100,6 +104,7 @@ export const Api = {
   nodeTypes: () => api<NodeTypeDescription[]>('GET', '/rest/node-types'),
   nodeIO: (type: string, parameters: IDataObject, onError?: string) => api<NodeIO>('POST', '/rest/node-types/io', { type, parameters, onError }),
   loadOptions: (body: IDataObject) => api<INodePropertyOption[] | { results: INodePropertyOption[] }>('POST', '/rest/dynamic-node-parameters/options', body),
+  resourceMapperFields: (body: IDataObject) => api<{ fields: ResourceMapperField[]; emptyFieldsNotice?: string }>('POST', '/rest/dynamic-node-parameters/resource-mapper-fields', body),
   credentialTypes: () => api<ICredentialTypeDescription[]>('GET', '/rest/credential-types'),
 
   workflows: (query = '') => api<WorkflowData[]>('GET', `/rest/workflows${query}`),
@@ -141,6 +146,19 @@ export const Api = {
   createVariable: (key: string, value: string) => api('POST', '/rest/variables', { key, value }),
   updateVariable: (id: string, key: string, value: string) => api('PATCH', `/rest/variables/${id}`, { key, value }),
   deleteVariable: (id: string) => api('DELETE', `/rest/variables/${id}`),
+  dataTables: () => api<Array<IDataTable & { rowCount: number }>>('GET', '/rest/data-tables'),
+  dataTable: (id: string) => api<IDataTable>('GET', `/rest/data-tables/${id}`),
+  createDataTable: (body: { name: string; columns?: Array<{ name: string; type: DataTableColumnType }>; rows?: DataTableRow[] }) => api<IDataTable>('POST', '/rest/data-tables', body),
+  renameDataTable: (id: string, name: string) => api<IDataTable>('PATCH', `/rest/data-tables/${id}`, { name }),
+  deleteDataTable: (id: string) => api('DELETE', `/rest/data-tables/${id}`),
+  addDataTableColumn: (id: string, column: { name: string; type: DataTableColumnType }) => api('POST', `/rest/data-tables/${id}/columns`, column),
+  renameDataTableColumn: (id: string, columnId: string, name: string) => api('PATCH', `/rest/data-tables/${id}/columns/${columnId}`, { name }),
+  moveDataTableColumn: (id: string, columnId: string, targetIndex: number) => api('PATCH', `/rest/data-tables/${id}/columns/${columnId}/move`, { targetIndex }),
+  deleteDataTableColumn: (id: string, columnId: string) => api('DELETE', `/rest/data-tables/${id}/columns/${columnId}`),
+  dataTableRows: (id: string, query: string) => api<{ count: number; data: DataTableRow[] }>('GET', `/rest/data-tables/${id}/rows?${query}`),
+  insertDataTableRows: (id: string, data: DataTableRow[]) => api<DataTableRow[]>('POST', `/rest/data-tables/${id}/rows`, { data }),
+  updateDataTableRow: (id: string, rowId: number, data: DataTableRow) => api<DataTableRow>('PATCH', `/rest/data-tables/${id}/rows/${rowId}`, data),
+  deleteDataTableRows: (id: string, ids: number[]) => api('DELETE', `/rest/data-tables/${id}/rows?ids=${ids.join(',')}`),
   apiKeys: () => api<Array<{ id: string; label: string; apiKey: string; createdAt: string }>>('GET', '/rest/api-keys'),
   createApiKey: (label: string) => api<{ id: string; apiKey: string }>('POST', '/rest/api-keys', { label }),
   deleteApiKey: (id: string) => api('DELETE', `/rest/api-keys/${id}`),

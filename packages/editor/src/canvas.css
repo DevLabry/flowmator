@@ -153,3 +153,13 @@
 .chat-msg.error { align-self: flex-start; background: var(--danger-soft); color: var(--danger); }
 .chat-input { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
 .chat-input textarea { min-height: 38px; height: 38px; font-family: inherit; font-size: 13px; }
+
+/* resource locator "from list" and resource mapper */
+.rl-list { position: relative; }
+.rl-trigger { width: 100%; justify-content: space-between; font-weight: 400; }
+.rl-dropdown { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+.rl-results { max-height: 220px; overflow: auto; display: flex; flex-direction: column; }
+.rl-results > div { padding: 6px 8px; font-size: 12px; }
+.rl-results button { border: none; background: none; justify-content: flex-start; font-weight: 400; height: 30px; border-radius: 4px; }
+.rl-results button:hover, .rl-results button.active { background: var(--accent-soft); color: var(--accent); }
+.mapper-field { padding-left: 10px; border-left: 2px solid var(--border); }

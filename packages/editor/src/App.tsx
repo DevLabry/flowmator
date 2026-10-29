@@ -1,9 +1,10 @@
-import { Activity, KeyRound, ListTree, Settings, Variable, Workflow } from 'lucide-react';
+import { Activity, KeyRound, ListTree, Settings, Table2, Variable, Workflow } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { Toasts } from './components/ui';
 import { connectPush } from './lib/push';
 import { CredentialsPage } from './pages/Credentials';
+import { DataTablePage, DataTablesPage } from './pages/DataTables';
 import { EditorPage } from './pages/Editor';
 import { ExecutionsPage } from './pages/Executions';
 import { SettingsPage } from './pages/Settings';
@@ -22,6 +23,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <NavLink to="/home/executions"><Activity size={16} /> Executions</NavLink>
         <NavLink to="/home/credentials"><KeyRound size={16} /> Credentials</NavLink>
         <NavLink to="/home/variables"><Variable size={16} /> Variables</NavLink>
+        <NavLink to="/home/datatables"><Table2 size={16} /> Data tables</NavLink>
         <div className="spacer" />
         <NavLink to="/settings"><Settings size={16} /> Settings</NavLink>
       </nav>
@@ -50,6 +52,8 @@ export function App() {
         <Route path="/home/executions" element={<Shell><ExecutionsPage /></Shell>} />
         <Route path="/home/credentials" element={<Shell><CredentialsPage /></Shell>} />
         <Route path="/home/variables" element={<Shell><VariablesPage /></Shell>} />
+        <Route path="/home/datatables" element={<Shell><DataTablesPage /></Shell>} />
+        <Route path="/home/datatables/:id" element={<Shell><DataTablePage /></Shell>} />
         <Route path="/settings" element={<Shell><SettingsPage /></Shell>} />
         <Route path="/workflow/new" element={<EditorPage />} />
         <Route path="/workflow/:id" element={<EditorPage />} />

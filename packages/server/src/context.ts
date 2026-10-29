@@ -4,6 +4,7 @@ import type { IWorkflowBase } from '@8n8/workflow';
 import { ActiveWorkflows } from './active-workflows';
 import { loadConfig, type ConfigOverrides, type ServerConfig } from './config';
 import { Cipher, CredentialsHelper, CredentialsService } from './credentials';
+import { DataTableService } from './data-tables';
 import { Database } from './db';
 import { ExecutionService, type ProcessRole } from './execution-service';
 import { Push, type PushSender } from './push';
@@ -22,6 +23,7 @@ export interface AppContext {
   executions: ExecutionService;
   webhooks: WebhookService;
   activeWorkflows: ActiveWorkflows;
+  dataTables: DataTableService;
   /** Queue mode only */
   scaling?: ScalingService;
 }
@@ -46,9 +48,11 @@ export function createContext(overrides: ConfigOverrides = {}, role: ProcessRole
   const credentials = new CredentialsService(db, new Cipher(config.encryptionKey), credentialTypes);
   const credentialsHelper = new CredentialsHelper(credentials);
   const executions = new ExecutionService(config, db, events, nodeTypes, credentialsHelper, role, scaling);
+  const dataTables = new DataTableService(db);
+  executions.dataTables = dataTables;
   const webhooks = new WebhookService(config, nodeTypes, executions, events, (id) => db.getWorkflow(id));
   const activeWorkflows = new ActiveWorkflows(config, db, nodeTypes, executions, webhooks, events);
   // webhook processes serve production webhooks too, so they must hear about (de)activations
   if (scaling && role === 'main') activeWorkflows.onChange = (workflowId, active) => void scaling.publish({ type: 'workflowChanged', workflowId, active });
-  return { role, config, db, push, nodeTypes, credentialTypes, credentials, credentialsHelper, executions, webhooks, activeWorkflows, scaling };
+  return { role, config, db, push, nodeTypes, credentialTypes, credentials, credentialsHelper, executions, webhooks, activeWorkflows, dataTables, scaling };
 }

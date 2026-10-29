@@ -63,12 +63,24 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
     const type = nodeTypes.getByNameAndVersion(body.nodeTypeAndVersion.name);
     const node: INode = { id: 'tmp', name: 'tmp', type: type.description.name, typeVersion: body.nodeTypeAndVersion.version ?? 1, position: [0, 0], parameters: body.currentNodeParameters ?? {}, credentials: body.credentials };
     const workflow = new Workflow({ name: 'tmp', nodes: [node], connections: {}, nodeTypes });
-    const lctx = new LoadOptionsContext({ workflow, node, additionalData: { executionId: '', mode: 'internal', credentialsHelper: ctx.credentialsHelper, timezone: config.timezone } });
+    const lctx = new LoadOptionsContext({ workflow, node, additionalData: { executionId: '', mode: 'internal', credentialsHelper: ctx.credentialsHelper, timezone: config.timezone, dataTables: ctx.dataTables } });
     const loader = type.methods?.loadOptions?.[body.methodName];
     if (loader) return { data: await loader.call(lctx) };
     const search = type.methods?.listSearch?.[body.methodName];
     if (search) return { data: await search.call(lctx, body.filter, body.paginationToken) };
     throw new HttpError(404, `Method "${body.methodName}" not found on ${type.description.name}`);
+  });
+
+  /** Fields for a resourceMapper parameter (table columns, sheet headers...). */
+  app.post('/rest/dynamic-node-parameters/resource-mapper-fields', async (req) => {
+    const body = req.body as { nodeTypeAndVersion: { name: string; version?: number }; methodName: string; currentNodeParameters: INodeParameters; credentials?: INode['credentials'] };
+    const type = nodeTypes.getByNameAndVersion(body.nodeTypeAndVersion.name);
+    const method = type.methods?.resourceMapping?.[body.methodName];
+    if (!method) throw new HttpError(404, `Method "${body.methodName}" not found on ${type.description.name}`);
+    const node: INode = { id: 'tmp', name: 'tmp', type: type.description.name, typeVersion: body.nodeTypeAndVersion.version ?? 1, position: [0, 0], parameters: body.currentNodeParameters ?? {}, credentials: body.credentials };
+    const workflow = new Workflow({ name: 'tmp', nodes: [node], connections: {}, nodeTypes });
+    const lctx = new LoadOptionsContext({ workflow, node, additionalData: { executionId: '', mode: 'internal', credentialsHelper: ctx.credentialsHelper, timezone: config.timezone, dataTables: ctx.dataTables } });
+    return { data: await method.call(lctx) };
   });
 
   /* tags */
