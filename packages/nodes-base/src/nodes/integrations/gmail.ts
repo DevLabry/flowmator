@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { IBinaryData, IDataObject, IExecuteFunctions, IHelpers, INodeExecutionData, INodeProperties, INodeType, IPollFunctions } from '@8n8/workflow';
-import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, returnAllProps } from '../../utils/api';
+import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, pollTimesProp, returnAllProps } from '../../utils/api';
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const credTypeOf = (auth: unknown) => (auth === 'serviceAccount' ? 'googleApi' : 'gmailOAuth2');
@@ -340,26 +340,7 @@ export const GmailTrigger: INodeType = {
     polling: true,
     properties: [
       authProp,
-      {
-        displayName: 'Poll Times',
-        name: 'pollTimes',
-        type: 'fixedCollection',
-        typeOptions: { multipleValues: true },
-        default: { item: [{ mode: 'everyMinute' }] },
-        options: [
-          {
-            name: 'item',
-            displayName: 'Item',
-            values: [
-              { displayName: 'Mode', name: 'mode', type: 'options', default: 'everyMinute',
-                options: [{ name: 'Every Minute', value: 'everyMinute' }, { name: 'Every Hour', value: 'everyHour' }, { name: 'Every X', value: 'everyX' }, { name: 'Custom (Cron)', value: 'custom' }] },
-              { displayName: 'Value', name: 'value', type: 'number', default: 5, displayOptions: { show: { mode: ['everyX'] } } },
-              { displayName: 'Unit', name: 'unit', type: 'options', default: 'minutes', displayOptions: { show: { mode: ['everyX'] } }, options: [{ name: 'Minutes', value: 'minutes' }, { name: 'Hours', value: 'hours' }] },
-              { displayName: 'Cron Expression', name: 'cronExpression', type: 'string', default: '*/5 * * * *', displayOptions: { show: { mode: ['custom'] } } },
-            ],
-          },
-        ],
-      },
+      pollTimesProp,
       { displayName: 'Simplify', name: 'simple', type: 'boolean', default: true },
       { displayName: 'Download Attachments', name: 'downloadAttachments', type: 'boolean', default: false },
       filterProps,

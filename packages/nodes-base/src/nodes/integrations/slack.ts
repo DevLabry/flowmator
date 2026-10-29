@@ -1,4 +1,5 @@
-import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions, INodeType } from '@8n8/workflow';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, jsonParam, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 const credType = (ctx: { getNodeParameter(n: string, i: number, f?: unknown): unknown }, i = 0) =>
@@ -182,3 +183,97 @@ function toSlackTs(v: string) {
   if (Number.isNaN(ms)) throw new Error(`Invalid date "${v}"`);
   return (ms / 1000).toFixed(6);
 }
+
+const TRIGGER_EVENTS = [
+  { name: 'Any Event', value: 'any_event' },
+  { name: 'Bot / App Mention', value: 'app_mention' },
+  { name: 'New Message Posted to Channel', value: 'message' },
+  { name: 'Reaction Added', value: 'reaction_added' },
+  { name: 'File Shared', value: 'file_shared' },
+  { name: 'File Made Public', value: 'file_public' },
+  { name: 'New Public Channel Created', value: 'channel_created' },
+  { name: 'New User', value: 'team_join' },
+];
+
+/** Slack signs every request: v0=HMAC-SHA256(secret, "v0:<timestamp>:<raw body>"). */
+export function verifySlackSignature(secret: string, timestamp: string, rawBody: Buffer, signature: string, now = Date.now()) {
+  if (!timestamp || Math.abs(now / 1000 - Number(timestamp)) > 300) return false; // replayed request
+  const expected = Buffer.from(`v0=${createHmac('sha256', secret).update(`v0:${timestamp}:`).update(rawBody).digest('hex')}`);
+  const got = Buffer.from(signature ?? '');
+  return got.length === expected.length && timingSafeEqual(got, expected);
+}
+
+/** Channel an event happened in (messages, reactions and channel events keep it in different places). */
+const eventChannel = (event: IDataObject) =>
+  (typeof event.channel === 'object' ? (event.channel as IDataObject)?.id : event.channel) ?? (event.item as IDataObject | undefined)?.channel ?? event.channel_id;
+
+export const SlackTrigger: INodeType = {
+  description: {
+    name: '8n8.slackTrigger',
+    displayName: 'Slack Trigger',
+    description: 'Starts the workflow on Slack events (Events API: paste the URL into your Slack app\'s Event Subscriptions)',
+    group: ['trigger'],
+    version: [1],
+    defaults: { name: 'Slack Trigger', color: '#611f69' },
+    icon: 'fa:slack',
+    inputs: [],
+    outputs: ['main'],
+    credentials: [{ name: 'slackApi', required: true }],
+    webhooks: [{ name: 'default', httpMethod: 'POST', path: 'webhook', isFullPath: false }],
+    properties: [
+      {
+        displayName: 'Set this URL as the "Request URL" under Event Subscriptions in your Slack app, and subscribe to the bot events you need. Add the app\'s Signing Secret to the credential.',
+        name: 'notice',
+        type: 'notice',
+        default: '',
+      },
+      { displayName: 'Trigger On', name: 'trigger', type: 'multiOptions', default: ['message'], options: TRIGGER_EVENTS },
+      { displayName: 'Watch Whole Workspace', name: 'watchWorkspace', type: 'boolean', default: false, description: 'Off: only events in the channel below' },
+      { ...channelProp, required: false, displayOptions: { show: { watchWorkspace: [false] } }, description: 'Only events in this channel' },
+      {
+        displayName: 'Options',
+        name: 'options',
+        type: 'collection',
+        default: {},
+        options: [
+          { displayName: 'Ignore Bot Messages', name: 'ignoreBots', type: 'boolean', default: true, description: 'Skip messages sent by bots, including this app (avoids loops)' },
+          { displayName: 'User IDs to Ignore', name: 'userIds', type: 'string', default: '', description: 'Comma separated' },
+        ],
+      },
+    ],
+  },
+  methods: Slack.methods,
+  async webhook(this: IWebhookFunctions): Promise<IWebhookResult> {
+    const headers = this.getHeaderData();
+    const body = this.getBodyData() as IDataObject;
+    const ok = { webhookResponse: { statusCode: 200, body: '' } };
+
+    const creds = await this.getCredentials<{ signatureSecret?: string }>('slackApi');
+    if (creds.signatureSecret) {
+      const valid = verifySlackSignature(creds.signatureSecret, String(headers['x-slack-request-timestamp'] ?? ''), this.getRequestObject().rawBody ?? Buffer.from(''), String(headers['x-slack-signature'] ?? ''));
+      if (!valid) return { webhookResponse: { statusCode: 401, body: { message: 'Invalid Slack signature' } } };
+    }
+    // Slack verifies the URL once when it is saved in the app settings
+    if (body.type === 'url_verification') return { webhookResponse: { statusCode: 200, body: { challenge: body.challenge } } };
+    // Slack resends events it thinks timed out; the first delivery already started a run
+    if (headers['x-slack-retry-num']) return ok;
+    if (body.type !== 'event_callback' || !body.event) return ok;
+
+    const event = body.event as IDataObject;
+    const wanted = this.getNodeParameter('trigger', ['message']) as string[];
+    if (!wanted.includes('any_event') && !wanted.includes(String(event.type))) return ok;
+    // edits, deletions and joins arrive as message subtypes; only new messages count as "posted"
+    if (event.type === 'message' && !wanted.includes('any_event') && event.subtype && event.subtype !== 'file_share' && event.subtype !== 'thread_broadcast') return ok;
+
+    const options = this.getNodeParameter('options', {}) as { ignoreBots?: boolean; userIds?: string };
+    if ((options.ignoreBots ?? true) && (event.bot_id || event.subtype === 'bot_message')) return ok;
+    const ignored = String(options.userIds ?? '').split(',').map((u) => u.trim()).filter(Boolean);
+    if (event.user && ignored.includes(String(event.user))) return ok;
+
+    if (!this.getNodeParameter('watchWorkspace', false)) {
+      const channel = this.getNodeParameter('channelId', '') as string;
+      if (channel && eventChannel(event) && eventChannel(event) !== channel) return ok;
+    }
+    return { workflowData: [[{ json: { ...event, team_id: body.team_id, event_id: body.event_id, event_time: body.event_time } }]], ...ok };
+  },
+};

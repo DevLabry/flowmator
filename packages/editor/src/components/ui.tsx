@@ -116,6 +116,9 @@ const ICON_MAP: Record<string, keyof typeof Icons> = {
   notion: 'NotebookText',
   gmail: 'Mail',
   'google-sheets': 'Sheet',
+  discord: 'Gamepad2',
+  airtable: 'TableProperties',
+  'google-drive': 'HardDrive',
 };
 
 export function NodeIcon({ icon, color, size = 18, label }: { icon?: string; color?: string; size?: number; label?: string }) {
