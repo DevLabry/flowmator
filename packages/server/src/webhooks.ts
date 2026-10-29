@@ -11,6 +11,7 @@ import {
   type IWebhookResponse,
   type IWorkflowBase,
 } from '@8n8/workflow';
+import { parseSubmission, renderForm, renderSubmitted, type FormField } from '@8n8/nodes-base';
 import type { ServerConfig } from './config';
 import type { ExecutionService } from './execution-service';
 import type { Push } from './push';
@@ -44,6 +45,8 @@ export class WebhookError extends Error {
 }
 
 const trimSlashes = (p: string) => p.replace(/^\/+|\/+$/g, '');
+/** Form triggers are served under /form and /form-test instead of /webhook. */
+export const isFormNode = (node: INode) => node.type.endsWith('formTrigger');
 
 /** Resolves a node's webhook description (method/path may be expressions over $parameter). */
 export function resolveWebhook(nodeTypes: NodeTypesRegistry, node: INode, description: IWebhookDescription) {
@@ -133,12 +136,14 @@ export class WebhookService {
         destinationNode: opts.destinationNode,
         timeout,
       });
-      urls.push(`${this.config.webhookUrl}${this.config.endpoints.webhookTest}/${r.path}`);
+      const endpoint = isFormNode(node) ? this.config.endpoints.formTest : this.config.endpoints.webhookTest;
+      urls.push(`${this.config.webhookUrl}${endpoint}/${r.path}`);
     }
-    return urls;
+    return [...new Set(urls)];
   }
 
-  cancelTest(workflowId: string) {
+  /** `notify` is false when a test call consumed the registration: the editor then gets executionStarted instead. */
+  cancelTest(workflowId: string, notify = true) {
     let removed = false;
     for (const [k, t] of this.test) {
       if (t.workflowId !== workflowId) continue;
@@ -146,7 +151,7 @@ export class WebhookService {
       this.test.delete(k);
       removed = true;
     }
-    if (removed) this.push.send({ type: 'testWebhookDeleted', data: { workflowId } });
+    if (removed && notify) this.push.send({ type: 'testWebhookDeleted', data: { workflowId } });
     return removed;
   }
 
@@ -188,7 +193,8 @@ export class WebhookService {
       throw new WebhookError(404, `The requested webhook "${trimSlashes(path)}" is not registered.`, "Click the 'Execute workflow' button on the canvas, then try again. (In test mode, the webhook only works for one call after you click this button)");
     }
     const t = found.reg;
-    this.cancelTest(t.workflowId);
+    // GET on a form only renders it; the submission (POST) is the test event
+    if (t.webhookName !== 'setup') this.cancelTest(t.workflowId, false);
     return this.execute(t.workflowData, t.nodeName, t.webhookName, { ...request, params: found.params }, 'manual', t.pushRef, t.destinationNode);
   }
 
@@ -199,6 +205,7 @@ export class WebhookService {
     const workflowData = waiting.execution.workflowData;
     const node = workflowData.nodes.find((n) => n.name === waiting.nodeName)!;
     const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
+    if (node.parameters.resume === 'form') return this.handleWaitingForm(executionId, node, method, request);
     const wanted = String(node.parameters.httpMethod ?? 'POST').toUpperCase();
     if (nodeType.webhook && wanted !== method && node.parameters.resume === 'webhook') {
       throw new WebhookError(405, `This webhook expects ${wanted} requests`);
@@ -212,12 +219,30 @@ export class WebhookService {
     return result.webhookResponse ?? { statusCode: 200, body: { message: 'Workflow was resumed' } };
   }
 
+  /** Wait node "On Form Submitted": GET shows the form, POST resumes the execution with the answers. */
+  private async handleWaitingForm(executionId: string, node: INode, method: string, request: IWebhookRequest): Promise<IWebhookResponse> {
+    const p = node.parameters as { formTitle?: string; formDescription?: string; formFields?: { values?: FormField[] } };
+    const fields = p.formFields?.values ?? [];
+    const html = { 'content-type': 'text/html; charset=utf-8' };
+    if (method === 'GET') {
+      return { statusCode: 200, headers: html, body: renderForm({ title: p.formTitle, description: p.formDescription, fields }) };
+    }
+    if (method !== 'POST') throw new WebhookError(405, 'Forms accept GET and POST only');
+    const item = await parseSubmission(request.body, request.files, fields, (data, fileName, mimeType) =>
+      this.executions.binaryData.store(data, { fileName, mimeType, fileExtension: fileName.split('.').pop() }, executionId),
+    );
+    this.executions.resume(executionId, [item]).catch((e) => console.error(`Resume of ${executionId} failed:`, e));
+    return { statusCode: 200, headers: html, body: renderSubmitted(p.formTitle ?? 'Form') };
+  }
+
   webhookUrlFor(node: INode, mode: 'production' | 'test') {
     const type = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
     const d = type.description.webhooks?.find((w) => w.name === 'default') ?? type.description.webhooks?.[0];
     if (!d) return '';
     const { path } = resolveWebhook(this.nodeTypes, node, d);
-    return `${this.config.webhookUrl}${mode === 'test' ? this.config.endpoints.webhookTest : this.config.endpoints.webhook}/${path}`;
+    const e = this.config.endpoints;
+    const endpoint = isFormNode(node) ? (mode === 'test' ? e.formTest : e.form) : mode === 'test' ? e.webhookTest : e.webhook;
+    return `${this.config.webhookUrl}${endpoint}/${path}`;
   }
 
   private webhookContext(workflowData: IWorkflowBase, node: INode, webhookName: string, request: IWebhookRequest, mode: 'manual' | 'webhook' | string) {

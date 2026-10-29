@@ -74,7 +74,7 @@ export async function createApp(overrides: Partial<ServerConfig> = {}): Promise<
     await app.register(fastifyStatic, { root: editorDir, wildcard: true });
     // client-side routes fall back to index.html
     app.setNotFoundHandler((req, reply) => {
-      const apiPath = /^\/(rest|api|webhook|webhook-test|webhook-waiting|healthz)(\/|$)/.test(req.url);
+      const apiPath = /^\/(rest|api|webhook|webhook-test|webhook-waiting|form|form-test|form-waiting|healthz)(\/|$)/.test(req.url);
       if (req.method === 'GET' && !apiPath) return reply.sendFile('index.html');
       return reply.code(404).send({ code: 404, message: 'Not found' });
     });
