@@ -13,6 +13,7 @@ import { evaluationRoutes } from './routes/evaluations';
 import { HttpError } from './routes/errors';
 import { executionRoutes } from './routes/executions';
 import { miscRoutes } from './routes/misc';
+import { platformRoutes } from './routes/platform';
 import { publicApiRoutes } from './routes/public-api';
 import { webhookRoutes } from './routes/webhooks';
 import { workflowRoutes } from './routes/workflows';
@@ -113,6 +114,7 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
   miscRoutes(app, ctx);
   dataTableRoutes(app, ctx);
   evaluationRoutes(app, ctx);
+  platformRoutes(app, ctx);
   await webhookRoutes(app, ctx);
   await publicApiRoutes(app, ctx);
 
@@ -130,12 +132,18 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
   }
 
   let started = false;
+  let pruneTimer: NodeJS.Timeout | undefined;
   return {
     app,
     ctx,
     async start() {
+      // secrets first: active workflows' credentials may reference them
+      await ctx.externalSecrets.start();
       await ctx.executions.start();
       await ctx.activeWorkflows.init();
+      ctx.insights.prune();
+      pruneTimer = setInterval(() => ctx.insights.prune(), 3_600_000);
+      pruneTimer.unref();
       const url = await app.listen({ port: ctx.config.port, host: process.env.N8N_LISTEN_ADDRESS ?? '0.0.0.0' });
       started = true;
       return url;
@@ -144,6 +152,9 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
       await ctx.activeWorkflows.shutdown();
       await ctx.evaluations.stopAll();
       await ctx.executions.stopAll();
+      ctx.externalSecrets.stop();
+      clearInterval(pruneTimer);
+      await ctx.logStreaming.flush();
       await ctx.scaling?.close();
       ctx.push.closeAll();
       if (started) await app.close();

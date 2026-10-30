@@ -93,6 +93,8 @@ export interface IWorkflowSettings {
   executionTimeout?: number; // seconds, -1 = none
   callerPolicy?: 'any' | 'none' | 'workflowsFromAList' | 'workflowsFromSameOwner';
   callerIds?: string;
+  /** Minutes a successful production run saves (Insights) */
+  timeSavedPerExecution?: number;
 }
 
 export type IPinData = Record<string, INodeExecutionData[]>;

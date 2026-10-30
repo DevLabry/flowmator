@@ -4,9 +4,15 @@ import type { IWorkflowBase } from '@8n8/workflow';
 import { ActiveWorkflows } from './active-workflows';
 import { loadConfig, type ConfigOverrides, type ServerConfig } from './config';
 import { Cipher, CredentialsHelper, CredentialsService } from './credentials';
+import { CommunityPackagesService } from './community-packages';
 import { DataTableService } from './data-tables';
 import { Database } from './db';
 import { EvaluationService } from './evaluations';
+import { EventBus } from './events';
+import { ExternalSecretsService } from './external-secrets';
+import { InsightsService } from './insights';
+import { LogStreamingService } from './log-streaming';
+import { SourceControlService } from './source-control';
 import { ExecutionService, type ProcessRole } from './execution-service';
 import { Push, type PushSender } from './push';
 import { ScalingService } from './scaling';
@@ -26,6 +32,12 @@ export interface AppContext {
   activeWorkflows: ActiveWorkflows;
   dataTables: DataTableService;
   evaluations: EvaluationService;
+  events: EventBus;
+  insights: InsightsService;
+  logStreaming: LogStreamingService;
+  externalSecrets: ExternalSecretsService;
+  sourceControl: SourceControlService;
+  communityPackages: CommunityPackagesService;
   /** Queue mode only */
   scaling?: ScalingService;
 }
@@ -47,9 +59,22 @@ export function createContext(overrides: ConfigOverrides = {}, role: ProcessRole
   nodeTypes.registerAll(builtinNodes);
   const credentialTypes = new CredentialTypesRegistry();
   credentialTypes.registerAll(builtinCredentials);
-  const credentials = new CredentialsService(db, new Cipher(config.encryptionKey), credentialTypes);
+  const bus = new EventBus();
+  // every process loads installed community nodes: workers run them too
+  const communityPackages = new CommunityPackagesService(config.userFolder, nodeTypes, credentialTypes, bus);
+  communityPackages.loadAll();
+  const cipher = new Cipher(config.encryptionKey);
+  const credentials = new CredentialsService(db, cipher, credentialTypes);
   const credentialsHelper = new CredentialsHelper(credentials);
+  const externalSecrets = new ExternalSecretsService(db, cipher);
+  credentialsHelper.secrets = () => externalSecrets.secrets();
+  const insights = new InsightsService(db);
+  const logStreaming = new LogStreamingService(db);
+  // in queue mode executions finish on workers; main records what it runs itself
+  insights.attach(bus);
+  logStreaming.attach(bus);
   const executions = new ExecutionService(config, db, events, nodeTypes, credentialsHelper, role, scaling);
+  executions.events = bus;
   const dataTables = new DataTableService(db);
   executions.dataTables = dataTables;
   const evaluations = new EvaluationService(db, executions, dataTables, role === 'main');
@@ -57,5 +82,6 @@ export function createContext(overrides: ConfigOverrides = {}, role: ProcessRole
   const activeWorkflows = new ActiveWorkflows(config, db, nodeTypes, executions, webhooks, events);
   // webhook processes serve production webhooks too, so they must hear about (de)activations
   if (scaling && role === 'main') activeWorkflows.onChange = (workflowId, active) => void scaling.publish({ type: 'workflowChanged', workflowId, active });
-  return { role, config, db, push, nodeTypes, credentialTypes, credentials, credentialsHelper, executions, webhooks, activeWorkflows, dataTables, evaluations, scaling };
+  const sourceControl = new SourceControlService(db, cipher, credentials, config.userFolder, activeWorkflows, bus);
+  return { role, config, db, push, nodeTypes, credentialTypes, credentials, credentialsHelper, executions, webhooks, activeWorkflows, dataTables, evaluations, events: bus, insights, logStreaming, externalSecrets, sourceControl, communityPackages, scaling };
 }

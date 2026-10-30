@@ -245,6 +245,9 @@ importers:
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0
+      ssh2:
+        specifier: 1.17.0
+        version: 1.17.0
       tsx:
         specifier: ^4.19.2
         version: 4.23.15
@@ -252,6 +255,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.2
         version: 1.32.2(zod@4.6.7)
+      '@types/ssh2':
+        specifier: 1.15.5
+        version: 1.15.5
       '@types/ws':
         specifier: ^8.18.2
         version: 8.18.2

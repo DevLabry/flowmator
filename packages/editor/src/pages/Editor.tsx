@@ -68,6 +68,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
       <div className="row"><span className="grow">Save manual executions</span><Switch checked={s.saveManualExecutions ?? true} onChange={(v) => set({ saveManualExecutions: v })} /></div>
       <div className="row"><span className="grow">Save execution progress (resume after crash)</span><Switch checked={!!s.saveExecutionProgress} onChange={(v) => set({ saveExecutionProgress: v })} /></div>
       {field('Timeout (seconds, -1 = none)', <input type="number" value={s.executionTimeout ?? -1} onChange={(e) => set({ executionTimeout: Number(e.target.value) })} />)}
+      {field('Estimated time saved per production execution (minutes)', <input type="number" min={0} value={s.timeSavedPerExecution ?? ''} placeholder="0" onChange={(e) => set({ timeSavedPerExecution: e.target.value === '' ? undefined : Number(e.target.value) })} />)}
     </Modal>
   );
 }
