@@ -81,9 +81,9 @@ export class CredentialsService {
     return { ...data, __type: c.type, __name: c.name };
   }
 
-  create(name: string, type: string, data: IDataObject) {
+  create(name: string, type: string, data: IDataObject, id?: string) {
     this.types.get(type); // validates the type
-    return this.toPublic(this.db.createCredential(name, type, this.cipher.encrypt(data)));
+    return this.toPublic(this.db.createCredential(name, type, this.cipher.encrypt(data), id));
   }
 
   /** Redacted values in `data` keep their stored value, so the editor can save without re-entering secrets. */
@@ -113,6 +113,9 @@ export class CredentialsService {
 const OAUTH2 = 'oAuth2Api';
 
 export class CredentialsHelper implements ICredentialsHelper {
+  /** External secrets, readable in credential fields as {{ $secrets.provider.name }} */
+  secrets: () => Record<string, unknown> = () => ({});
+
   constructor(private readonly service: CredentialsService) {}
 
   private isOAuth2(type: string) {
@@ -138,7 +141,7 @@ export class CredentialsHelper implements ICredentialsHelper {
     const credType = this.service.types.get(type);
     // fill defaults, and resolve expressions that reference other credential fields
     for (const p of credType.properties) if (data[p.name] === undefined && p.default !== undefined) data[p.name] = p.default as never;
-    for (const [k, v] of Object.entries(data)) if (isExpression(v)) data[k] = evaluateExpression(v, { $credentials: data }) as never;
+    for (const [k, v] of Object.entries(data)) if (isExpression(v)) data[k] = evaluateExpression(v, { $credentials: data, $secrets: this.secrets() }) as never;
     return { ...data, __credentialId: id };
   }
 
@@ -155,7 +158,7 @@ export class CredentialsHelper implements ICredentialsHelper {
     const credType: ICredentialType = this.service.types.get(type);
     const auth = credType.authenticate;
     if (!auth) return request;
-    const resolve = (v: string) => String(isExpression(v) ? evaluateExpression(v, { $credentials: credentials }) : v);
+    const resolve = (v: string) => String(isExpression(v) ? evaluateExpression(v, { $credentials: credentials, $secrets: this.secrets() }) : v);
     const mapRecord = (r?: Record<string, string>) => Object.fromEntries(Object.entries(r ?? {}).map(([k, v]) => [resolve(k), resolve(v)]));
     const p = auth.properties;
     if (p.headers) request.headers = { ...(request.headers ?? {}), ...mapRecord(p.headers) };
@@ -260,7 +263,7 @@ export async function testCredential(service: CredentialsService, helper: Creden
   try {
     // test requests may use {{ $credentials.x }} in their URL and headers
     const resolve = (v: unknown): unknown =>
-      isExpression(v) ? evaluateExpression(v, { $credentials: data })
+      isExpression(v) ? evaluateExpression(v, { $credentials: data, $secrets: helper.secrets() })
       : Array.isArray(v) ? v.map(resolve)
       : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)]))
       : v;

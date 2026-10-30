@@ -1,4 +1,4 @@
-import { Activity, KeyRound, ListTree, Settings, Table2, Variable, Workflow } from 'lucide-react';
+import { Activity, BarChart3, KeyRound, LayoutTemplate, ListTree, Settings, Table2, Variable, Workflow } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { Toasts } from './components/ui';
@@ -7,7 +7,10 @@ import { CredentialsPage } from './pages/Credentials';
 import { DataTablePage, DataTablesPage } from './pages/DataTables';
 import { EditorPage } from './pages/Editor';
 import { ExecutionsPage } from './pages/Executions';
+import { InsightsPage } from './pages/Insights';
+import { CommunityNodesPage, ExternalSecretsPage, LogStreamingPage, SourceControlPage } from './pages/Platform';
 import { SettingsPage } from './pages/Settings';
+import { TemplatesPage } from './pages/Templates';
 import { VariablesPage } from './pages/Variables';
 import { WorkflowsPage } from './pages/Workflows';
 import { useApp } from './store/app';
@@ -24,6 +27,8 @@ function Shell({ children }: { children: React.ReactNode }) {
         <NavLink to="/home/credentials"><KeyRound size={16} /> Credentials</NavLink>
         <NavLink to="/home/variables"><Variable size={16} /> Variables</NavLink>
         <NavLink to="/home/datatables"><Table2 size={16} /> Data tables</NavLink>
+        <NavLink to="/insights"><BarChart3 size={16} /> Insights</NavLink>
+        <NavLink to="/templates"><LayoutTemplate size={16} /> Templates</NavLink>
         <div className="spacer" />
         <NavLink to="/settings"><Settings size={16} /> Settings</NavLink>
       </nav>
@@ -55,6 +60,12 @@ export function App() {
         <Route path="/home/datatables" element={<Shell><DataTablesPage /></Shell>} />
         <Route path="/home/datatables/:id" element={<Shell><DataTablePage /></Shell>} />
         <Route path="/settings" element={<Shell><SettingsPage /></Shell>} />
+        <Route path="/settings/environments" element={<Shell><SourceControlPage /></Shell>} />
+        <Route path="/settings/external-secrets" element={<Shell><ExternalSecretsPage /></Shell>} />
+        <Route path="/settings/log-streaming" element={<Shell><LogStreamingPage /></Shell>} />
+        <Route path="/settings/community-nodes" element={<Shell><CommunityNodesPage /></Shell>} />
+        <Route path="/insights" element={<Shell><InsightsPage /></Shell>} />
+        <Route path="/templates" element={<Shell><TemplatesPage /></Shell>} />
         <Route path="/workflow/new" element={<EditorPage />} />
         <Route path="/workflow/:id" element={<EditorPage />} />
         <Route path="/workflow/:id/executions" element={<EditorPage tab="executions" />} />

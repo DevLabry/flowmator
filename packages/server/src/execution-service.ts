@@ -22,6 +22,7 @@ import {
 import type { ServerConfig } from './config';
 import type { CredentialsHelper } from './credentials';
 import type { Database, ExecutionEntity } from './db';
+import type { EventBus } from './events';
 import type { PushSender } from './push';
 import type { ExecutionJob, JobResult, ScalingMessage, ScalingService } from './scaling';
 
@@ -87,6 +88,8 @@ export class ExecutionService {
   readonly binaryData: FilesystemBinaryDataStore;
   /** Set by the app context; the Data Table node reads and writes through it. */
   dataTables?: IDataTableService;
+  /** Execution and node events for log streaming and insights */
+  events?: EventBus;
 
   constructor(
     private readonly config: ServerConfig,
@@ -212,9 +215,13 @@ export class ExecutionService {
       executionCustomData: {},
       executeWorkflow: (info, items, options) => this.executeSubWorkflow(info, items, executionId, options.waitForSubWorkflow),
       hooks: {
-        nodeExecuteBefore: (nodeName) => this.push.send({ type: 'nodeExecuteBefore', data: { executionId, nodeName } }, target),
+        nodeExecuteBefore: (nodeName) => {
+          this.push.send({ type: 'nodeExecuteBefore', data: { executionId, nodeName } }, target);
+          this.events?.emit('n8n.node.started', { executionId, workflowId: workflow.id, workflowName: workflow.name, nodeName, nodeType: workflow.getNode(nodeName)?.type });
+        },
         nodeExecuteAfter: (nodeName, task, state) => {
           this.push.send({ type: 'nodeExecuteAfter', data: { executionId, nodeName, data: task } }, target);
+          this.events?.emit('n8n.node.finished', { executionId, workflowId: workflow.id, workflowName: workflow.name, nodeName, nodeType: workflow.getNode(nodeName)?.type, executionTime: task.executionTime, status: task.error ? 'error' : 'success' });
           if (workflow.settings.saveExecutionProgress) {
             this.db.updateExecution(executionId, { data: { resultData: { runData: state.runData, lastNodeExecuted: state.lastNodeExecuted }, executionData: state } });
           }
@@ -261,6 +268,8 @@ export class ExecutionService {
         opts.mode === 'manual' ? opts.pushRef : undefined,
       );
     }
+
+    this.events?.emit('n8n.workflow.started', { executionId, workflowId, workflowName: opts.workflowData.name, mode: opts.mode });
 
     const timeoutSec = workflow.settings.executionTimeout && workflow.settings.executionTimeout > 0 ? workflow.settings.executionTimeout : this.config.executions.timeoutSeconds;
     if (timeoutSec > 0) workflow.settings.executionTimeout = timeoutSec;
@@ -321,6 +330,23 @@ export class ExecutionService {
       { type: 'executionFinished', data: { executionId, workflowId: workflow.id, status: run.status, lastNodeExecuted: run.data.resultData.lastNodeExecuted } },
       target,
     );
+
+    const eventName = { success: 'n8n.workflow.success', error: 'n8n.workflow.failed', crashed: 'n8n.workflow.failed', canceled: 'n8n.workflow.cancelled', waiting: 'n8n.workflow.waiting' }[run.status as string];
+    if (eventName) {
+      const started = new Date(run.startedAt).getTime();
+      const stopped = run.stoppedAt ? new Date(run.stoppedAt).getTime() : Date.now();
+      this.events?.emit(eventName, {
+        executionId,
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        mode: req.mode,
+        status: run.status,
+        runtimeMs: Math.max(0, stopped - started),
+        lastNodeExecuted: run.data.resultData.lastNodeExecuted,
+        ...(run.data.resultData.error ? { errorMessage: run.data.resultData.error.message } : {}),
+        timeSavedPerExecution: workflow.settings.timeSavedPerExecution ?? 0,
+      });
+    }
 
     if (run.status === 'error' && req.mode !== 'manual' && req.mode !== 'error') this.runErrorWorkflow(executionId, workflow, run);
   }

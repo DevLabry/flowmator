@@ -81,9 +81,9 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Form (multi-page forms: nex
 - [x] Public API with API keys
 - [x] Queue mode (EXECUTIONS_MODE=queue): BullMQ/Redis, `8n8 worker` (concurrency, health check, graceful shutdown), `8n8 webhook` processes; editor events, Respond to Webhook, waits, stop and retry relayed through Redis; manual runs stay on main unless OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
 - [x] CLI (`bin/8n8.mjs`): start, worker, webhook, execute, import/export workflows and credentials (n8n exports work, --decrypted, --backup), list/update workflows
-- [ ] Source control (git), external secrets, log streaming, insights
-- [ ] Community nodes from npm, node SDK
-- [ ] Templates
+- [x] Source control (git push/pull of workflows, credential and variable stubs, tags, folders; SSH deploy key or HTTPS; conflicts, read-only branch), external secrets (Vault, AWS, Azure, GCP → `$secrets`), log streaming (webhook, syslog, Sentry; workflow/node/audit events), insights (production executions, time saved, failure rate)
+- [x] Community nodes from npm (`n8n-nodes-*`, loaded through an `n8n-workflow` shim; legacy `request` helpers)
+- [x] Templates (n8n template library proxied at /rest/templates, import as workflow)
 
 ### Editor
 - [x] Canvas: add/connect/move/delete, sticky notes, minimap, undo/redo, copy/paste JSON

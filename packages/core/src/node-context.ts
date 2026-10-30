@@ -183,6 +183,13 @@ export class BaseNodeContext {
         return bin;
       },
       binaryToString: (body: Buffer, encoding: BufferEncoding = 'utf8') => body.toString(encoding),
+      request(uriOrOptions: string | IDataObject, options?: IDataObject) {
+        const o = typeof uriOrOptions === 'string' ? { ...options, uri: uriOrOptions } : uriOrOptions;
+        return this.httpRequest(fromLegacyRequest(o)).then((r: unknown) => toLegacyResponse(o, r));
+      },
+      requestWithAuthentication(credentialType: string, options: IDataObject) {
+        return this.httpRequestWithAuthentication(credentialType, fromLegacyRequest(options)).then((r: unknown) => toLegacyResponse(options, r));
+      },
     };
   }
 
@@ -391,4 +398,34 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
     if (typeof inputConfig === 'object' && inputConfig.maxConnections === 1) return results[0];
     return results;
   }
+}
+
+/** request-promise options (uri, qs, body, form, json, resolveWithFullResponse, encoding: null) → httpRequest options. */
+export function fromLegacyRequest(o: IDataObject): IHttpRequestOptions {
+  const headers = { ...((o.headers as Record<string, string>) ?? {}) };
+  let body = o.body;
+  if (o.form) {
+    body = new URLSearchParams(o.form as Record<string, string>).toString();
+    headers['content-type'] ??= 'application/x-www-form-urlencoded';
+  }
+  return {
+    url: String(o.uri ?? o.url),
+    baseURL: o.baseURL as string | undefined,
+    method: (String(o.method ?? 'GET').toUpperCase() as IHttpRequestOptions['method']),
+    headers,
+    qs: o.qs as IDataObject | undefined,
+    body,
+    json: o.json !== false,
+    timeout: o.timeout as number | undefined,
+    returnFullResponse: !!o.resolveWithFullResponse,
+    ignoreHttpStatusErrors: o.simple === false,
+    encoding: o.encoding === null ? 'arraybuffer' : undefined,
+    auth: o.auth ? { username: String((o.auth as IDataObject).user ?? (o.auth as IDataObject).username), password: String((o.auth as IDataObject).pass ?? (o.auth as IDataObject).password ?? '') } : undefined,
+  };
+}
+
+function toLegacyResponse(o: IDataObject, r: unknown) {
+  const toBuffer = (v: unknown) => (o.encoding === null && v instanceof ArrayBuffer ? Buffer.from(v) : v);
+  if (o.resolveWithFullResponse && r && typeof r === 'object') return { ...(r as IDataObject), body: toBuffer((r as IDataObject).body) };
+  return toBuffer(r);
 }

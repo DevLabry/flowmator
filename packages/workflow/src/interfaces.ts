@@ -42,6 +42,9 @@ export interface IHelpers {
   getBinaryDataBuffer(itemIndex: number, propertyName: string, inputIndex?: number): Promise<Buffer>;
   assertBinaryData(itemIndex: number, propertyName: string): IBinaryData;
   binaryToString(body: Buffer, encoding?: BufferEncoding): string;
+  /** n8n's legacy request-promise style helpers, used by many community nodes */
+  request(uriOrOptions: string | IDataObject, options?: IDataObject): Promise<any>;
+  requestWithAuthentication(credentialType: string, options: IDataObject, additionalCredentialOptions?: IDataObject, itemIndex?: number): Promise<any>;
 }
 
 export interface ILogger {

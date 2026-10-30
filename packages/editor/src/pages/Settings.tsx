@@ -1,4 +1,5 @@
-import { Copy, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Copy, GitBranch, KeySquare, Package, Plus, Radio, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { timeAgo } from '../components/ui';
 import { Api } from '../lib/api';
@@ -24,6 +25,24 @@ export function SettingsPage() {
   return (
     <div className="page" style={{ maxWidth: 820 }}>
       <div className="page-header"><h1>Settings</h1></div>
+
+      <section className="card col" style={{ padding: 6, marginBottom: 18, gap: 0 }}>
+        {[
+          ['/settings/environments', GitBranch, 'Environments', 'Push and pull workflows with a Git repository'],
+          ['/settings/external-secrets', KeySquare, 'External secrets', 'Vault, AWS, Azure and GCP secrets in credentials'],
+          ['/settings/log-streaming', Radio, 'Log streaming', 'Send events to a webhook, syslog or Sentry'],
+          ['/settings/community-nodes', Package, 'Community nodes', 'Install n8n-nodes-* packages from npm'],
+        ].map(([to, Icon, title, desc]) => {
+          const I = Icon as typeof GitBranch;
+          return (
+            <Link key={to as string} to={to as string} className="row settings-link">
+              <I size={16} />
+              <span className="grow col" style={{ gap: 0 }}><strong>{title as string}</strong><span className="faint">{desc as string}</span></span>
+              <ChevronRight size={14} className="faint" />
+            </Link>
+          );
+        })}
+      </section>
 
       <section className="card col" style={{ padding: 18, marginBottom: 18 }}>
         <h2>Appearance</h2>
