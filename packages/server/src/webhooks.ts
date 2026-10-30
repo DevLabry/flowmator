@@ -1,4 +1,4 @@
-import { HookContext, WebhookContext, type NodeTypesRegistry } from '@8n8/core';
+import { ExecuteContext, HookContext, WebhookContext, type NodeTypesRegistry } from '@8n8/core';
 import {
   evaluateExpression,
   getNodeParametersWithDefaults,
@@ -12,7 +12,7 @@ import {
   type IWebhookResponse,
   type IWorkflowBase,
 } from '@8n8/workflow';
-import { parseSubmission, renderForm, renderSubmitted, type FormField } from '@8n8/nodes-base';
+import { formPageOf, parseSubmission, renderForm, renderPage, renderSubmitted, type FormNodePage } from '@8n8/nodes-base';
 import type { ServerConfig } from './config';
 import type { ExecutionService } from './execution-service';
 import type { PushSender } from './push';
@@ -236,7 +236,8 @@ export class WebhookService {
     const workflowData = waiting.execution.workflowData;
     const node = workflowData.nodes.find((n) => n.name === waiting.nodeName)!;
     const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
-    if (node.parameters.resume === 'form') return this.handleWaitingForm(executionId, node, method, request);
+    const page = this.waitingFormPage(executionId);
+    if (page) return this.handleWaitingForm(executionId, page, method, request);
     const wanted = String(node.parameters.httpMethod ?? 'POST').toUpperCase();
     if (nodeType.webhook && wanted !== method && node.parameters.resume === 'webhook') {
       throw new WebhookError(405, `This webhook expects ${wanted} requests`);
@@ -250,20 +251,63 @@ export class WebhookService {
     return result.webhookResponse ?? { statusCode: 200, body: { message: 'Workflow was resumed' } };
   }
 
-  /** Wait node "On Form Submitted": GET shows the form, POST resumes the execution with the answers. */
-  private async handleWaitingForm(executionId: string, node: INode, method: string, request: IWebhookRequest): Promise<IWebhookResponse> {
-    const p = node.parameters as { formTitle?: string; formDescription?: string; formFields?: { values?: FormField[] } };
-    const fields = p.formFields?.values ?? [];
+  /** The page shown by a Form node (or Wait node set to "On Form Submitted") an execution is paused at. */
+  private waitingFormPage(executionId: string): FormNodePage | null {
+    const waiting = this.executions.getWaitingNode(executionId);
+    if (!waiting) return null;
+    const { execution } = waiting;
+    const workflow = this.executions.buildWorkflow(execution.workflowData);
+    const node = workflow.getNode(waiting.nodeName);
+    if (!node) return null;
+    const state = execution.data!.executionData!;
+    const runData = execution.data!.resultData.runData;
+    // parameters may use expressions over the node's input, like they do when the node runs
+    const ctx = new ExecuteContext({
+      workflow,
+      node,
+      additionalData: this.executions.webhookAdditionalData(execution.mode),
+      runData,
+      executeData: state.nodeExecutionStack[0],
+      runIndex: runData[node.name]?.length ?? 0,
+      contextData: state.contextData ?? {},
+    });
+    return formPageOf(node, (name, fallback) => ctx.getNodeParameter(name, 0, fallback));
+  }
+
+  private formWaitingUrl(executionId: string) {
+    return `${this.config.webhookUrl}${this.config.endpoints.formWaiting}/${executionId}`;
+  }
+
+  /**
+   * Form pages of a paused execution. GET shows the page; POST resumes the execution with the answers and,
+   * once it pauses at the next page, redirects there. A Form Ending is shown on GET and finishes the execution.
+   */
+  private async handleWaitingForm(executionId: string, page: FormNodePage, method: string, request: IWebhookRequest): Promise<IWebhookResponse> {
     const html = { 'content-type': 'text/html; charset=utf-8' };
+    if (page.kind === 'completion') {
+      if (method !== 'GET') throw new WebhookError(405, 'The form is complete');
+      this.executions.resume(executionId).catch((e) => console.error(`Resume of ${executionId} failed:`, e));
+      if (page.respondWith === 'redirect' && page.redirectUrl) return { statusCode: 302, headers: { location: page.redirectUrl } };
+      if (page.respondWith === 'showText') return { statusCode: 200, headers: html, body: renderPage('Form', page.responseText ?? '') };
+      return { statusCode: 200, headers: html, body: renderSubmitted(page.completionTitle || 'Form', page.completionMessage) };
+    }
     if (method === 'GET') {
-      return { statusCode: 200, headers: html, body: renderForm({ title: p.formTitle, description: p.formDescription, fields }) };
+      return { statusCode: 200, headers: html, body: renderForm({ title: page.title, description: page.description, fields: page.fields, buttonLabel: page.buttonLabel }) };
     }
     if (method !== 'POST') throw new WebhookError(405, 'Forms accept GET and POST only');
-    const item = await parseSubmission(request.body, request.files, fields, (data, fileName, mimeType) =>
+    const item = await parseSubmission(request.body, request.files, page.fields, (data, fileName, mimeType) =>
       this.executions.binaryData.store(data, { fileName, mimeType, fileExtension: fileName.split('.').pop() }, executionId),
     );
-    this.executions.resume(executionId, [item]).catch((e) => console.error(`Resume of ${executionId} failed:`, e));
-    return { statusCode: 200, headers: html, body: renderSubmitted(p.formTitle ?? 'Form') };
+    return this.formOutcome(executionId, this.executions.resume(executionId, [item]), page.title);
+  }
+
+  /** After a form page is submitted: go to the next page if the execution stops at one, else confirm. */
+  private async formOutcome(executionId: string, run: Promise<{ status: string }>, title?: string, submittedText?: string): Promise<IWebhookResponse> {
+    const html = { 'content-type': 'text/html; charset=utf-8' };
+    const result = await run.catch(() => ({ status: 'error' }));
+    if (result.status === 'waiting' && this.waitingFormPage(executionId)) return { statusCode: 303, headers: { location: this.formWaitingUrl(executionId) } };
+    if (result.status === 'error') return { statusCode: 500, headers: html, body: renderSubmitted('Problem submitting response', 'Please try again or contact support if the problem persists') };
+    return { statusCode: 200, headers: html, body: renderSubmitted(title || 'Form', submittedText) };
   }
 
   webhookUrlFor(node: INode, mode: 'production' | 'test') {
@@ -336,6 +380,11 @@ export class WebhookService {
       onResponse: (r) => respond({ ...r, headers: { ...headers, ...(r.headers ?? {}) } }),
     });
     if (mode === 'manual') this.push.send({ type: 'testWebhookReceived', data: { workflowId: workflowData.id!, executionId } }, pushRef);
+
+    // a form followed by Form nodes continues on their pages
+    if (isFormNode(node) && workflowData.nodes.some((n) => !n.disabled && n.type.endsWith('.form'))) {
+      return this.formOutcome(executionId, promise, String(params.formTitle ?? ''), options.formSubmittedText as string);
+    }
 
     if (result.webhookResponse) return result.webhookResponse;
 

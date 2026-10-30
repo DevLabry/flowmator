@@ -29,7 +29,10 @@ import { AnthropicChatModel, CalculatorTool, CodeTool, GeminiChatModel, HttpRequ
 import { McpClientTool, McpServerTrigger } from './ai/mcp';
 import { ragNodes } from './ai/rag';
 import { ConvertToFile, ExtractFromFile, ReadWriteFile } from './nodes/files';
-import { FormTrigger } from './nodes/form';
+import { Form, FormTrigger } from './nodes/form';
+import { EmailReadImap } from './nodes/imap';
+import { LocalFileTrigger } from './nodes/local-file-trigger';
+import { Ftp, Ssh } from './nodes/remote-files';
 import { Html, Markdown, Xml } from './nodes/markup';
 import { CompareDatasets, Summarize } from './nodes/summarize-compare';
 import { ExecuteCommand, SendEmail } from './nodes/system';
@@ -75,6 +78,11 @@ export const nodes: INodeType[] = [
   SendEmail,
   ExecuteCommand,
   FormTrigger,
+  Form,
+  EmailReadImap,
+  LocalFileTrigger,
+  Ssh,
+  Ftp,
   AiAgent,
   ChatTrigger,
   AnthropicChatModel,
@@ -130,7 +138,10 @@ export { calculate, extractJson, schemaFromExample } from './ai/subnodes';
 export { characterSplitter, cosineSimilarity, recursiveSplitter, tokenSplitter, type AiDocument } from './ai/rag';
 
 export { ruleToCron } from './nodes/schedule';
-export { renderForm, renderSubmitted, parseSubmission, type FormField } from './nodes/form';
+export { formPageOf, renderForm, renderPage, renderSubmitted, parseSubmission, type FormField, type FormNodePage } from './nodes/form';
+export { imapSearchQuery } from './nodes/imap';
+export { buildIcs, parseIcs } from './nodes/ical';
+export { Sftp, sshConnect } from './nodes/remote-files';
 
 export * from './utils/filter';
 export * from './utils/object';

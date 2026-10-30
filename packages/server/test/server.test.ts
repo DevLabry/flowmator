@@ -477,6 +477,42 @@ describe('forms', () => {
     const done = await waitFor(() => app.ctx.db.getExecution(waiting.id)?.status === 'success' && app.ctx.db.getExecution(waiting.id));
     expect(done!.data!.resultData.runData.After![0]!.data!.main![0]![0]!.json).toMatchObject({ Decision: 'yes' });
   });
+
+  it('walks through the pages of a multi-page form', async () => {
+    const wf = await createWorkflow({
+      name: 'Sign-up wizard',
+      nodes: [
+        node('Start', 'formTrigger', { path: 'sign-up', formTitle: 'Sign up', formFields: { values: [{ fieldLabel: 'Name', fieldType: 'text' }] } }),
+        node('Step 2', 'form', { operation: 'page', formFields: { values: [{ fieldLabel: 'Age', fieldType: 'number' }] }, options: { formTitle: 'About you', formDescription: '=Hi {{ $json.Name }}' } }),
+        node('End', 'form', { operation: 'completion', respondWith: 'text', completionTitle: 'All set', completionMessage: "={{ $('Start').item.json.Name }} is {{ $json.Age }}" }),
+      ],
+      connections: chain('Start', 'Step 2', 'End'),
+    });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+
+    // submitting the first page leads to the next one
+    const first = multipart([['field-0', 'Ana']]);
+    const started = await api('POST', '/form/sign-up', first.body, first.headers);
+    expect(started.status).toBe(303);
+    const next = new URL(String(started.headers.location)).pathname;
+    expect(next).toMatch(/^\/form-waiting\/\d+$/);
+    const page = await api('GET', next);
+    expect(page.body).toContain('About you');
+    expect(page.body).toContain('Hi Ana');
+
+    const second = multipart([['field-0', '30']]);
+    const submitted = await api('POST', next, second.body, second.headers);
+    expect(submitted.status).toBe(303);
+    expect(new URL(String(submitted.headers.location)).pathname).toBe(next);
+    const ending = await api('GET', next);
+    expect(ending.body).toContain('All set');
+    expect(ending.body).toContain('Ana is 30');
+
+    const id = next.split('/').pop()!;
+    const done = await waitFor(() => app.ctx.db.getExecution(id)?.status === 'success' && app.ctx.db.getExecution(id));
+    expect(done!.data!.resultData.runData['Step 2']![0]!.data!.main![0]![0]!.json).toMatchObject({ Age: 30 });
+    expect((await api('GET', next)).status).toBe(404);
+  });
 });
 
 describe('chat trigger', () => {

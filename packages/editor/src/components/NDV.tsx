@@ -1,5 +1,5 @@
-import { getNodeParametersWithDefaults, getParameterDisplayed, type INode, type INodeExecutionData, type INodeParameters } from '@8n8/workflow';
-import { ArrowLeft, Copy, Pencil, Pin, PinOff, Play, X } from 'lucide-react';
+import { getNodeParametersWithDefaults, getParameterDisplayed, parseCurl, type INode, type INodeExecutionData, type INodeParameters } from '@8n8/workflow';
+import { ArrowLeft, Copy, FileInput, Pencil, Pin, PinOff, Play, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Api } from '../lib/api';
 import { getNodeType, useApp } from '../store/app';
@@ -8,7 +8,7 @@ import { CredentialModal } from './CredentialModal';
 import { DataModeSwitch, DataView, type DataMode } from './DataView';
 import { CodeEditor } from './Editors';
 import { ParameterList } from './ParameterForm';
-import { NodeIcon, Switch } from './ui';
+import { Modal, NodeIcon, Switch } from './ui';
 
 function InputPanel({ node }: { node: INode }) {
   const runData = useWorkflow((s) => s.runData);
@@ -279,6 +279,59 @@ function SettingsTab({ node }: { node: INode }) {
   );
 }
 
+/** HTTP Request: fills the parameters from a pasted cURL command. */
+function CurlImport({ node }: { node: INode }) {
+  const [open, setOpen] = useState(false);
+  const [command, setCommand] = useState('');
+  const [error, setError] = useState('');
+  const apply = () => {
+    try {
+      const parsed = parseCurl(command);
+      // keep the chosen credential; everything else comes from the command
+      const keep = Object.fromEntries(['authentication', 'nodeCredentialType', 'genericAuthType'].filter((k) => node.parameters[k] !== undefined).map((k) => [k, node.parameters[k]]));
+      useWorkflow.getState().setParameters(node.name, { ...keep, ...(parsed as INodeParameters) });
+      useApp.getState().toast('success', 'cURL command imported');
+      setOpen(false);
+      setCommand('');
+      setError('');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="sm" onClick={() => setOpen(true)}><FileInput size={13} /> Import cURL</button>
+      </div>
+      {open && (
+        <Modal
+          title="Import cURL command"
+          width={640}
+          onClose={() => setOpen(false)}
+          footer={
+            <>
+              <button onClick={() => setOpen(false)}>Cancel</button>
+              <button className="primary" disabled={!command.trim()} onClick={apply}>Import</button>
+            </>
+          }
+        >
+          <textarea
+            autoFocus
+            rows={10}
+            value={command}
+            placeholder={"curl -X POST https://api.example.com/items \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"name\": \"pizza\"}'"}
+            onChange={(e) => setCommand(e.target.value)}
+            onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && apply()}
+            style={{ fontFamily: 'var(--mono, monospace)', fontSize: 12.5 }}
+          />
+          {error && <div style={{ color: 'var(--danger, #d63e3e)', marginTop: 8 }}>{error}</div>}
+          <div className="faint" style={{ marginTop: 8 }}>The method, URL, query, headers and body replace the current ones.</div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 export function NDV() {
   const openName = useWorkflow((s) => s.openNode);
   const node = useWorkflow((s) => s.workflow.nodes.find((n) => n.name === s.openNode));
@@ -334,6 +387,7 @@ export function NDV() {
             {tab === 'params' ? (
               <>
                 {type.hasWebhook && type.isTrigger && <WebhookUrls node={node} />}
+                {node.type.endsWith('.httpRequest') && <CurlImport node={node} />}
                 <CredentialsSection node={node} />
                 <ParameterList
                   properties={type.properties}
