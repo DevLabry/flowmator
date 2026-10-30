@@ -63,7 +63,11 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Form (multi-page forms: nex
 - [x] Google Calendar + Calendar Trigger (events with Meet links, all-day, recurrence; availability; created/updated/cancelled/started/ended)
 - [x] MySQL / MariaDB (same operations as Postgres; ON DUPLICATE KEY upsert, INSERT IGNORE)
 - [x] OpenAI (message a model with JSON output, moderation, image generation and analysis, speech, transcription and translation)
-- [ ] Still missing: HubSpot, Stripe, MongoDB, Redis, S3, Microsoft (Outlook, Teams, OneDrive), Jira, Trello, …
+- [x] MongoDB (find, aggregate, insert, update, find and update/replace, delete), Redis + Redis Trigger (pub/sub, patterns)
+- [x] AWS S3 and S3-compatible storage (MinIO, R2…): buckets, files, folders; SigV4 signing, region redirects
+- [x] Stripe + Stripe Trigger (signed webhook endpoints), HubSpot (CRM v3 objects, search, engagements, lists), Jira Software + Jira Trigger (Cloud ADF and Server), Trello + Trello Trigger
+- [x] Microsoft Outlook + Outlook Trigger (polling), Microsoft Teams (channels, messages, Planner tasks), Microsoft OneDrive (Graph; upload sessions for big files)
+- [ ] Still missing: Microsoft tenant-specific sign-in (uses "common"), Teams/OneDrive triggers, long tail of n8n nodes
 
 ### Platform
 - [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys, data tables
