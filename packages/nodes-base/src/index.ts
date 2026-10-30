@@ -22,6 +22,14 @@ import { Discord } from './nodes/integrations/discord';
 import { GoogleCalendar, GoogleCalendarTrigger } from './nodes/integrations/google-calendar';
 import { GoogleDrive, GoogleDriveTrigger } from './nodes/integrations/google-drive';
 import { MySql } from './nodes/integrations/mysql';
+import { MongoDb } from './nodes/integrations/mongodb';
+import { RedisNode, RedisTrigger } from './nodes/integrations/redis';
+import { AwsS3, S3, s3Credentials } from './nodes/integrations/s3';
+import { Stripe, StripeTrigger, stripeCredentials } from './nodes/integrations/stripe';
+import { Hubspot, hubspotCredentials } from './nodes/integrations/hubspot';
+import { Jira, JiraTrigger, jiraCredentials } from './nodes/integrations/jira';
+import { Trello, TrelloTrigger, trelloCredentials } from './nodes/integrations/trello';
+import { MicrosoftOneDrive, MicrosoftOutlook, MicrosoftOutlookTrigger, MicrosoftTeams, microsoftCredentials } from './nodes/integrations/microsoft';
 import { OpenAi } from './ai/openai';
 import { Telegram, TelegramTrigger } from './nodes/integrations/telegram';
 import { aiCredentials, AiAgent, ChatTrigger } from './ai/agent';
@@ -128,10 +136,26 @@ export const nodes: INodeType[] = [
   GoogleCalendar,
   GoogleCalendarTrigger,
   MySql,
+  MongoDb,
+  RedisNode,
+  RedisTrigger,
+  AwsS3,
+  S3,
+  Stripe,
+  StripeTrigger,
+  Hubspot,
+  Jira,
+  JiraTrigger,
+  Trello,
+  TrelloTrigger,
+  MicrosoftOutlook,
+  MicrosoftOutlookTrigger,
+  MicrosoftTeams,
+  MicrosoftOneDrive,
   OpenAi,
 ];
 
-export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials, ...modelCredentials, ...vectorStoreCredentials, ...integrationCredentials];
+export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials, ...modelCredentials, ...vectorStoreCredentials, ...integrationCredentials, ...s3Credentials, ...stripeCredentials, ...hubspotCredentials, ...jiraCredentials, ...trelloCredentials, ...microsoftCredentials];
 
 export { buildMime, simplifyMessage } from './nodes/integrations/gmail';
 export { columnLetter, spreadsheetId } from './nodes/integrations/sheets';
@@ -141,6 +165,14 @@ export { verifySlackSignature } from './nodes/integrations/slack';
 export { airtableId, matchFormula } from './nodes/integrations/airtable';
 export { buildDriveQuery, driveId, multipartRelated } from './nodes/integrations/google-drive';
 export { buildEvent, dateOnly, eventTime } from './nodes/integrations/google-calendar';
+export { mongoConnector, pickFields, toObjectIds, type MongoCollection, type MongoSession } from './nodes/integrations/mongodb';
+export { parseRedisInfo } from './nodes/integrations/redis';
+export { s3KeyPath, s3Url } from './nodes/integrations/s3';
+export { stripeForm, verifyStripeSignature } from './nodes/integrations/stripe';
+export { flattenHubspot, hubspotFilterGroups } from './nodes/integrations/hubspot';
+export { adfToText, simplifyIssue, textToAdf } from './nodes/integrations/jira';
+export { verifyTrelloSignature } from './nodes/integrations/trello';
+export { driveItemPath, outlookFilter, simplifyOutlookMessage } from './nodes/integrations/microsoft';
 export { buildMySqlWhere, mysqlConnector, quoteMySqlIdent, type MySqlSession } from './nodes/integrations/mysql';
 
 export * from './ai/llm';
