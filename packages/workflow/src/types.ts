@@ -323,6 +323,11 @@ export interface INodeTypeDescription {
   dynamicOutputs?: (parameters: INodeParameters) => Array<ConnectionType | INodeInputConfiguration>;
   dynamicOutputNames?: (parameters: INodeParameters) => string[];
   dynamicInputs?: (parameters: INodeParameters) => Array<ConnectionType | INodeInputConfiguration>;
+  /**
+   * For nodes that switch between a main node and a sub-node with a parameter (vector stores):
+   * the parameters to set when the node is added as a sub-node of the given connection type.
+   */
+  subNodeParameters?: Partial<Record<ConnectionType, INodeParameters>>;
 }
 
 export interface IWebhookDescription {

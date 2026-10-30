@@ -26,6 +26,7 @@
     "tsx": "^4.19.2"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/ws": "^8.18.2"
   }
 }

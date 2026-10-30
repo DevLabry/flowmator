@@ -6,6 +6,7 @@ import {
   type IDataObject,
   type INode,
   type INodeExecutionData,
+  type INodeType,
   type IWebhookDescription,
   type IWebhookRequest,
   type IWebhookResponse,
@@ -241,7 +242,7 @@ export class WebhookService {
       throw new WebhookError(405, `This webhook expects ${wanted} requests`);
     }
     const ctx = this.webhookContext(workflowData, node, 'default', request, waiting.execution.mode);
-    const result = nodeType.webhook ? await nodeType.webhook.call(ctx) : { workflowData: [[{ json: { body: request.body as IDataObject } }]] };
+    const result = nodeType.webhook ? await this.callWebhook(nodeType, ctx) : { workflowData: [[{ json: { body: request.body as IDataObject } }]] };
     if (result.webhookResponse && !result.workflowData) return result.webhookResponse;
     const resumeItems = result.workflowData?.[0] as INodeExecutionData[] | undefined;
     // respond right away; the execution continues in the background
@@ -275,19 +276,21 @@ export class WebhookService {
     return `${this.config.webhookUrl}${endpoint}/${path}`;
   }
 
+  private async callWebhook(nodeType: INodeType, ctx: WebhookContext) {
+    try {
+      return await nodeType.webhook!.call(ctx);
+    } finally {
+      await ctx.closeSubNodes();
+    }
+  }
+
   private webhookContext(workflowData: IWorkflowBase, node: INode, webhookName: string, request: IWebhookRequest, mode: 'manual' | 'webhook' | string) {
     const workflow = this.executions.buildWorkflow(workflowData);
     return new WebhookContext(
       {
         workflow,
         node: workflow.getNode(node.name)!,
-        additionalData: {
-          executionId: '',
-          mode: mode as 'manual',
-          credentialsHelper: this.executions.credentialsHelper,
-          timezone: this.config.timezone,
-          binaryData: this.executions.binaryData,
-        },
+        additionalData: this.executions.webhookAdditionalData(mode as 'manual'),
       },
       request,
       webhookName,
@@ -309,7 +312,7 @@ export class WebhookService {
     if (!node) throw new WebhookError(404, `Node "${nodeName}" not found`);
     const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
     const ctx = this.webhookContext(workflowData, node, webhookName, request, mode);
-    const result = await nodeType.webhook!.call(ctx);
+    const result = await this.callWebhook(nodeType, ctx);
     if (!result.workflowData) return result.webhookResponse ?? { statusCode: 200, body: { message: 'Webhook call received' } };
     onAccepted?.();
 

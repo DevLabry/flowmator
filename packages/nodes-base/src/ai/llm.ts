@@ -38,7 +38,7 @@ export interface ChatSession {
 }
 
 export interface ChatModel {
-  provider: 'anthropic' | 'openai' | 'ollama';
+  provider: 'anthropic' | 'openai' | 'ollama' | 'gemini';
   model: string;
   createSession(opts: { system?: string; history?: HistoryMessage[]; tools: ToolSpec[] }): ChatSession;
 }
@@ -284,6 +284,102 @@ export function ollamaModel(o: OllamaOptions): ChatModel {
         },
         async sendToolResults(results) {
           for (const r of results) messages.push({ role: 'tool', tool_name: pending.get(r.id), content: r.isError ? `ERROR: ${r.content}` : r.content });
+          return call();
+        },
+      };
+    },
+  };
+}
+
+/* ---------------- Google Gemini ---------------- */
+
+interface GeminiPart {
+  text?: string;
+  thought?: boolean;
+  functionCall?: { id?: string; name: string; args?: Record<string, unknown> };
+  functionResponse?: { id?: string; name: string; response: Record<string, unknown> };
+}
+interface GeminiContent {
+  role: 'user' | 'model';
+  parts: GeminiPart[];
+}
+
+export interface GeminiOptions {
+  apiKey: string;
+  host: string;
+  model: string;
+  maxTokens?: number;
+  temperature?: number;
+  signal?: AbortSignal;
+}
+
+export function geminiModel(o: GeminiOptions): ChatModel {
+  const model = o.model.replace(/^models\//, '');
+  const url = `${o.host.replace(/\/$/, '')}/v1beta/models/${model}:generateContent`;
+  const headers = { 'x-goog-api-key': o.apiKey };
+  return {
+    provider: 'gemini',
+    model,
+    createSession({ system, history, tools }) {
+      const contents: GeminiContent[] = normalizeHistory(history).map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] }));
+      const toolDefs = tools.length ? [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.inputSchema })) }] : undefined;
+      // calls carry no id on older models: remember which name each generated id belongs to
+      const names = new Map<string, string>();
+      const generated = new Set<string>();
+      let counter = 0;
+      const call = async (): Promise<ModelTurn> => {
+        const res = await postJson<{
+          candidates?: Array<{ content?: GeminiContent; finishReason?: string }>;
+          promptFeedback?: { blockReason?: string };
+          usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+        }>(
+          url,
+          {
+            contents,
+            ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+            ...(toolDefs ? { tools: toolDefs } : {}),
+            generationConfig: { ...(o.maxTokens ? { maxOutputTokens: o.maxTokens } : {}), ...(o.temperature !== undefined ? { temperature: o.temperature } : {}) },
+          },
+          headers,
+          o.signal,
+        );
+        const candidate = res.candidates?.[0];
+        if (!candidate?.content) throw new Error(`Gemini returned no answer${res.promptFeedback?.blockReason ? ` (blocked: ${res.promptFeedback.blockReason})` : candidate?.finishReason ? ` (${candidate.finishReason})` : ''}`);
+        // parts go back unchanged so thought signatures are kept
+        contents.push({ role: 'model', parts: candidate.content.parts ?? [] });
+        const parts = candidate.content.parts ?? [];
+        const toolCalls = parts
+          .filter((p) => p.functionCall)
+          .map((p) => {
+            let id = p.functionCall!.id;
+            if (!id) generated.add((id = `call_${++counter}`));
+            names.set(id, p.functionCall!.name);
+            return { id, name: p.functionCall!.name, input: p.functionCall!.args ?? {} };
+          });
+        return {
+          text: parts.filter((p) => p.text && !p.thought).map((p) => p.text).join(''),
+          toolCalls,
+          done: toolCalls.length === 0,
+          stopReason: candidate.finishReason ?? 'STOP',
+          usage: { inputTokens: res.usageMetadata?.promptTokenCount ?? 0, outputTokens: res.usageMetadata?.candidatesTokenCount ?? 0 },
+        };
+      };
+      return {
+        async sendUser(text) {
+          contents.push({ role: 'user', parts: [{ text }] });
+          return call();
+        },
+        async sendToolResults(results) {
+          contents.push({
+            role: 'user',
+            parts: results.map((r) => ({
+              functionResponse: {
+                ...(generated.has(r.id) ? {} : { id: r.id }),
+                name: names.get(r.id) ?? 'tool',
+                response: r.isError ? { error: r.content } : { result: r.content },
+              },
+            })),
+          });
           return call();
         },
       };

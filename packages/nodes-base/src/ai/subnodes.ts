@@ -1,12 +1,14 @@
 import vm from 'node:vm';
 import type { IDataObject, ILoadOptionsFunctions, INodeType, ISupplyDataFunctions } from '@8n8/workflow';
-import { anthropicModel, listAnthropicModels, ollamaModel, openAiModel, toToolName, type HistoryMessage, type ToolSpec } from './llm';
+import { Redis } from 'ioredis';
+import { pgPool, type PgCreds } from '../nodes/integrations/postgres';
+import { anthropicModel, geminiModel, listAnthropicModels, ollamaModel, openAiModel, toToolName, type HistoryMessage, type ToolSpec } from './llm';
 
 const MAX_TOOL_OUTPUT = 20_000;
 const clip = (s: string) => (s.length > MAX_TOOL_OUTPUT ? `${s.slice(0, MAX_TOOL_OUTPUT)}\n…[truncated ${s.length - MAX_TOOL_OUTPUT} characters]` : s);
 const asText = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
 
-const subNode = (name: string, displayName: string, description: string, output: string, icon: string, extra: Partial<INodeType['description']> = {}) => ({
+export const subNode = (name: string, displayName: string, description: string, output: string, icon: string, extra: Partial<INodeType['description']> = {}) => ({
   name: `8n8-ai.${name}`,
   displayName,
   description,
@@ -140,6 +142,54 @@ export const OllamaChatModel: INodeType = {
   },
 };
 
+interface GeminiCreds { host?: string; apiKey: string }
+export const geminiHost = (c: GeminiCreds) => (c.host || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+
+export const GeminiChatModel: INodeType = {
+  description: {
+    ...subNode('lmChatGoogleGemini', 'Google Gemini Chat Model', 'Gemini models for AI Agent and chains', 'ai_languageModel', 'fa:gem'),
+    credentials: [{ name: 'googlePalmApi', required: true }],
+    properties: [
+      { displayName: 'Model', name: 'modelName', type: 'options', default: 'models/gemini-2.5-flash', typeOptions: { loadOptionsMethod: 'listModels' } },
+      {
+        displayName: 'Options',
+        name: 'options',
+        type: 'collection',
+        default: {},
+        options: [
+          { displayName: 'Maximum Tokens', name: 'maxOutputTokens', type: 'number', default: 0, description: '0 = model default' },
+          { displayName: 'Sampling Temperature', name: 'temperature', type: 'number', typeOptions: { minValue: 0, maxValue: 2, numberPrecision: 1 }, default: 0.7 },
+        ],
+      },
+    ],
+  },
+  methods: {
+    loadOptions: {
+      async listModels(this: ILoadOptionsFunctions) {
+        const c = await this.getCredentials<GeminiCreds>('googlePalmApi');
+        const res = (await this.helpers.httpRequest({ url: `${geminiHost(c)}/v1beta/models`, qs: { pageSize: 1000 }, headers: { 'x-goog-api-key': c.apiKey }, json: true })) as {
+          models: Array<{ name: string; displayName?: string; supportedGenerationMethods?: string[] }>;
+        };
+        return res.models.filter((m) => m.supportedGenerationMethods?.includes('generateContent')).map((m) => ({ name: m.displayName ?? m.name, value: m.name }));
+      },
+    },
+  },
+  async supplyData(this: ISupplyDataFunctions, itemIndex: number) {
+    const c = await this.getCredentials<GeminiCreds>('googlePalmApi');
+    const o = this.getNodeParameter('options', itemIndex, {}) as IDataObject;
+    return {
+      response: geminiModel({
+        apiKey: c.apiKey,
+        host: geminiHost(c),
+        model: this.getNodeParameter('modelName', itemIndex) as string,
+        maxTokens: Number(o.maxOutputTokens) || undefined,
+        temperature: o.temperature === undefined ? undefined : Number(o.temperature),
+        signal: this.getExecutionCancelSignal(),
+      }),
+    };
+  },
+};
+
 /* ---------------- memory ---------------- */
 
 export interface AgentMemory {
@@ -177,6 +227,99 @@ export const SimpleMemory: INodeType = {
       },
     };
     return { response: memory };
+  },
+};
+
+const sessionProps = [
+  { displayName: 'Session Key', name: 'sessionKey', type: 'string' as const, default: '={{ $json.sessionId }}', description: 'Messages are stored per value of this key' },
+  { displayName: 'Context Window Length', name: 'contextWindowLength', type: 'number' as const, default: 5, description: 'How many past exchanges (user + reply) to send to the model' },
+];
+
+function sessionParams(ctx: ISupplyDataFunctions, itemIndex: number) {
+  return {
+    session: String(ctx.getNodeParameter('sessionKey', itemIndex) ?? '') || 'default',
+    window: Math.max(1, Number(ctx.getNodeParameter('contextWindowLength', itemIndex, 5))),
+  };
+}
+
+/** Messages are stored like LangChain's (and so n8n's) chat histories, so existing tables and keys keep working. */
+type StoredMessage = { type: 'human' | 'ai'; content?: string; data?: { content: string } };
+const toStored = (role: HistoryMessage['role'], text: string) => ({ type: role === 'user' ? ('human' as const) : ('ai' as const), content: text, additional_kwargs: {}, response_metadata: {} });
+const fromStored = (m: StoredMessage): HistoryMessage => ({ role: m.type === 'human' ? 'user' : 'assistant', text: m.content ?? m.data?.content ?? '' });
+
+export const PostgresChatMemory: INodeType = {
+  description: {
+    ...subNode('memoryPostgresChat', 'Postgres Chat Memory', 'Stores the chat history in a Postgres table', 'ai_memory', 'fa:database'),
+    credentials: [{ name: 'postgres', required: true }],
+    properties: [...sessionProps, { displayName: 'Table Name', name: 'tableName', type: 'string', default: 'n8n_chat_histories', description: 'Created when it does not exist' }],
+  },
+  async supplyData(this: ISupplyDataFunctions, itemIndex: number) {
+    const { session, window } = sessionParams(this, itemIndex);
+    const table = String(this.getNodeParameter('tableName', itemIndex, 'n8n_chat_histories'));
+    if (!/^[A-Za-z_][\w.]*$/.test(table)) throw new Error(`Invalid table name "${table}"`);
+    const quoted = table.split('.').map((p) => `"${p}"`).join('.');
+    const pool = pgPool(await this.getCredentials<PgCreds>('postgres'));
+    let ready: Promise<unknown> | undefined;
+    const ensure = () => (ready ??= pool.query(`CREATE TABLE IF NOT EXISTS ${quoted} (id SERIAL PRIMARY KEY, session_id VARCHAR(255) NOT NULL, message JSONB NOT NULL)`));
+    const memory: AgentMemory = {
+      async load() {
+        await ensure();
+        const { rows } = await pool.query(`SELECT message FROM ${quoted} WHERE session_id = $1 ORDER BY id DESC LIMIT $2`, [session, window * 2]);
+        return rows.reverse().map((r: { message: StoredMessage }) => fromStored(r.message));
+      },
+      async save(input, output) {
+        await ensure();
+        await pool.query(`INSERT INTO ${quoted} (session_id, message) VALUES ($1, $2), ($1, $3)`, [session, toStored('user', input), toStored('assistant', output)]);
+      },
+      async clear() {
+        await ensure();
+        await pool.query(`DELETE FROM ${quoted} WHERE session_id = $1`, [session]);
+      },
+    };
+    return { response: memory, closeFunction: () => pool.end() };
+  },
+};
+
+interface RedisCreds { host: string; port?: number; database?: number; user?: string; password?: string; ssl?: boolean }
+
+export function redisClient(c: RedisCreds) {
+  return new Redis({
+    host: c.host,
+    port: Number(c.port ?? 6379),
+    db: Number(c.database ?? 0),
+    username: c.user || undefined,
+    password: c.password || undefined,
+    ...(c.ssl ? { tls: {} } : {}),
+    lazyConnect: true,
+    maxRetriesPerRequest: 1,
+  });
+}
+
+export const RedisChatMemory: INodeType = {
+  description: {
+    ...subNode('memoryRedisChat', 'Redis Chat Memory', 'Stores the chat history in Redis', 'ai_memory', 'fa:database'),
+    credentials: [{ name: 'redis', required: true }],
+    properties: [...sessionProps, { displayName: 'Session Time To Live', name: 'sessionTTL', type: 'number', default: 0, description: 'Seconds until a session is forgotten. 0 = never.' }],
+  },
+  async supplyData(this: ISupplyDataFunctions, itemIndex: number) {
+    const { session, window } = sessionParams(this, itemIndex);
+    const ttl = Number(this.getNodeParameter('sessionTTL', itemIndex, 0));
+    const redis = redisClient(await this.getCredentials<RedisCreds>('redis'));
+    const memory: AgentMemory = {
+      async load() {
+        const raw = await redis.lrange(session, -window * 2, -1);
+        return raw.map((r) => fromStored(JSON.parse(r) as StoredMessage));
+      },
+      async save(input, output) {
+        // LangChain's Redis history layout: {type, data: {content}}
+        await redis.rpush(session, ...[toStored('user', input), toStored('assistant', output)].map((m) => JSON.stringify({ type: m.type, data: { content: m.content, additional_kwargs: {}, response_metadata: {} } })));
+        if (ttl > 0) await redis.expire(session, ttl);
+      },
+      async clear() {
+        await redis.del(session);
+      },
+    };
+    return { response: memory, closeFunction: async () => void redis.disconnect() };
   },
 };
 

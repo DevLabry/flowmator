@@ -93,7 +93,13 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename
 
 ### AI
 - [x] AI Agent with sub-node slots (Model, Memory, Tools, Output Parser), tool loop, iteration limit
-- [x] Chat models: Anthropic (official SDK, refusal fallback, effort), OpenAI-compatible, Ollama (Gemini pending)
-- [ ] Simple Memory done; still missing: persistent memory, vector stores, embeddings, document loaders, text splitters
-- [ ] Workflow tool, HTTP Request tool, Code tool, Calculator done; still missing: MCP server trigger, MCP client tool
+- [x] Chat models: Anthropic (official SDK, refusal fallback, effort), OpenAI-compatible, Ollama, Google Gemini (function calling, thought signatures kept)
+- [x] Memory: Simple, Postgres Chat Memory, Redis Chat Memory (LangChain/n8n storage layout, so existing tables and keys work)
+- [x] RAG: embeddings (OpenAI, Ollama, Gemini), Default Data Loader (JSON, text, CSV, JSON files, PDF per page, metadata), text splitters (recursive with code modes, character, token)
+- [x] Vector stores with n8n's modes (get many, insert, retrieve for chains, retrieve as agent tool) and metadata filters: Simple (in memory), Postgres PGVector, Qdrant, Pinecone
+- [x] Vector Store Retriever, Question and Answer Chain, Basic LLM Chain, Answer Questions with a Vector Store tool
+- [x] Tools: Workflow, HTTP Request, Code, Calculator, MCP Client Tool (Streamable HTTP and SSE, auth, include/exclude tools)
+- [x] MCP Server Trigger: serves its connected tools over stateless Streamable HTTP (JSON responses), bearer/header auth
+- [x] Sub-node connections (database pools, MCP clients) are closed when the root node finishes
 - [ ] Chat trigger with hosted page and editor chat panel done; still missing: evaluations
+- [ ] Still missing: more vector stores (Supabase, Mongo Atlas, Weaviate, Milvus...), Information Extractor, Text Classifier, Sentiment Analysis, Summarization chain, more chat models (Mistral, Groq, Bedrock, Azure OpenAI...), Think tool, SerpAPI/Wikipedia tools

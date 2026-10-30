@@ -174,6 +174,21 @@ export class ExecutionService {
     return mode !== 'manual' || this.config.queue.offloadManual;
   }
 
+  /** What webhook handlers run with: credentials, data tables, sub-workflows (for tools of an MCP Server Trigger). */
+  webhookAdditionalData(mode: ExecutionMode): IWorkflowExecuteAdditionalData {
+    return {
+      executionId: '',
+      mode,
+      credentialsHelper: this.credentialsHelper,
+      variables: this.variables(),
+      timezone: this.config.timezone,
+      instanceBaseUrl: this.config.webhookUrl.replace(/\/$/, ''),
+      binaryData: this.binaryData,
+      dataTables: this.dataTables,
+      executeWorkflow: (info, items, options) => this.executeSubWorkflow(info, items, '', options.waitForSubWorkflow),
+    };
+  }
+
   private additionalData(executionId: string, req: Pick<LocalRun, 'mode' | 'pushRef' | 'onResponse'>, workflow: Workflow, abort: AbortController): IWorkflowExecuteAdditionalData {
     const pushRef = req.pushRef;
     // manual runs only go to the editor that started them; production runs go to everyone watching
@@ -342,7 +357,7 @@ export class ExecutionService {
       data = wf;
     }
     const startNode = data.nodes.find((n) => n.type.endsWith('executeWorkflowTrigger') && !n.disabled)?.name;
-    const { executionId, promise } = this.run({ workflowData: data, mode: 'integrated', startNode, triggerData: items, parentExecutionId });
+    const { executionId, promise } = this.run({ workflowData: data, mode: 'integrated', startNode, triggerData: items, parentExecutionId: parentExecutionId || undefined });
     if (!wait) return { data: [items], executionId };
     const run = await promise;
     if (run.status === 'error') {

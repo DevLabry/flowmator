@@ -25,7 +25,9 @@ import { MySql } from './nodes/integrations/mysql';
 import { OpenAi } from './ai/openai';
 import { Telegram, TelegramTrigger } from './nodes/integrations/telegram';
 import { aiCredentials, AiAgent, ChatTrigger } from './ai/agent';
-import { AnthropicChatModel, CalculatorTool, CodeTool, HttpRequestTool, OllamaChatModel, OpenAiChatModel, SimpleMemory, StructuredOutputParser, WorkflowTool } from './ai/subnodes';
+import { AnthropicChatModel, CalculatorTool, CodeTool, GeminiChatModel, HttpRequestTool, OllamaChatModel, OpenAiChatModel, PostgresChatMemory, RedisChatMemory, SimpleMemory, StructuredOutputParser, WorkflowTool } from './ai/subnodes';
+import { McpClientTool, McpServerTrigger } from './ai/mcp';
+import { ragNodes } from './ai/rag';
 import { ConvertToFile, ExtractFromFile, ReadWriteFile } from './nodes/files';
 import { FormTrigger } from './nodes/form';
 import { Html, Markdown, Xml } from './nodes/markup';
@@ -78,6 +80,12 @@ export const nodes: INodeType[] = [
   AnthropicChatModel,
   OpenAiChatModel,
   OllamaChatModel,
+  GeminiChatModel,
+  PostgresChatMemory,
+  RedisChatMemory,
+  McpClientTool,
+  McpServerTrigger,
+  ...ragNodes,
   SimpleMemory,
   CalculatorTool,
   CodeTool,
@@ -119,6 +127,7 @@ export { buildMySqlWhere, mysqlConnector, quoteMySqlIdent, type MySqlSession } f
 
 export * from './ai/llm';
 export { calculate, extractJson, schemaFromExample } from './ai/subnodes';
+export { characterSplitter, cosineSimilarity, recursiveSplitter, tokenSplitter, type AiDocument } from './ai/rag';
 
 export { ruleToCron } from './nodes/schedule';
 export { renderForm, renderSubmitted, parseSubmission, type FormField } from './nodes/form';

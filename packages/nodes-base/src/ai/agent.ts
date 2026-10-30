@@ -298,4 +298,41 @@ export const aiCredentials: ICredentialType[] = [
     ],
     test: { request: { url: '={{$credentials.baseUrl}}/api/tags' } },
   },
+  {
+    name: 'googlePalmApi',
+    displayName: 'Google Gemini (PaLM) API',
+    documentationUrl: 'https://aistudio.google.com/apikey',
+    properties: [
+      { displayName: 'Host', name: 'host', type: 'string', default: 'https://generativelanguage.googleapis.com' },
+      { displayName: 'API Key', name: 'apiKey', type: 'string', typeOptions: password, default: '' },
+    ],
+    test: { request: { url: '={{$credentials.host}}/v1beta/models', headers: { 'x-goog-api-key': '={{$credentials.apiKey}}' } } },
+  },
+  {
+    name: 'qdrantApi',
+    displayName: 'Qdrant',
+    properties: [
+      { displayName: 'Qdrant URL', name: 'qdrantUrl', type: 'string', default: 'http://localhost:6333' },
+      { displayName: 'API Key', name: 'apiKey', type: 'string', typeOptions: password, default: '', description: 'Leave empty for a local Qdrant without auth' },
+    ],
+    test: { request: { url: '={{$credentials.qdrantUrl}}/collections', headers: { 'api-key': '={{$credentials.apiKey}}' } } },
+  },
+  {
+    name: 'pineconeApi',
+    displayName: 'Pinecone',
+    properties: [{ displayName: 'API Key', name: 'apiKey', type: 'string', typeOptions: password, default: '' }],
+    test: { request: { url: 'https://api.pinecone.io/indexes', headers: { 'Api-Key': '={{$credentials.apiKey}}' } } },
+  },
+  {
+    name: 'redis',
+    displayName: 'Redis',
+    properties: [
+      { displayName: 'Host', name: 'host', type: 'string', default: 'localhost' },
+      { displayName: 'Port', name: 'port', type: 'number', default: 6379 },
+      { displayName: 'Database Number', name: 'database', type: 'number', default: 0 },
+      { displayName: 'User', name: 'user', type: 'string', default: '' },
+      { displayName: 'Password', name: 'password', type: 'string', typeOptions: password, default: '' },
+      { displayName: 'SSL', name: 'ssl', type: 'boolean', default: false },
+    ],
+  },
 ];

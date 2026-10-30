@@ -3,7 +3,7 @@ import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodePropertie
 import { NodeOperationError } from '@8n8/workflow';
 import { errorItem } from '../../utils/object';
 
-interface PgCreds {
+export interface PgCreds {
   host: string;
   port?: number;
   database: string;
@@ -66,6 +66,19 @@ const whereProp: INodeProperties = {
     },
   ],
 };
+
+export function pgPool(creds: PgCreds) {
+  return new pg.Pool({
+    host: creds.host,
+    port: Number(creds.port ?? 5432),
+    database: creds.database,
+    user: creds.user,
+    password: creds.password,
+    ssl: creds.ssl === 'require' ? true : creds.ssl === 'allow' ? { rejectUnauthorized: false } : false,
+    max: 4,
+    connectionTimeoutMillis: 10_000,
+  });
+}
 
 export const Postgres: INodeType = {
   description: {
@@ -131,16 +144,7 @@ export const Postgres: INodeType = {
   },
   async execute(this: IExecuteFunctions) {
     const creds = await this.getCredentials<PgCreds>('postgres');
-    const pool = new pg.Pool({
-      host: creds.host,
-      port: Number(creds.port ?? 5432),
-      database: creds.database,
-      user: creds.user,
-      password: creds.password,
-      ssl: creds.ssl === 'require' ? true : creds.ssl === 'allow' ? { rejectUnauthorized: false } : false,
-      max: 4,
-      connectionTimeoutMillis: 10_000,
-    });
+    const pool = pgPool(creds);
     const items = this.getInputData();
     const op = this.getNodeParameter('operation', 0) as string;
     const transaction = this.getNodeParameter('options.queryBatching', 0, 'independently') === 'transaction';

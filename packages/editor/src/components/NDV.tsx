@@ -283,6 +283,7 @@ export function NDV() {
   const openName = useWorkflow((s) => s.openNode);
   const node = useWorkflow((s) => s.workflow.nodes.find((n) => n.name === s.openNode));
   const readOnly = useWorkflow((s) => s.readOnly);
+  const nodeIO = useWorkflow((s) => (s.openNode ? s.nodeIO[s.openNode] : undefined));
   const [tab, setTab] = useState<'params' | 'settings'>('params');
   const [name, setName] = useState('');
   useEffect(() => setName(openName ?? ''), [openName]);
@@ -294,8 +295,11 @@ export function NDV() {
   if (!openName || !node) return null;
   const type = getNodeType(node.type);
   if (!type) return null;
-  const io = staticIO(node);
-  const hasInput = io.inputs.some((i) => (typeof i === 'string' ? i : i.type) === 'main');
+  const io = nodeIO ?? staticIO(node);
+  const isMain = (x: string | { type: string }) => (typeof x === 'string' ? x : x.type) === 'main';
+  const hasInput = io.inputs.some(isMain);
+  // vector stores are sub-nodes only in their retrieve modes
+  const isSub = type.supplyData && !io.outputs.some(isMain);
   const close = () => useWorkflow.getState().setOpenNode(null);
 
   return (
@@ -314,7 +318,7 @@ export function NDV() {
                 onBlur={() => setName(useWorkflow.getState().renameNode(node.name, name))}
                 onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
               />
-              {!readOnly && !type.supplyData && (
+              {!readOnly && !isSub && (
                 <button className="primary sm" onClick={() => useWorkflow.getState().run({ destinationNode: node.name })}>
                   <Play size={12} /> {type.isTrigger ? 'Test step' : 'Execute step'}
                 </button>
@@ -346,7 +350,7 @@ export function NDV() {
             )}
           </div>
         </div>
-        {type.supplyData ? (
+        {isSub ? (
           <div className="ndv-panel">
             <div className="ndv-panel-head"><strong>Output</strong></div>
             <div className="empty">This is a sub-node. It runs inside the node it is connected to (for example an AI Agent), so run that node to try it.</div>
