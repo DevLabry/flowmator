@@ -4,7 +4,7 @@ import { apiRequest, forOp, operationProp } from '../../utils/api';
 import { errorItem } from '../../utils/object';
 
 const API = 'https://sheets.googleapis.com/v4/spreadsheets';
-const credTypeOf = (auth: unknown) => (auth === 'serviceAccount' ? 'googleApi' : 'googleSheetsOAuth2Api');
+export const credTypeOf = (auth: unknown) => (auth === 'serviceAccount' ? 'googleApi' : 'googleSheetsOAuth2Api');
 
 /** Accepts an ID or a docs.google.com URL. */
 export function spreadsheetId(v: string) {
@@ -40,6 +40,36 @@ class SheetsClient {
     const r = await this.request('GET', `/${this.id}/values/${encodeURIComponent(range)}`, undefined, { valueRenderOption: render, dateTimeRenderOption: 'FORMATTED_STRING' });
     return (r.values as unknown[][]) ?? [];
   }
+}
+
+/* ---------------- a sheet as a table (evaluation datasets) ---------------- */
+
+/** Rows below the header row as objects, with their sheet row number (row_number, like the Sheets node). */
+export async function sheetRows(ctx: { helpers: IHelpers }, credType: string, documentId: string, sheet: string): Promise<IDataObject[]> {
+  const [header = [], ...data] = await new SheetsClient(ctx, credType, spreadsheetId(documentId)).values(quoteSheet(sheet));
+  const columns = header.map((h) => String(h ?? ''));
+  const rows: IDataObject[] = [];
+  data.forEach((values, i) => {
+    if (!values.some((v) => v !== '' && v != null)) return;
+    const row: IDataObject = { row_number: i + 2 };
+    columns.forEach((c, j) => c && (row[c] = (values[j] ?? '') as IDataObject[string]));
+    rows.push(row);
+  });
+  return rows;
+}
+
+/** Writes values into one row by column name, adding the columns the header row lacks. */
+export async function writeSheetRow(ctx: { helpers: IHelpers }, credType: string, documentId: string, sheet: string, rowNumber: number, data: IDataObject) {
+  const client = new SheetsClient(ctx, credType, spreadsheetId(documentId));
+  const qs = quoteSheet(sheet);
+  const header = ((await client.values(`${qs}!1:1`))[0] ?? []).map((h) => String(h ?? ''));
+  const missing = Object.keys(data).filter((k) => !header.includes(k));
+  if (missing.length) {
+    await client.request('PUT', `/${client.id}/values/${encodeURIComponent(`${qs}!${columnLetter(header.length)}1`)}`, { values: [missing] }, { valueInputOption: 'RAW' });
+    header.push(...missing);
+  }
+  const updates = Object.entries(data).map(([k, v]) => ({ range: `${qs}!${columnLetter(header.indexOf(k))}${rowNumber}`, values: [[cellValue(v)]] }));
+  await client.request('POST', `/${client.id}/values:batchUpdate`, { valueInputOption: 'RAW', data: updates as unknown as IDataObject[] });
 }
 
 interface SheetOptions {

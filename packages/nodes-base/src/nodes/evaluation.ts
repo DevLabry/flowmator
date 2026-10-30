@@ -4,6 +4,7 @@ import type {
   IDataObject,
   IDataTableService,
   IExecuteFunctions,
+  IHelpers,
   INode,
   INodeExecutionData,
   INodeInputConfiguration,
@@ -15,14 +16,32 @@ import { NodeOperationError } from '@8n8/workflow';
 import { askJson } from '../ai/chains';
 import type { ChatModel } from '../ai/llm';
 import { DataTable, buildFilter, filterProps, resolveTable, tableProp } from './data-table';
+import { googleAuthProp } from './integrations/google';
+import { GoogleSheets, credTypeOf, sheetRows, writeSheetRow } from './integrations/sheets';
 
 export const EVALUATION_TRIGGER = '8n8.evaluationTrigger';
 export const EVALUATION_NODE = '8n8.evaluation';
 
 /** Set by the Evaluation Trigger so Evaluation nodes later in the run know which dataset row they belong to. */
-interface EvaluationRowRef {
-  tableId: string;
-  rowId: number;
+type EvaluationRowRef =
+  | { source?: 'dataTable'; tableId: string; rowId: number }
+  | { source: 'googleSheets'; credType: string; documentId: string; sheetName: string; rowNumber: number };
+
+type Params = Pick<IExecuteFunctions, 'getNodeParameter'>;
+
+/** Google Sheets dataset rows: every non-empty row, or those whose lookup columns match. */
+function sheetRef(ctx: Params) {
+  const documentId = String(ctx.getNodeParameter('documentId', 0, '', { extractValue: true }) ?? '').trim();
+  const sheetName = String(ctx.getNodeParameter('sheetName', 0, '', { extractValue: true }) ?? '').trim();
+  if (!documentId || !sheetName) throw new Error('Select the Google Sheets document and sheet of the dataset');
+  return { credType: credTypeOf(ctx.getNodeParameter('authentication', 0, 'oAuth2')), documentId, sheetName };
+}
+
+async function sheetDataset(ctx: Params & { helpers: IHelpers }) {
+  const { credType, documentId, sheetName } = sheetRef(ctx);
+  const lookups = ((ctx.getNodeParameter('filtersUI.values', 0, []) as Array<{ lookupColumn: string; lookupValue: unknown }>) ?? []).filter((f) => f.lookupColumn);
+  const rows = (await sheetRows(ctx, credType, documentId, sheetName)).filter((r) => lookups.every((f) => String(r[f.lookupColumn] ?? '') === String(f.lookupValue ?? '')));
+  return { credType, documentId, sheetName, rows };
 }
 
 const flowRow = (ctx: IExecuteFunctions) => ctx.getContext('flow').evaluation as unknown as EvaluationRowRef | undefined;
@@ -39,18 +58,43 @@ function staticParams(node: INode): Pick<IExecuteFunctions, 'getNodeParameter'> 
   };
 }
 
-/** The rows an evaluation run goes through, as the trigger's parameters select them. */
-export async function evaluationDataset(dataTables: IDataTableService, node: INode): Promise<{ tableId: string; rows: DataTableRow[] }> {
+/**
+ * The rows an evaluation run goes through, as the trigger's parameters select them.
+ * `helpers` makes the trigger's credentials usable outside an execution (Google Sheets datasets).
+ */
+export async function evaluationDataset(dataTables: IDataTableService, node: INode, helpers?: IHelpers): Promise<{ rows: DataTableRow[] }> {
   const ctx = staticParams(node);
+  const limit = ctx.getNodeParameter('limitRows', 0, false) ? Math.max(1, Number(ctx.getNodeParameter('maxRows', 0, 10))) : undefined;
+  if (ctx.getNodeParameter('source', 0, 'dataTable') === 'googleSheets') {
+    if (!helpers) throw new Error('Google Sheets datasets need credentials here');
+    const { rows } = await sheetDataset({ ...ctx, helpers });
+    return { rows: (limit ? rows.slice(0, limit) : rows) as DataTableRow[] };
+  }
   const ref = String(ctx.getNodeParameter('dataTableId', 0, '', { extractValue: true }) ?? '').trim();
   if (!ref || ref.startsWith('=')) throw new Error(`Select the dataset table in "${node.name}"`);
   const table = await dataTables.getTable(ref);
   if (!table) throw new Error(`Data table "${ref}" not found`);
   const filter = ctx.getNodeParameter('filterRows', 0, false) ? buildFilter(ctx, 0) : undefined;
-  const limit = ctx.getNodeParameter('limitRows', 0, false) ? Math.max(1, Number(ctx.getNodeParameter('maxRows', 0, 10))) : undefined;
   const { data } = await dataTables.getRows(table.id, { filter: filter?.filters.length ? filter : undefined, take: limit, sortBy: { column: 'id', direction: 'ASC' } });
-  return { tableId: table.id, rows: data };
+  return { rows: data };
 }
+
+const fromTable = { show: { source: ['dataTable'] } };
+const fromSheets = { show: { source: ['googleSheets'] } };
+const sourceProp: INodeProperties = {
+  displayName: 'Source',
+  name: 'source',
+  type: 'options',
+  default: 'dataTable',
+  options: [
+    { name: 'Data Table', value: 'dataTable' },
+    { name: 'Google Sheets', value: 'googleSheets' },
+  ],
+};
+const sheetsCredentials = (show: Record<string, unknown[]>) => [
+  { name: 'googleSheetsOAuth2Api', required: true, displayOptions: { show: { ...show, source: ['googleSheets'], authentication: ['oAuth2'] } } },
+  { name: 'googleApi', required: true, displayOptions: { show: { ...show, source: ['googleSheets'], authentication: ['serviceAccount'] } } },
+];
 
 /* ---------------- Evaluation Trigger ---------------- */
 
@@ -74,16 +118,47 @@ export const EvaluationTrigger: INodeType = {
         type: 'notice',
         default: '',
       },
-      { displayName: 'Source', name: 'source', type: 'options', default: 'dataTable', options: [{ name: 'Data Table', value: 'dataTable' }] },
-      tableProp,
+      sourceProp,
+      { ...tableProp, displayOptions: fromTable },
+      { ...googleAuthProp, displayOptions: fromSheets },
+      { displayName: 'Document (ID or URL)', name: 'documentId', type: 'string', default: '', required: true, displayOptions: fromSheets },
+      { displayName: 'Sheet', name: 'sheetName', type: 'options', default: '', required: true, typeOptions: { loadOptionsMethod: 'getSheets' }, displayOptions: fromSheets, description: 'The first row holds the column names' },
+      {
+        displayName: 'Filters',
+        name: 'filtersUI',
+        type: 'fixedCollection',
+        typeOptions: { multipleValues: true },
+        default: {},
+        placeholder: 'Add Filter',
+        displayOptions: fromSheets,
+        options: [
+          {
+            name: 'values',
+            displayName: 'Filter',
+            values: [
+              { displayName: 'Column', name: 'lookupColumn', type: 'string', default: '' },
+              { displayName: 'Value', name: 'lookupValue', type: 'string', default: '' },
+            ],
+          },
+        ],
+      },
       { displayName: 'Limit Rows', name: 'limitRows', type: 'boolean', default: false, description: 'Whether to only use the first rows of the dataset' },
       { displayName: 'Max Rows to Process', name: 'maxRows', type: 'number', default: 10, typeOptions: { minValue: 1 }, displayOptions: { show: { limitRows: [true] } } },
-      { displayName: 'Filter Rows', name: 'filterRows', type: 'boolean', default: false },
-      ...filterProps.map((p) => ({ ...p, displayOptions: { show: { filterRows: [true] } } })),
+      { displayName: 'Filter Rows', name: 'filterRows', type: 'boolean', default: false, displayOptions: fromTable },
+      ...filterProps.map((p) => ({ ...p, displayOptions: { show: { source: ['dataTable'], filterRows: [true] } } })),
     ],
+    credentials: sheetsCredentials({}),
   },
-  methods: { listSearch: { tableSearch: DataTable.methods!.listSearch!.tableSearch } },
+  methods: { listSearch: { tableSearch: DataTable.methods!.listSearch!.tableSearch }, loadOptions: { getSheets: GoogleSheets.methods!.loadOptions!.getSheets } },
   async execute(this: IExecuteFunctions) {
+    if (this.getNodeParameter('source', 0, 'dataTable') === 'googleSheets') {
+      const sheet = sheetRef(this);
+      // the test runner passes the row as trigger data; editor runs use the first matching row
+      const row = this.getMode() === 'evaluation' ? (this.getInputData()[0]?.json as IDataObject | undefined) : (await sheetDataset(this)).rows[0];
+      if (!row) throw new NodeOperationError(this.getNode(), `The sheet "${sheet.sheetName}" has no rows to evaluate`);
+      this.getContext('flow').evaluation = { source: 'googleSheets', ...sheet, rowNumber: Number(row.row_number) } as unknown as IDataObject;
+      return [[{ json: row }]];
+    }
     const table = await resolveTable(this, 0);
     let row: DataTableRow | undefined;
     if (this.getMode() === 'evaluation') {
@@ -174,6 +249,8 @@ const OPERATIONS = [
 
 const properties: INodeProperties[] = [
   { displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true, default: 'setOutputs', options: OPERATIONS },
+  { ...sourceProp, description: 'Where the dataset rows live (as set in the Evaluation Trigger)', displayOptions: { show: { operation: ['setOutputs'] } } },
+  { ...googleAuthProp, displayOptions: { show: { operation: ['setOutputs'], source: ['googleSheets'] } } },
   {
     displayName: 'Outputs',
     name: 'outputs',
@@ -317,6 +394,7 @@ export const Evaluation: INodeType = {
     dynamicOutputs: (p) => (p.operation === 'checkIfEvaluating' ? ['main', 'main'] : ['main']),
     dynamicOutputNames: (p) => (p.operation === 'checkIfEvaluating' ? ['Evaluation', 'Normal'] : []),
     properties,
+    credentials: sheetsCredentials({ operation: ['setOutputs'] }),
   },
   async execute(this: IExecuteFunctions) {
     const items = this.getInputData();
@@ -340,6 +418,12 @@ export const Evaluation: INodeType = {
           if (outputName) data[outputName] = outputValue == null || typeof outputValue !== 'object' ? (outputValue as string) : JSON.stringify(outputValue);
         }
         if (!Object.keys(data).length) continue;
+        if (ref.source === 'googleSheets') {
+          // the node's own Google credential writes to the sheet the trigger read
+          const credType = credTypeOf(this.getNodeParameter('authentication', i, 'oAuth2'));
+          await writeSheetRow(this, credType, ref.documentId, ref.sheetName, ref.rowNumber, data as IDataObject);
+          continue;
+        }
         const table = await dataTables.getTable(ref.tableId);
         if (!table) throw new NodeOperationError(this.getNode(), 'The dataset table no longer exists', { itemIndex: i });
         const known = new Set(table.columns.map((c) => c.name));

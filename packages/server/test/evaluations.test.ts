@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp, type App } from '../src';
 import { averageMetrics } from '../src/evaluations';
 
@@ -173,5 +173,78 @@ describe('evaluations', () => {
 
   it('averages each metric over the cases that recorded it', () => {
     expect(averageMetrics([{ a: 1, b: 2 }, { a: 0 }, { a: 0.5, b: 4 }])).toEqual({ a: 0.5, b: 3 });
+  });
+
+  describe('with a Google Sheets dataset', () => {
+    /** The sheet, as Sheets' values API reads and writes it ('Q&A'!A1 notation). */
+    let grid: string[][];
+    const cell = (a1: string) => {
+      const [, col, row] = a1.match(/([A-Z]+)(\d+)$/)!;
+      return [Number(row) - 1, col.charCodeAt(0) - 65] as const;
+    };
+    const set = (a1: string, values: unknown[][]) => {
+      const [r, c] = cell(a1);
+      values[0].forEach((v, j) => ((grid[r] ??= [])[c + j] = String(v)));
+    };
+    const realFetch = globalThis.fetch;
+    const tokens: string[] = [];
+
+    beforeAll(() => {
+      vi.stubGlobal('fetch', async (input: string | URL, init: RequestInit = {}) => {
+        const url = new URL(String(input));
+        if (url.hostname !== 'sheets.googleapis.com') return realFetch(input, init);
+        tokens.push(String((init.headers as Record<string, string>).Authorization));
+        const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+        const path = decodeURIComponent(url.pathname.replace('/v4/spreadsheets/DOC123', ''));
+        const body = init.body ? JSON.parse(String(init.body)) : undefined;
+        if (path === '/values:batchUpdate') return json(body.data.forEach((d: { range: string; values: unknown[][] }) => set(d.range, d.values)) ?? {});
+        const range = path.replace('/values/', '');
+        if (init.method === 'PUT') return json(set(range, body.values) ?? {});
+        expect(url.searchParams.get('valueRenderOption')).toBe('UNFORMATTED_VALUE');
+        return json({ values: range === "'Q&A'!1:1" ? grid.slice(0, 1) : grid });
+      });
+    });
+    afterEach(() => void (tokens.length = 0));
+    afterAll(() => vi.unstubAllGlobals());
+
+    it('runs one case per sheet row and writes the outputs back to the sheet', async () => {
+      grid = [
+        ['question', 'expected', 'split'],
+        ['abc', 'ABC', 'test'],
+        [],
+        ['hi', 'HI', 'test'],
+        ['train me', 'X', 'train'],
+      ];
+      const cred = app.ctx.credentials.create('Sheets', 'googleSheetsOAuth2Api', { oauthTokenData: { access_token: 'ya29.sheet' } });
+      const sheets = { authentication: 'oAuth2', source: 'googleSheets' };
+      const credentials = { credentials: { googleSheetsOAuth2Api: { id: cred.id, name: 'Sheets' } } };
+      const nodes = [
+        {
+          ...node('When fetching a dataset row', 'evaluationTrigger', {
+            ...sheets,
+            documentId: 'https://docs.google.com/spreadsheets/d/DOC123/edit#gid=0',
+            sheetName: 'Q&A',
+            filtersUI: { values: [{ lookupColumn: 'split', lookupValue: 'test' }] },
+          }),
+          ...credentials,
+        },
+        node('Answer', 'code', { mode: 'runOnceForAllItems', jsCode: 'return $input.all().map((i) => ({ json: { ...i.json, answer: i.json.question.toUpperCase() } }));' }),
+        { ...node('Save Answer', 'evaluation', { operation: 'setOutputs', ...sheets, outputs: { values: [{ outputName: 'answer', outputValue: '={{ $json.answer }}' }] } }), ...credentials },
+        node('Score', 'evaluation', { operation: 'setMetrics', metric: 'categorization', expectedAnswer: '={{ $json.expected }}', actualAnswer: '={{ $json.answer }}', options: { metricName: 'Exact' } }),
+      ];
+      const wf = (await api('POST', '/rest/workflows', { name: 'Sheets eval', nodes, connections: chain('When fetching a dataset row', 'Answer', 'Save Answer', 'Score') })).body.data.id;
+
+      const run = await finished(wf, (await api('POST', `/rest/workflows/${wf}/test-runs/new`)).body.data.id);
+      expect(run).toMatchObject({ status: 'completed', metrics: { Exact: 1 } });
+      const cases = (await api('GET', `/rest/workflows/${wf}/test-runs/${run.id}/test-cases`)).body.data;
+      // empty rows are skipped and the filter keeps the test split
+      expect(cases.map((c: any) => c.inputs)).toEqual([
+        { row_number: 2, question: 'abc', expected: 'ABC', split: 'test' },
+        { row_number: 4, question: 'hi', expected: 'HI', split: 'test' },
+      ]);
+      // a new answer column, filled in on each case's own row
+      expect(grid.map((r) => r[3])).toEqual(['answer', 'ABC', undefined, 'HI', undefined]);
+      expect(new Set(tokens)).toEqual(new Set(['Bearer ya29.sheet']));
+    });
   });
 });

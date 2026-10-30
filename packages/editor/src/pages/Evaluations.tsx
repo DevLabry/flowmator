@@ -73,7 +73,7 @@ function SetupChecklist({ hasTrigger, hasMetrics }: { hasTrigger: boolean; hasMe
     <div className="card" style={{ display: 'grid', gap: 14, maxWidth: 560 }}>
       <h3 style={{ margin: 0 }}>Set up an evaluation</h3>
       <p className="muted" style={{ margin: 0 }}>Run the workflow on a dataset of test cases and score each result, so you can see whether a prompt or model change made things better.</p>
-      {step(true, 'Create a dataset', 'A data table with one row per test case: the inputs and, when you have them, the expected outputs.')}
+      {step(true, 'Create a dataset', 'A data table or Google Sheet with one row per test case: the inputs and, when you have them, the expected outputs.')}
       {step(hasTrigger, 'Add an Evaluation Trigger', '"When fetching a dataset row" feeds each row to the workflow.')}
       {step(hasMetrics, 'Add an Evaluation node that sets metrics', 'Use Correctness, Helpfulness, String Similarity, Categorization, Tools Used or your own numbers.')}
       <p className="faint" style={{ margin: 0 }}>Save the workflow, then come back here to run it.</p>

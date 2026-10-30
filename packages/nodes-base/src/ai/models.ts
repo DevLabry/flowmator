@@ -1,6 +1,8 @@
-import type { ICredentialType, IDataObject, ILoadOptionsFunctions, INodeProperties, INodeType, ISupplyDataFunctions } from '@8n8/workflow';
+import { createSign } from 'node:crypto';
+import type { ICredentialType, IDataObject, IHelpers, ILoadOptionsFunctions, INodeProperties, INodeType, ISupplyDataFunctions } from '@8n8/workflow';
 import { signAws, type AwsCredentials } from '../utils/aws';
-import { openAiModel, type ChatModel, type ModelTurn, type OpenAiOptions } from './llm';
+import { geminiModel, openAiModel, type ChatModel, type ModelTurn, type OpenAiOptions } from './llm';
+import { embeddingsOf, inBatches } from './rag';
 import { subNode } from './subnodes';
 
 const password = { password: true };
@@ -34,10 +36,14 @@ interface CompatibleSpec {
   extraBody?: Record<string, unknown>;
   /** Some providers list embedding/audio models too */
   modelFilter?: (id: string) => boolean;
+  /** The OpenAI-compatible base URL, when it is not the credential's URL */
+  base?: (c: { url?: string }) => string;
+  /** Providers whose model list is not OpenAI's /models */
+  listModels?: (helpers: IHelpers, c: { apiKey: string; url?: string }) => Promise<Array<{ name: string; value: string }>>;
 }
 
 function compatibleModel(spec: CompatibleSpec): INodeType {
-  const base = (c: { url?: string }) => (c.url || spec.defaultUrl).replace(/\/$/, '');
+  const base = spec.base ?? ((c: { url?: string }) => (c.url || spec.defaultUrl).replace(/\/$/, ''));
   return {
     description: {
       ...subNode(spec.name, spec.displayName, spec.description, 'ai_languageModel', 'fa:robot'),
@@ -51,6 +57,7 @@ function compatibleModel(spec: CompatibleSpec): INodeType {
       loadOptions: {
         async listModels(this: ILoadOptionsFunctions) {
           const c = await this.getCredentials<{ apiKey: string; url?: string }>(spec.credential);
+          if (spec.listModels) return spec.listModels(this.helpers, c);
           const res = (await this.helpers.httpRequest({ url: `${base(c)}/models`, headers: { authorization: `Bearer ${c.apiKey}` }, json: true })) as { data: Array<{ id: string; name?: string }> };
           return res.data
             .filter((m) => !spec.modelFilter || spec.modelFilter(m.id))
@@ -285,6 +292,202 @@ export const BedrockChatModel: INodeType = {
   },
 };
 
+/* ---------------- Cohere ---------------- */
+
+interface CohereCreds {
+  apiKey: string;
+  url?: string;
+}
+const cohereUrl = (c: CohereCreds) => (c.url || 'https://api.cohere.ai').replace(/\/$/, '');
+
+export const CohereChatModel = compatibleModel({
+  name: 'lmChatCohere',
+  displayName: 'Cohere Chat Model',
+  description: 'Cohere Command models for AI Agent and chains',
+  credential: 'cohereApi',
+  defaultUrl: 'https://api.cohere.ai',
+  defaultModel: 'command-a-03-2025',
+  maxTokensField: 'max_tokens',
+  // Cohere's OpenAI-compatible endpoint
+  base: (c) => `${cohereUrl(c as CohereCreds)}/compatibility/v1`,
+  async listModels(helpers, c) {
+    const res = (await helpers.httpRequest({ url: `${cohereUrl(c)}/v1/models`, qs: { endpoint: 'chat', page_size: 1000 }, headers: { authorization: `Bearer ${c.apiKey}` }, json: true })) as { models: Array<{ name: string }> };
+    return res.models.map((m) => ({ name: m.name, value: m.name })).sort((a, b) => a.name.localeCompare(b.name));
+  },
+});
+
+export const EmbeddingsCohere: INodeType = {
+  description: {
+    ...subNode('embeddingsCohere', 'Embeddings Cohere', 'Turns text into vectors with Cohere', 'ai_embedding', 'fa:vector-square'),
+    credentials: [{ name: 'cohereApi', required: true }],
+    properties: [
+      {
+        displayName: 'Model',
+        name: 'modelName',
+        type: 'options',
+        default: 'embed-english-v3.0',
+        options: ['embed-v4.0', 'embed-english-v3.0', 'embed-english-light-v3.0', 'embed-multilingual-v3.0', 'embed-multilingual-light-v3.0'].map((m) => ({ name: m, value: m })),
+      },
+    ],
+  },
+  async supplyData(this: ISupplyDataFunctions, itemIndex: number) {
+    const c = await this.getCredentials<CohereCreds>('cohereApi');
+    const model = this.getNodeParameter('modelName', itemIndex) as string;
+    const http = this.helpers;
+    // Cohere embeds stored documents and search queries differently
+    const embed = (inputType: string) => (texts: string[]) =>
+      inBatches(texts, 96, async (batch) => {
+        const res = (await http.httpRequest({
+          method: 'POST',
+          url: `${cohereUrl(c)}/v2/embed`,
+          headers: { authorization: `Bearer ${c.apiKey}` },
+          body: { model, texts: batch, input_type: inputType, embedding_types: ['float'] },
+          json: true,
+        })) as { embeddings: { float: number[][] } };
+        return res.embeddings.float;
+      });
+    const documents = embeddingsOf(embed('search_document'));
+    return { response: { embedDocuments: documents.embedDocuments, embedQuery: async (text: string) => (await embed('search_query')([text]))[0] } };
+  },
+};
+
+/* ---------------- Hugging Face ---------------- */
+
+export const HuggingFaceChatModel = compatibleModel({
+  name: 'lmOpenHuggingFaceInference',
+  displayName: 'Hugging Face Inference Model',
+  description: 'Open models served by Hugging Face Inference Providers',
+  credential: 'huggingFaceApi',
+  defaultUrl: 'https://router.huggingface.co/v1',
+  defaultModel: 'meta-llama/Llama-3.1-8B-Instruct',
+  maxTokensField: 'max_tokens',
+});
+
+/** Mean of token vectors, for feature-extraction models that answer one vector per token. */
+const pooled = (v: number[] | number[][]): number[] => {
+  if (!Array.isArray(v[0])) return v as number[];
+  const rows = v as number[][];
+  return rows[0].map((_, i) => rows.reduce((sum, r) => sum + r[i], 0) / rows.length);
+};
+
+export const EmbeddingsHuggingFace: INodeType = {
+  description: {
+    ...subNode('embeddingsHuggingFaceInference', 'Embeddings Hugging Face Inference', 'Turns text into vectors with a Hugging Face model', 'ai_embedding', 'fa:vector-square'),
+    credentials: [{ name: 'huggingFaceApi', required: true }],
+    properties: [
+      { displayName: 'Model', name: 'modelName', type: 'string', default: 'sentence-transformers/all-MiniLM-L6-v2' },
+      {
+        displayName: 'Options',
+        name: 'options',
+        type: 'collection',
+        default: {},
+        options: [{ displayName: 'Custom Inference Endpoint', name: 'endpointUrl', type: 'string', default: '', description: 'A dedicated Inference Endpoint URL instead of the shared one' }],
+      },
+    ],
+  },
+  async supplyData(this: ISupplyDataFunctions, itemIndex: number) {
+    const { apiKey } = await this.getCredentials<{ apiKey: string }>('huggingFaceApi');
+    const model = String(this.getNodeParameter('modelName', itemIndex)).trim();
+    const o = this.getNodeParameter('options', itemIndex, {}) as IDataObject;
+    const url = String(o.endpointUrl || `https://router.huggingface.co/hf-inference/models/${model}/pipeline/feature-extraction`);
+    const http = this.helpers;
+    return {
+      response: embeddingsOf((texts) =>
+        inBatches(texts, 32, async (batch) => {
+          const res = (await http.httpRequest({ method: 'POST', url, headers: { authorization: `Bearer ${apiKey}` }, body: { inputs: batch }, json: true })) as Array<number[] | number[][]>;
+          return res.map(pooled);
+        }),
+      ),
+    };
+  },
+};
+
+/* ---------------- Google Vertex AI ---------------- */
+
+interface GoogleServiceAccount {
+  email: string;
+  privateKey: string;
+  region?: string;
+}
+
+const vertexTokens = new Map<string, { token: string; expires: number }>();
+
+/** Service account → access token for Vertex AI (cloud-platform scope, whatever scopes the credential lists for other nodes). */
+async function vertexToken(helpers: IHelpers, c: GoogleServiceAccount) {
+  let cached = vertexTokens.get(c.email);
+  if (!cached || cached.expires < Date.now() + 60_000) {
+    const now = Math.floor(Date.now() / 1000);
+    const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({ iss: c.email, scope: 'https://www.googleapis.com/auth/cloud-platform', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 })}`;
+    const signature = createSign('RSA-SHA256').update(unsigned).sign(String(c.privateKey).replace(/\\n/g, '\n'), 'base64url');
+    const res = (await helpers.httpRequest({
+      method: 'POST',
+      url: 'https://oauth2.googleapis.com/token',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${signature}` }).toString(),
+      json: true,
+    })) as { access_token: string; expires_in: number };
+    cached = { token: res.access_token, expires: Date.now() + res.expires_in * 1000 };
+    vertexTokens.set(c.email, cached);
+  }
+  return cached.token;
+}
+
+/** The project in the service account's address (name@PROJECT.iam.gserviceaccount.com) unless the node names one. */
+function vertexModelUrl(c: GoogleServiceAccount, project: string, model: string, method: string) {
+  const region = c.region || 'us-central1';
+  const projectId = project || c.email.match(/@([^.]+)\.iam\.gserviceaccount\.com$/)?.[1];
+  if (!projectId) throw new Error('Set the Google Cloud project ID in the Vertex node');
+  const host = region === 'global' ? 'aiplatform.googleapis.com' : `${region}-aiplatform.googleapis.com`;
+  return `https://${host}/v1/projects/${encodeURIComponent(projectId)}/locations/${region}/publishers/google/models/${encodeURIComponent(model)}:${method}`;
+}
+
+const projectProp: INodeProperties = { displayName: 'Project ID', name: 'projectId', type: 'string', default: '', description: "Defaults to the service account's project" };
+
+export const VertexChatModel: INodeType = {
+  description: {
+    ...subNode('lmChatGoogleVertex', 'Google Vertex Chat Model', 'Gemini models on Google Cloud Vertex AI', 'ai_languageModel', 'fa:robot'),
+    credentials: [{ name: 'googleApi', required: true }],
+    properties: [projectProp, { displayName: 'Model Name', name: 'modelName', type: 'string', default: 'gemini-2.5-flash', required: true }, modelOptions(2048)],
+  },
+  async supplyData(this: ISupplyDataFunctions, itemIndex: number) {
+    const c = await this.getCredentials<GoogleServiceAccount>('googleApi');
+    const model = String(this.getNodeParameter('modelName', itemIndex) ?? '').trim();
+    if (!model) throw new Error('Set the model name in the Google Vertex Chat Model node');
+    const url = vertexModelUrl(c, String(this.getNodeParameter('projectId', itemIndex, '') ?? '').trim(), model, 'generateContent');
+    const helpers = this.helpers;
+    return {
+      response: {
+        ...geminiModel({ apiKey: '', host: '', url, model, auth: async () => ({ authorization: `Bearer ${await vertexToken(helpers, c)}` }), ...optionsOf(this, itemIndex), signal: this.getExecutionCancelSignal() }),
+        provider: 'vertex',
+      },
+    };
+  },
+};
+
+export const EmbeddingsVertex: INodeType = {
+  description: {
+    ...subNode('embeddingsGoogleVertex', 'Embeddings Google Vertex', 'Turns text into vectors with Vertex AI', 'ai_embedding', 'fa:vector-square'),
+    credentials: [{ name: 'googleApi', required: true }],
+    properties: [projectProp, { displayName: 'Model Name', name: 'modelName', type: 'string', default: 'text-embedding-005' }],
+  },
+  async supplyData(this: ISupplyDataFunctions, itemIndex: number) {
+    const c = await this.getCredentials<GoogleServiceAccount>('googleApi');
+    const url = vertexModelUrl(c, String(this.getNodeParameter('projectId', itemIndex, '') ?? '').trim(), String(this.getNodeParameter('modelName', itemIndex)).trim(), 'predict');
+    const http = this.helpers;
+    return {
+      response: embeddingsOf((texts) =>
+        inBatches(texts, 16, async (batch) => {
+          const res = (await http.httpRequest({ method: 'POST', url, headers: { authorization: `Bearer ${await vertexToken(http, c)}` }, body: { instances: batch.map((content) => ({ content })) }, json: true })) as {
+            predictions: Array<{ embeddings: { values: number[] } }>;
+          };
+          return res.predictions.map((p) => p.embeddings.values);
+        }),
+      ),
+    };
+  },
+};
+
 /* ---------------- credentials ---------------- */
 
 const keyAndUrl = (name: string, displayName: string, url: string, docs?: string): ICredentialType => ({
@@ -324,7 +527,41 @@ export const modelCredentials: ICredentialType[] = [
       { displayName: 'Session Token', name: 'sessionToken', type: 'string', typeOptions: password, default: '', description: 'Only for temporary credentials' },
     ],
   },
+  {
+    name: 'cohereApi',
+    displayName: 'Cohere',
+    documentationUrl: 'https://dashboard.cohere.com/api-keys',
+    properties: [
+      { displayName: 'API Key', name: 'apiKey', type: 'string', typeOptions: password, default: '' },
+      { displayName: 'Base URL', name: 'url', type: 'string', default: 'https://api.cohere.ai' },
+    ],
+    test: { request: { url: '={{$credentials.url || "https://api.cohere.ai"}}/v1/models', headers: { authorization: '=Bearer {{$credentials.apiKey}}' } } },
+  },
+  {
+    name: 'huggingFaceApi',
+    displayName: 'Hugging Face',
+    documentationUrl: 'https://huggingface.co/settings/tokens',
+    properties: [
+      { displayName: 'Access Token', name: 'apiKey', type: 'string', typeOptions: password, default: '' },
+      { displayName: 'Base URL', name: 'url', type: 'string', default: 'https://router.huggingface.co/v1', description: 'OpenAI-compatible endpoint for chat models' },
+    ],
+    test: { request: { url: 'https://huggingface.co/api/whoami-v2', headers: { authorization: '=Bearer {{$credentials.apiKey}}' } } },
+  },
   { name: 'serpApi', displayName: 'SerpApi', documentationUrl: 'https://serpapi.com/manage-api-key', properties: [{ displayName: 'API Key', name: 'apiKey', type: 'string', typeOptions: password, default: '' }] },
 ];
 
-export const modelNodes: INodeType[] = [MistralChatModel, GroqChatModel, DeepSeekChatModel, OpenRouterChatModel, XAiGrokChatModel, AzureOpenAiChatModel, BedrockChatModel];
+export const modelNodes: INodeType[] = [
+  MistralChatModel,
+  GroqChatModel,
+  DeepSeekChatModel,
+  OpenRouterChatModel,
+  XAiGrokChatModel,
+  AzureOpenAiChatModel,
+  BedrockChatModel,
+  CohereChatModel,
+  EmbeddingsCohere,
+  HuggingFaceChatModel,
+  EmbeddingsHuggingFace,
+  VertexChatModel,
+  EmbeddingsVertex,
+];
