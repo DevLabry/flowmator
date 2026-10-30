@@ -9,6 +9,7 @@ import { Api, ApiError, type ExecutionFull, type ExecutionSummary, type Workflow
 import { onPush } from '../lib/push';
 import { errorToast, useApp } from '../store/app';
 import { useWorkflow } from '../store/workflow';
+import { EvaluationsTab } from './Evaluations';
 
 function download(name: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -170,7 +171,7 @@ function ExecutionsTab({ workflowId }: { workflowId: string }) {
   );
 }
 
-export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' }) {
+export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' | 'evaluations' }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const wf = useWorkflow((s) => s.workflow);
@@ -183,9 +184,10 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' }
   const [tagInput, setTagInput] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // load the workflow when entering the editor tab
+  // load the workflow when entering the editor tab (evaluations reads its nodes too)
   useEffect(() => {
-    if (tab !== 'editor') return;
+    if (tab === 'executions') return;
+    if (tab === 'evaluations' && useWorkflow.getState().workflow.id === id) return;
     if (!id) {
       useWorkflow.getState().newWorkflow();
       return;
@@ -264,10 +266,10 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' }
     }
   };
 
-  const goTab = (t: 'editor' | 'executions') => {
+  const goTab = (t: 'editor' | 'executions' | 'evaluations') => {
     if (!wf.id) return;
-    if (t === 'executions' && dirty && !confirm('You have unsaved changes. Leave the editor?')) return;
-    navigate(t === 'editor' ? `/workflow/${wf.id}` : `/workflow/${wf.id}/executions`);
+    if (t !== 'editor' && tab === 'editor' && dirty && !confirm('You have unsaved changes. Leave the editor?')) return;
+    navigate(t === 'editor' ? `/workflow/${wf.id}` : `/workflow/${wf.id}/${t}`);
   };
 
   return (
@@ -298,6 +300,7 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' }
         <div className="seg">
           <button className={tab === 'editor' ? 'active' : ''} onClick={() => goTab('editor')}>Editor</button>
           <button className={tab === 'executions' ? 'active' : ''} disabled={!wf.id} onClick={() => goTab('executions')}>Executions</button>
+          <button className={tab === 'evaluations' ? 'active' : ''} disabled={!wf.id} onClick={() => goTab('evaluations')}>Evaluations</button>
         </div>
         <span className="grow" />
         {wf.activationError && <span className="badge error" title={wf.activationError}>Activation failed</span>}
@@ -345,6 +348,8 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' }
       </header>
       {tab === 'executions' && id ? (
         <ExecutionsTab workflowId={id} />
+      ) : tab === 'evaluations' && id ? (
+        <div className="editor-body"><EvaluationsTab workflowId={id} /></div>
       ) : (
         <div className="editor-body">
           <Canvas />

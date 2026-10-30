@@ -28,6 +28,11 @@ import { aiCredentials, AiAgent, ChatTrigger } from './ai/agent';
 import { AnthropicChatModel, CalculatorTool, CodeTool, GeminiChatModel, HttpRequestTool, OllamaChatModel, OpenAiChatModel, PostgresChatMemory, RedisChatMemory, SimpleMemory, StructuredOutputParser, WorkflowTool } from './ai/subnodes';
 import { McpClientTool, McpServerTrigger } from './ai/mcp';
 import { ragNodes } from './ai/rag';
+import { chainNodes } from './ai/chains';
+import { modelCredentials, modelNodes } from './ai/models';
+import { toolNodes } from './ai/tools';
+import { moreVectorStores, vectorStoreCredentials } from './ai/vector-stores';
+import { evaluationNodes } from './nodes/evaluation';
 import { ConvertToFile, ExtractFromFile, ReadWriteFile } from './nodes/files';
 import { Form, FormTrigger } from './nodes/form';
 import { EmailReadImap } from './nodes/imap';
@@ -94,6 +99,11 @@ export const nodes: INodeType[] = [
   McpClientTool,
   McpServerTrigger,
   ...ragNodes,
+  ...moreVectorStores,
+  ...chainNodes,
+  ...modelNodes,
+  ...toolNodes,
+  ...evaluationNodes,
   SimpleMemory,
   CalculatorTool,
   CodeTool,
@@ -121,7 +131,7 @@ export const nodes: INodeType[] = [
   OpenAi,
 ];
 
-export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials, ...integrationCredentials];
+export const credentials: ICredentialType[] = [...credentialTypes, ...aiCredentials, ...modelCredentials, ...vectorStoreCredentials, ...integrationCredentials];
 
 export { buildMime, simplifyMessage } from './nodes/integrations/gmail';
 export { columnLetter, spreadsheetId } from './nodes/integrations/sheets';
@@ -136,6 +146,12 @@ export { buildMySqlWhere, mysqlConnector, quoteMySqlIdent, type MySqlSession } f
 export * from './ai/llm';
 export { calculate, extractJson, schemaFromExample } from './ai/subnodes';
 export { characterSplitter, cosineSimilarity, recursiveSplitter, tokenSplitter, type AiDocument } from './ai/rag';
+export { askJson, schemaFromAttributes, summarize } from './ai/chains';
+export { bedrockModel } from './ai/models';
+export { serpSummary } from './ai/tools';
+export { mongoUri } from './ai/vector-stores';
+export { signAws } from './utils/aws';
+export { collectMetrics, EVALUATION_NODE, EVALUATION_TRIGGER, evaluationDataset, levenshtein, stringSimilarity, toolsUsedScore } from './nodes/evaluation';
 
 export { ruleToCron } from './nodes/schedule';
 export { formPageOf, renderForm, renderPage, renderSubmitted, parseSubmission, type FormField, type FormNodePage } from './nodes/form';

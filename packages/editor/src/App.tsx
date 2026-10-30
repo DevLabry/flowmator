@@ -59,6 +59,8 @@ export function App() {
         <Route path="/workflow/:id" element={<EditorPage />} />
         <Route path="/workflow/:id/executions" element={<EditorPage tab="executions" />} />
         <Route path="/workflow/:id/executions/:executionId" element={<EditorPage tab="executions" />} />
+        <Route path="/workflow/:id/evaluations" element={<EditorPage tab="evaluations" />} />
+        <Route path="/workflow/:id/evaluations/:runId" element={<EditorPage tab="evaluations" />} />
         <Route path="*" element={<Navigate to="/home/workflows" replace />} />
       </Routes>
       <Toasts />
