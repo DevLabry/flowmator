@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, jsonParam, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 const credType = (ctx: { getNodeParameter(n: string, i: number, f?: unknown): unknown }, i = 0) =>
@@ -24,7 +24,7 @@ const channelProp = { displayName: 'Channel', name: 'channelId', type: 'options'
 
 export const Slack: INodeType = {
   description: {
-    name: '8n8.slack',
+    name: 'flowmator.slack',
     displayName: 'Slack',
     description: 'Send messages and work with channels and users in Slack',
     group: ['output'],
@@ -209,7 +209,7 @@ const eventChannel = (event: IDataObject) =>
 
 export const SlackTrigger: INodeType = {
   description: {
-    name: '8n8.slackTrigger',
+    name: 'flowmator.slackTrigger',
     displayName: 'Slack Trigger',
     description: 'Starts the workflow on Slack events (Events API: paste the URL into your Slack app\'s Event Subscriptions)',
     group: ['trigger'],

@@ -1,4 +1,4 @@
-import type { IDataObject } from '@8n8/workflow';
+import type { IDataObject } from '@flowmator/workflow';
 
 /** Splits "a.b[0].c" into ["a", "b", "0", "c"]. */
 export function toPath(path: string): string[] {

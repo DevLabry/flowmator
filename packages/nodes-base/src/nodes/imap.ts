@@ -1,6 +1,6 @@
 import { ImapFlow, type SearchObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
-import { NodeOperationError, type IDataObject, type INodeExecutionData, type INodeType, type ITriggerFunctions } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type INodeExecutionData, type INodeType, type ITriggerFunctions } from '@flowmator/workflow';
 
 /* ---------------- Email Trigger (IMAP) ---------------- */
 
@@ -82,7 +82,7 @@ const addressText = (a?: AddressObject | AddressObject[]) => (a ? (Array.isArray
 
 export const EmailReadImap: INodeType = {
   description: {
-    name: '8n8.emailReadImap',
+    name: 'flowmator.emailReadImap',
     displayName: 'Email Trigger (IMAP)',
     description: 'Starts the workflow when an email arrives in an IMAP mailbox',
     group: ['trigger'],

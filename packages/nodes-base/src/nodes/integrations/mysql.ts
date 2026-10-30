@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise';
-import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType } from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType } from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { errorItem } from '../../utils/object';
 
 interface MySqlCreds {
@@ -136,7 +136,7 @@ const properties: INodeProperties[] = [
 
 export const MySql: INodeType = {
   description: {
-    name: '8n8.mySql',
+    name: 'flowmator.mySql',
     displayName: 'MySQL',
     description: 'Query and modify a MySQL or MariaDB database',
     group: ['input'],

@@ -3,7 +3,7 @@ import {
   WorkflowExecute,
   type IWorkflowExecuteAdditionalData,
   type NodeTypesRegistry,
-} from '@8n8/core';
+} from '@flowmator/core';
 import {
   Workflow,
   type ExecutionMode,
@@ -18,7 +18,7 @@ import {
   type IRunData,
   type IWebhookResponse,
   type IWorkflowBase,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { ServerConfig } from './config';
 import type { CredentialsHelper } from './credentials';
 import type { Database, ExecutionEntity } from './db';

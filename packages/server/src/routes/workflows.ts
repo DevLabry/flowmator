@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { IDataObject, INodeExecutionData, IPinData, IRunData, IWorkflowBase } from '@8n8/workflow';
+import type { IDataObject, INodeExecutionData, IPinData, IRunData, IWorkflowBase } from '@flowmator/workflow';
 import { normalizeWorkflow, type AppContext } from '../context';
 import type { WorkflowEntity } from '../db';
 import { HttpError } from './errors';

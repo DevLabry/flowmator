@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, INode, INodeExecutionData, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INode, INodeExecutionData, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 
 export interface FormField {
   fieldLabel: string;
@@ -138,7 +138,7 @@ export const formFieldsProperty: INodeProperties = {
 
 export const FormTrigger: INodeType = {
   description: {
-    name: '8n8.formTrigger',
+    name: 'flowmator.formTrigger',
     displayName: 'On Form Submission',
     description: 'Serves a web form and starts the workflow when it is submitted',
     group: ['trigger'],
@@ -216,7 +216,7 @@ export interface FormNodePage {
 
 export const Form: INodeType = {
   description: {
-    name: '8n8.form',
+    name: 'flowmator.form',
     displayName: 'Form',
     description: 'Adds a page or the ending screen to a form started by "On form submission"',
     group: ['input'],

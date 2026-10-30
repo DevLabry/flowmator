@@ -1,4 +1,4 @@
-import { getParameterDisplayed, type INodeParameters, type INodeProperties, type INodePropertyCollection, type INodePropertyOption, type ResourceMapperField, type ResourceMapperValue } from '@8n8/workflow';
+import { getParameterDisplayed, type INodeParameters, type INodeProperties, type INodePropertyCollection, type INodePropertyOption, type ResourceMapperField, type ResourceMapperValue } from '@flowmator/workflow';
 import { ChevronDown, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Api } from '../lib/api';
@@ -17,9 +17,9 @@ const isCollectionGroup = (o: unknown): o is INodePropertyCollection => !!o && t
 
 /** Value dropped from the data panels: an expression string, plus the field path for assignments. */
 export function readDrop(e: React.DragEvent): { expression: string; path?: string } | null {
-  const expression = e.dataTransfer.getData('application/8n8-expr');
+  const expression = e.dataTransfer.getData('application/flowmator-expr');
   if (!expression) return null;
-  return { expression, path: e.dataTransfer.getData('application/8n8-path') || undefined };
+  return { expression, path: e.dataTransfer.getData('application/flowmator-path') || undefined };
 }
 
 /** An input that is plain text until it holds an expression; dropping a field turns it into one. */

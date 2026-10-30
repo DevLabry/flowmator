@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import type { ICredentialType, IDataObject, IExecuteFunctions, IHookFunctions, ILoadOptionsFunctions, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { ICredentialType, IDataObject, IExecuteFunctions, IHookFunctions, ILoadOptionsFunctions, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, jsonParam, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 type Version = 'cloud' | 'server' | 'serverPat';
@@ -215,7 +215,7 @@ const loadUsers = async function (this: ILoadOptionsFunctions) {
 
 export const Jira: INodeType = {
   description: {
-    name: '8n8.jira',
+    name: 'flowmator.jira',
     displayName: 'Jira Software',
     description: 'Create, update, search and comment on Jira issues',
     group: ['output'],
@@ -400,7 +400,7 @@ const TRIGGER_EVENTS = [
 
 export const JiraTrigger: INodeType = {
   description: {
-    name: '8n8.jiraTrigger',
+    name: 'flowmator.jiraTrigger',
     displayName: 'Jira Trigger',
     description: 'Starts the workflow on Jira events (registers a webhook; needs admin rights and a public URL)',
     group: ['trigger'],
@@ -440,7 +440,7 @@ export const JiraTrigger: INodeType = {
         const f = this.getNodeParameter('additionalFields', {}) as IDataObject;
         data.secret = randomBytes(24).toString('hex');
         const hook = (await jira(this as unknown as Ctx, 'POST', '/rest/webhooks/1.0/webhook', {
-          name: `8n8 webhook (workflow ${this.getWorkflow().id ?? ''})`,
+          name: `flowmator webhook (workflow ${this.getWorkflow().id ?? ''})`,
           url: this.getNodeWebhookUrl('default'),
           events,
           filters: { 'issue-related-events-section': String(f.filter ?? '') },

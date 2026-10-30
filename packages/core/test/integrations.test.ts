@@ -1,8 +1,8 @@
 import { PGlite } from '@electric-sql/pglite';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildMime, columnLetter, notionId, spreadsheetId } from '@8n8/nodes-base';
-import type { IDataObject, INodeExecutionData } from '@8n8/workflow';
+import { buildMime, columnLetter, notionId, spreadsheetId } from '@flowmator/nodes-base';
+import type { IDataObject, INodeExecutionData } from '@flowmator/workflow';
 import { connections, items, makeWorkflow, node, out, run } from './helpers';
 import { calls, creds, credentialsHelper, realFetch, route, runNode, withCred } from './integration-harness';
 

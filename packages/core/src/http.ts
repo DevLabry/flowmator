@@ -1,4 +1,4 @@
-import type { IDataObject, IHttpFullResponse, IHttpRequestOptions } from '@8n8/workflow';
+import type { IDataObject, IHttpFullResponse, IHttpRequestOptions } from '@flowmator/workflow';
 
 export class HttpError extends Error {
   constructor(

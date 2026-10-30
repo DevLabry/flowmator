@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@flowmator/workflow';
 import { deepCopy, errorItem, getValue, setValue } from '../utils/object';
 
 /** Runs `fn` per item with continue-on-fail handling and pairedItem set. */
@@ -25,7 +25,7 @@ async function perItem(ctx: IExecuteFunctions, fn: (item: INodeExecutionData, i:
 
 export const Xml: INodeType = {
   description: {
-    name: '8n8.xml',
+    name: 'flowmator.xml',
     displayName: 'XML',
     description: 'Converts data between JSON and XML',
     group: ['transform'],
@@ -104,7 +104,7 @@ const escapeHtml = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&
 
 export const Html: INodeType = {
   description: {
-    name: '8n8.html',
+    name: 'flowmator.html',
     displayName: 'HTML',
     description: 'Builds HTML from a template, extracts content with CSS selectors, or turns items into a table',
     group: ['transform'],
@@ -229,7 +229,7 @@ export const Html: INodeType = {
 
 export const Markdown: INodeType = {
   description: {
-    name: '8n8.markdown',
+    name: 'flowmator.markdown',
     displayName: 'Markdown',
     description: 'Converts between Markdown and HTML',
     group: ['transform'],

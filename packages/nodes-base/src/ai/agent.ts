@@ -7,7 +7,7 @@ import {
   type INodeType,
   type IWebhookFunctions,
   type IWebhookResult,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { errorItem } from '../utils/object';
 import type { ChatModel, ToolSpec } from './llm';
 import type { AgentMemory, OutputParser } from './subnodes';
@@ -22,7 +22,7 @@ interface Step {
 
 export const AiAgent: INodeType = {
   description: {
-    name: '8n8-ai.agent',
+    name: 'flowmator-ai.agent',
     displayName: 'AI Agent',
     description: 'An agent that answers using a chat model, calling tools until it has an answer',
     group: ['transform'],
@@ -188,7 +188,7 @@ button{background:var(--accent);color:#fff;border:none;border-radius:10px;paddin
 const initial = ${JSON.stringify(o.initialMessages).replace(/</g, '\\u003c')};
 const log = document.getElementById('log'), t = document.getElementById('t'), b = document.getElementById('b');
 let sessionId;
-try { sessionId = localStorage.getItem('8n8-chat-session') || crypto.randomUUID(); localStorage.setItem('8n8-chat-session', sessionId); } catch { sessionId = crypto.randomUUID(); }
+try { sessionId = localStorage.getItem('flowmator-chat-session') || crypto.randomUUID(); localStorage.setItem('flowmator-chat-session', sessionId); } catch { sessionId = crypto.randomUUID(); }
 const add = (text, cls) => { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; return d; };
 initial.forEach((m) => add(m, 'bot'));
 t.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('f').requestSubmit(); } });
@@ -211,7 +211,7 @@ document.getElementById('f').addEventListener('submit', async (e) => {
 
 export const ChatTrigger: INodeType = {
   description: {
-    name: '8n8-ai.chatTrigger',
+    name: 'flowmator-ai.chatTrigger',
     displayName: 'When Chat Message Received',
     description: 'Starts the workflow from a chat, in the editor or on a hosted chat page',
     group: ['trigger'],

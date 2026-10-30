@@ -1,6 +1,6 @@
-import { httpRequest, type ICredentialsHelper } from '@8n8/core';
-import { collectMetrics, EVALUATION_NODE, EVALUATION_TRIGGER, evaluationDataset } from '@8n8/nodes-base';
-import type { DataTableRow, IDataObject, IHelpers, INode, IRun } from '@8n8/workflow';
+import { httpRequest, type ICredentialsHelper } from '@flowmator/core';
+import { collectMetrics, EVALUATION_NODE, EVALUATION_TRIGGER, evaluationDataset } from '@flowmator/nodes-base';
+import type { DataTableRow, IDataObject, IHelpers, INode, IRun } from '@flowmator/workflow';
 import { newId, type Database } from './db';
 import type { DataTableService } from './data-tables';
 import type { ExecutionService } from './execution-service';
@@ -107,7 +107,7 @@ export class EvaluationService {
     private readonly dataTables: DataTableService,
     /** Only main runs evaluations; workers and webhook processes share the database and must not touch them. */
     recover = true,
-    /** Lets the trigger's credentials read datasets that live outside 8n8 (Google Sheets) */
+    /** Lets the trigger's credentials read datasets that live outside Flowmator (Google Sheets) */
     private readonly credentialsHelper?: ICredentialsHelper,
   ) {
     database.db.exec(EVALUATION_SCHEMA);

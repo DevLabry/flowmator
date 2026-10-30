@@ -1,8 +1,9 @@
-# 8n8 — build plan
+# Flowmator — build plan
 
 Personal-use workflow automation platform with n8n-equivalent functionality.
 All code is written from scratch (n8n's source is under the Sustainable Use License, so nothing is copied).
-Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are aliased to `8n8.*`.
+Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are aliased to `flowmator.*`.
+Flowmator was called 8n8 until 2026-10: `8n8.*` / `8n8-ai.*` node types and the `~/.8n8` data folder still work.
 
 ## Stack
 
@@ -15,11 +16,11 @@ Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are a
 
 | Package | Role |
 |---|---|
-| `@8n8/workflow` | Types, workflow graph helpers, expression engine, data helpers (shared with the editor) |
-| `@8n8/core` | Execution engine, node execution context, credentials crypto, binary data |
-| `@8n8/nodes-base` | Built-in nodes and credential types |
-| `@8n8/server` | REST API, webhooks, triggers/pollers, scheduler, push, persistence, CLI |
-| `@8n8/editor` | React UI |
+| `@flowmator/workflow` | Types, workflow graph helpers, expression engine, data helpers (shared with the editor) |
+| `@flowmator/core` | Execution engine, node execution context, credentials crypto, binary data |
+| `@flowmator/nodes-base` | Built-in nodes and credential types |
+| `@flowmator/server` | REST API, webhooks, triggers/pollers, scheduler, push, persistence, CLI |
+| `@flowmator/editor` | React UI |
 
 ## Feature checklist
 
@@ -79,8 +80,9 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Form (multi-page forms: nex
 - [x] Variables, tags, folders
 - [x] Data tables: typed columns (string, number, boolean, date) stored in SQLite; Data Table node (insert, get, update, upsert, delete, if row exists / does not exist, dry run; create, list, rename, delete tables); editor page with inline editing, sorting, search, CSV import and export; public API `/api/v1/data-tables`
 - [x] Public API with API keys
-- [x] Queue mode (EXECUTIONS_MODE=queue): BullMQ/Redis, `8n8 worker` (concurrency, health check, graceful shutdown), `8n8 webhook` processes; editor events, Respond to Webhook, waits, stop and retry relayed through Redis; manual runs stay on main unless OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
-- [x] CLI (`bin/8n8.mjs`): start, worker, webhook, execute, import/export workflows and credentials (n8n exports work, --decrypted, --backup), list/update workflows
+- [x] Queue mode (EXECUTIONS_MODE=queue): BullMQ/Redis, `flowmator worker` (concurrency, health check, graceful shutdown), `flowmator webhook` processes; editor events, Respond to Webhook, waits, stop and retry relayed through Redis; manual runs stay on main unless OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
+- [x] Docker image (`Dockerfile`, `docker-compose.yml`, `docker-compose.queue.yml` with Redis and workers): data in a `/home/node/.flowmator` volume, same `start`/`worker`/`webhook` commands as n8n's image
+- [x] CLI (`bin/flowmator.mjs`): start, worker, webhook, execute, import/export workflows and credentials (n8n exports work, --decrypted, --backup), list/update workflows
 - [x] Source control (git push/pull of workflows, credential and variable stubs, tags, folders; SSH deploy key or HTTPS; conflicts, read-only branch), external secrets (Vault, AWS, Azure, GCP → `$secrets`), log streaming (webhook, syslog, Sentry; workflow/node/audit events), insights (production executions, time saved, failure rate)
 - [x] Community nodes from npm (`n8n-nodes-*`, loaded through an `n8n-workflow` shim; legacy `request` helpers)
 - [x] Templates (n8n template library proxied at /rest/templates, import as workflow)

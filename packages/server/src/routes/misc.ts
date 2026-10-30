@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { LoadOptionsContext } from '@8n8/core';
-import { Workflow, type INode, type INodeParameters } from '@8n8/workflow';
+import { LoadOptionsContext } from '@flowmator/core';
+import { Workflow, type INode, type INodeParameters } from '@flowmator/workflow';
 import type { AppContext } from '../context';
 import { HttpError } from './errors';
 
@@ -133,7 +133,7 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
   app.get('/rest/api-keys', async () => ({ data: db.listApiKeys() }));
   app.post('/rest/api-keys', async (req) => {
     const label = (req.body as { label?: string })?.label ?? 'My API key';
-    return { data: db.createApiKey(label, `8n8_api_${randomBytes(24).toString('hex')}`) };
+    return { data: db.createApiKey(label, `flowmator_api_${randomBytes(24).toString('hex')}`) };
   });
   app.delete('/rest/api-keys/:id', async (req) => {
     db.deleteApiKey((req.params as { id: string }).id);

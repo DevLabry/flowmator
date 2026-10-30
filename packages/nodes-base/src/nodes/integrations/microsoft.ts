@@ -1,4 +1,4 @@
-import type { ICredentialType, IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType, IPollFunctions } from '@8n8/workflow';
+import type { ICredentialType, IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType, IPollFunctions } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, pollTimesProp, returnAllProps } from '../../utils/api';
 
 const GRAPH = 'https://graph.microsoft.com/v1.0';
@@ -259,7 +259,7 @@ function eventBody(f: IDataObject): IDataObject {
 
 export const MicrosoftOutlook: INodeType = {
   description: {
-    name: '8n8.microsoftOutlook',
+    name: 'flowmator.microsoftOutlook',
     displayName: 'Microsoft Outlook',
     description: 'Mail, folders, contacts and calendar events in Outlook / Microsoft 365',
     group: ['transform'],
@@ -418,7 +418,7 @@ export const MicrosoftOutlook: INodeType = {
 
 export const MicrosoftOutlookTrigger: INodeType = {
   description: {
-    name: '8n8.microsoftOutlookTrigger',
+    name: 'flowmator.microsoftOutlookTrigger',
     displayName: 'Microsoft Outlook Trigger',
     description: 'Starts the workflow when new mail arrives in Outlook',
     group: ['trigger'],
@@ -542,7 +542,7 @@ function plannerTask(f: IDataObject): IDataObject {
 
 export const MicrosoftTeams: INodeType = {
   description: {
-    name: '8n8.microsoftTeams',
+    name: 'flowmator.microsoftTeams',
     displayName: 'Microsoft Teams',
     description: 'Channels, channel and chat messages, and Planner tasks in Microsoft Teams',
     group: ['input'],
@@ -664,7 +664,7 @@ const childrenOf = (folder: string) => (folder ? `${itemRef(folder)}/children` :
 
 export const MicrosoftOneDrive: INodeType = {
   description: {
-    name: '8n8.microsoftOneDrive',
+    name: 'flowmator.microsoftOneDrive',
     displayName: 'Microsoft OneDrive',
     description: 'Upload, download, share and organise files in OneDrive',
     group: ['input'],

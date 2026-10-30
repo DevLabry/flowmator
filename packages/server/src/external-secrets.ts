@@ -1,6 +1,6 @@
 import { createSign } from 'node:crypto';
-import { signAws } from '@8n8/nodes-base';
-import type { IDataObject } from '@8n8/workflow';
+import { signAws } from '@flowmator/nodes-base';
+import type { IDataObject } from '@flowmator/workflow';
 import type { Cipher } from './credentials';
 import type { Database } from './db';
 
@@ -225,7 +225,7 @@ export class ExternalSecretsService {
     const all = this.load();
     return SECRET_PROVIDERS.map((p) => {
       const stored = all[p.name];
-      const settings = Object.fromEntries(p.properties.map((prop) => [prop.name, prop.type === 'password' ? (stored?.settings[prop.name] ? '__8N8_REDACTED__' : '') : (stored?.settings[prop.name] ?? prop.default ?? '')]));
+      const settings = Object.fromEntries(p.properties.map((prop) => [prop.name, prop.type === 'password' ? (stored?.settings[prop.name] ? '__FLOWMATOR_REDACTED__' : '') : (stored?.settings[prop.name] ?? prop.default ?? '')]));
       return {
         name: p.name,
         displayName: p.displayName,
@@ -251,7 +251,7 @@ export class ExternalSecretsService {
     this.provider(name);
     const all = this.load();
     const prev = all[name]?.settings ?? {};
-    const merged = Object.fromEntries(Object.entries({ ...prev, ...settings }).map(([k, v]) => [k, v === '__8N8_REDACTED__' ? prev[k] : v])) as IDataObject;
+    const merged = Object.fromEntries(Object.entries({ ...prev, ...settings }).map(([k, v]) => [k, v === '__FLOWMATOR_REDACTED__' ? prev[k] : v])) as IDataObject;
     all[name] = { connected: all[name]?.connected ?? false, settings: merged };
     this.store(all);
   }
@@ -259,7 +259,7 @@ export class ExternalSecretsService {
   /** Fetches with the given (or stored) settings without saving anything. */
   async test(name: string, settings?: IDataObject) {
     const stored = this.load()[name]?.settings ?? {};
-    const merged = Object.fromEntries(Object.entries({ ...stored, ...(settings ?? {}) }).map(([k, v]) => [k, v === '__8N8_REDACTED__' ? stored[k] : v])) as IDataObject;
+    const merged = Object.fromEntries(Object.entries({ ...stored, ...(settings ?? {}) }).map(([k, v]) => [k, v === '__FLOWMATOR_REDACTED__' ? stored[k] : v])) as IDataObject;
     try {
       const secrets = await this.provider(name).fetch(merged);
       return { success: true, count: Object.keys(secrets).length };

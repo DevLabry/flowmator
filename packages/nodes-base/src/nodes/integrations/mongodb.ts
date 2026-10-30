@@ -1,6 +1,6 @@
 import { MongoClient, ObjectId, type Document } from 'mongodb';
-import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType } from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType } from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { mongoUri } from '../../ai/vector-stores';
 import { jsonParam } from '../../utils/api';
 import { errorItem } from '../../utils/object';
@@ -118,7 +118,7 @@ const properties: INodeProperties[] = [
 
 export const MongoDb: INodeType = {
   description: {
-    name: '8n8.mongoDb',
+    name: 'flowmator.mongoDb',
     displayName: 'MongoDB',
     description: 'Find, insert and update documents in MongoDB',
     group: ['input'],

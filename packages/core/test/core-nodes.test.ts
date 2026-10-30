@@ -8,8 +8,8 @@ import { FtpSrv } from 'ftp-srv';
 // @ts-expect-error no types
 import hoodiecrow from 'hoodiecrow-imap';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildIcs, imapSearchQuery, parseIcs } from '@8n8/nodes-base';
-import { parseCurl, shellWords, type INodeExecutionData } from '@8n8/workflow';
+import { buildIcs, imapSearchQuery, parseIcs } from '@flowmator/nodes-base';
+import { parseCurl, shellWords, type INodeExecutionData } from '@flowmator/workflow';
 import { connections, items, makeWorkflow, node, out as rawOut, run } from './helpers';
 import { creds, credentialsHelper, withCred } from './integration-harness';
 
@@ -27,7 +27,7 @@ const freePort = () =>
 
 let tmp: string;
 beforeAll(() => {
-  tmp = mkdtempSync(path.join(os.tmpdir(), '8n8-core-nodes-'));
+  tmp = mkdtempSync(path.join(os.tmpdir(), 'flowmator-core-nodes-'));
 });
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
@@ -320,7 +320,7 @@ describe('SSH and SFTP', () => {
     const sftp = (name: string, params: Record<string, unknown>) => node(name, 'ftp', { protocol: 'sftp', ...params }, withCred('sftp'));
     const r = await runOk(
       [
-        sftp('Upload', { operation: 'upload', path: '/in/deep/note.txt', binaryData: false, fileContent: 'from 8n8' }),
+        sftp('Upload', { operation: 'upload', path: '/in/deep/note.txt', binaryData: false, fileContent: 'from flowmator' }),
         sftp('Rename', { operation: 'rename', oldPath: '/in/deep/note.txt', newPath: '/archive/2026/note.txt', options: { createDirectories: true } }),
         sftp('List', { operation: 'list', path: '/', recursive: true }),
       ],
@@ -332,7 +332,7 @@ describe('SSH and SFTP', () => {
       ['-', '/docs/readme.txt'],
     ]);
     const d = await runOk([sftp('Download', { operation: 'download', path: '/archive/2026/note.txt', binaryPropertyName: 'file' }), sftp('Delete', { operation: 'delete', path: '/archive', options: { folder: true, recursive: true } })], [['Download', 'Delete']]);
-    expect(Buffer.from(outItems(d, 'Download')[0].binary!.file.data!, 'base64').toString()).toBe('from 8n8');
+    expect(Buffer.from(outItems(d, 'Download')[0].binary!.file.data!, 'base64').toString()).toBe('from flowmator');
     expect(existsSync(path.join(root, 'archive'))).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { adfToText, driveItemPath, hubspotFilterGroups, outlookFilter, simplifyIssue, stripeForm, textToAdf, verifyStripeSignature, verifyTrelloSignature } from '@8n8/nodes-base';
-import type { IDataObject, IWebhookRequest } from '@8n8/workflow';
+import { adfToText, driveItemPath, hubspotFilterGroups, outlookFilter, simplifyIssue, stripeForm, textToAdf, verifyStripeSignature, verifyTrelloSignature } from '@flowmator/nodes-base';
+import type { IDataObject, IWebhookRequest } from '@flowmator/workflow';
 import { HookContext, PollContext, WebhookContext } from '../src';
 import { additionalData, makeWorkflow, node } from './helpers';
 import { calls, creds, credentialsHelper, route, runNode, withCred } from './integration-harness';
@@ -18,9 +18,9 @@ Object.assign(creds, {
 });
 
 /** A webhook trigger: runs its hook methods (with static data) and receives deliveries. */
-function webhookTrigger(type: string, params: Record<string, unknown>, cred: string, url = 'https://8n8.example/webhook/abc/webhook') {
+function webhookTrigger(type: string, params: Record<string, unknown>, cred: string, url = 'https://flowmator.example/webhook/abc/webhook') {
   const wf = makeWorkflow([node('T', type, params, withCred(cred))], {});
-  const nodeType = wf.nodeTypes.getByNameAndVersion(`8n8.${type}`);
+  const nodeType = wf.nodeTypes.getByNameAndVersion(`flowmator.${type}`);
   const p = () => ({ workflow: wf, node: wf.getNode('T')!, additionalData: additionalData({ mode: 'trigger', credentialsHelper }) });
   return {
     hook: (method: 'create' | 'delete' | 'checkExists') => nodeType.webhookMethods!.default[method].call(new HookContext(p(), 'default', () => url)),
@@ -44,10 +44,10 @@ describe('Stripe', () => {
 
   it('creates customers with metadata and pages through lists', async () => {
     route(/POST https:\/\/api\.stripe\.com\/v1\/customers$/, () => ({ id: 'cus_1', object: 'customer' }));
-    const [c] = await runNode('stripe', { resource: 'customer', operation: 'create', name: 'Ada', additionalFields: { email: 'ada@x.io', metadata: { metadataProperties: [{ key: 'source', value: '8n8' }] } } }, 'stripeApi');
+    const [c] = await runNode('stripe', { resource: 'customer', operation: 'create', name: 'Ada', additionalFields: { email: 'ada@x.io', metadata: { metadataProperties: [{ key: 'source', value: 'flowmator' }] } } }, 'stripeApi');
     expect(c).toEqual({ id: 'cus_1', object: 'customer' });
     expect(calls[0].headers['content-type']).toBe('application/x-www-form-urlencoded');
-    expect(calls[0].body).toEqual({ name: 'Ada', email: 'ada@x.io', 'metadata[source]': '8n8' });
+    expect(calls[0].body).toEqual({ name: 'Ada', email: 'ada@x.io', 'metadata[source]': 'flowmator' });
 
     route(/GET https:\/\/api\.stripe\.com\/v1\/charges$/, (call) =>
       call.url.searchParams.get('starting_after') ? { data: [{ id: 'ch_3' }], has_more: false } : { data: [{ id: 'ch_1' }, { id: 'ch_2' }], has_more: true },
@@ -71,7 +71,7 @@ describe('Stripe', () => {
     route(/DELETE https:\/\/api\.stripe\.com\/v1\/webhook_endpoints\/we_1/, () => ({ deleted: true }));
     const t = webhookTrigger('stripeTrigger', { events: ['invoice.paid'] }, 'stripeApi');
     await t.hook('create');
-    expect(calls[0].body).toMatchObject({ url: 'https://8n8.example/webhook/abc/webhook', 'enabled_events[0]': 'invoice.paid' });
+    expect(calls[0].body).toMatchObject({ url: 'https://flowmator.example/webhook/abc/webhook', 'enabled_events[0]': 'invoice.paid' });
     expect(t.state()).toMatchObject({ webhookId: 'we_1', webhookSecret: 'whsec_abc' });
 
     const event = { id: 'evt_1', type: 'invoice.paid', data: { object: { id: 'in_1' } } };
@@ -196,7 +196,7 @@ describe('Jira', () => {
     route(/POST https:\/\/acme\.atlassian\.net\/rest\/webhooks\/1\.0\/webhook$/, () => ({ self: 'https://acme.atlassian.net/rest/webhooks/1.0/webhook/42' }));
     const t = webhookTrigger('jiraTrigger', { events: ['jira:issue_created'], additionalFields: { filter: 'project = P' } }, 'jiraSoftwareCloudApi');
     await t.hook('create');
-    expect(calls[0].body).toMatchObject({ url: 'https://8n8.example/webhook/abc/webhook', events: ['jira:issue_created'], filters: { 'issue-related-events-section': 'project = P' } });
+    expect(calls[0].body).toMatchObject({ url: 'https://flowmator.example/webhook/abc/webhook', events: ['jira:issue_created'], filters: { 'issue-related-events-section': 'project = P' } });
     expect(t.state().webhookId).toBe('42');
     const body = { webhookEvent: 'jira:issue_created', issue: { key: 'P-9' } };
     const sig = `sha256=${createHmac('sha256', String(t.state().secret)).update(JSON.stringify(body)).digest('hex')}`;
@@ -235,7 +235,7 @@ describe('Trello', () => {
 
   it('answers the HEAD check, creates the webhook and verifies deliveries', async () => {
     route(/POST https:\/\/api\.trello\.com\/1\/webhooks$/, () => ({ id: 'wh1' }));
-    const url = 'https://8n8.example/webhook/t1/webhook';
+    const url = 'https://flowmator.example/webhook/t1/webhook';
     const t = webhookTrigger('trelloTrigger', { id: 'board1' }, 'trelloApi', url);
     await t.hook('create');
     expect(Object.fromEntries(calls[0].url.searchParams)).toMatchObject({ callbackURL: url, idModel: 'board1' });
@@ -304,7 +304,7 @@ describe('Microsoft Outlook', () => {
 
   it('polls for mail received since the last check', async () => {
     const wf = makeWorkflow([node('T', 'microsoftOutlookTrigger', { filters: { readStatus: 'unread' } }, withCred('microsoftOutlookOAuth2Api'))], {});
-    const poll = () => wf.nodeTypes.getByNameAndVersion('8n8.microsoftOutlookTrigger').poll!.call(new PollContext({ workflow: wf, node: wf.getNode('T')!, additionalData: additionalData({ mode: 'trigger', credentialsHelper }) }, () => {}));
+    const poll = () => wf.nodeTypes.getByNameAndVersion('flowmator.microsoftOutlookTrigger').poll!.call(new PollContext({ workflow: wf, node: wf.getNode('T')!, additionalData: additionalData({ mode: 'trigger', credentialsHelper }) }, () => {}));
     expect(await poll()).toBeNull();
     const since = (wf.staticData['node:T'] as IDataObject).lastTimeChecked as string;
     route(/GET https:\/\/graph\.microsoft\.com\/v1\.0\/me\/messages/, () => ({ value: [{ id: 'm1', subject: 'New', receivedDateTime: '2099-01-01T00:00:00Z' }] }));

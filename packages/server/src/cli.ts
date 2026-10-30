@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { executeWorkflow, exportCredentials, exportWorkflows, importCredentials, importWorkflows, listWorkflows, updateWorkflows } from './commands/data';
 import { startMain, startWebhookProcess, startWorker } from './commands/processes';
 
-const HELP = `Usage: 8n8 <command> [options]
+const HELP = `Usage: flowmator <command> [options]
 
 Processes
   start                       Editor, API, webhooks and triggers (default)

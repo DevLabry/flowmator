@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, vi } from 'vitest';
-import type { IDataObject, INodeExecutionData } from '@8n8/workflow';
+import type { IDataObject, INodeExecutionData } from '@flowmator/workflow';
 import type { ICredentialsHelper } from '../src';
 import { connections, items, makeWorkflow, node, out, run } from './helpers';
 

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { ExecutionStatus } from '@8n8/workflow';
+import type { ExecutionStatus } from '@flowmator/workflow';
 import type { AppContext } from '../context';
 import { HttpError } from './errors';
 

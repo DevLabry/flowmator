@@ -3,9 +3,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import Module, { createRequire } from 'node:module';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import type { CredentialTypesRegistry, NodeTypesRegistry } from '@8n8/core';
-import * as workflow from '@8n8/workflow';
-import type { ICredentialType, IDataObject, INode, INodeType } from '@8n8/workflow';
+import type { CredentialTypesRegistry, NodeTypesRegistry } from '@flowmator/core';
+import * as workflow from '@flowmator/workflow';
+import type { ICredentialType, IDataObject, INode, INodeType } from '@flowmator/workflow';
 import type { EventBus } from './events';
 
 const run = promisify(execFile);

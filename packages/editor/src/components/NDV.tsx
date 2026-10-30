@@ -1,4 +1,4 @@
-import { getNodeParametersWithDefaults, getParameterDisplayed, parseCurl, type INode, type INodeExecutionData, type INodeParameters } from '@8n8/workflow';
+import { getNodeParametersWithDefaults, getParameterDisplayed, parseCurl, type INode, type INodeExecutionData, type INodeParameters } from '@flowmator/workflow';
 import { ArrowLeft, Copy, FileInput, Pencil, Pin, PinOff, Play, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Api } from '../lib/api';

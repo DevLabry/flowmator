@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, INodeProperties, INodeType } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INodeProperties, INodeType } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, jsonParam, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 const API = 'https://api.notion.com/v1';
@@ -119,7 +119,7 @@ const simplifyProp: INodeProperties = { displayName: 'Simplify', name: 'simple',
 
 export const Notion: INodeType = {
   description: {
-    name: '8n8.notion',
+    name: 'flowmator.notion',
     displayName: 'Notion',
     description: 'Read and write Notion databases, pages and blocks',
     group: ['output'],

@@ -6,7 +6,7 @@ import {
   stringifyValue,
   type IDataObject,
   type INode,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { getNodeInput, toWorkflowClass, useWorkflow } from '../store/workflow';
 
 /** Evaluates an expression for the open node against the latest run data (item 0 by default). */
@@ -27,7 +27,7 @@ export function previewExpression(expression: string, nodeName: string, itemInde
         executeData: from ? { node, data: { main: [items] }, source: { main: [{ previousNode: from, previousNodeOutput: 0, previousNodeRun: Math.max(0, (runData[from]?.length ?? 1) - 1) }] } } : undefined,
         mode: 'manual',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        variables: (window as unknown as { __8n8Vars?: IDataObject }).__8n8Vars ?? {},
+        variables: (window as unknown as { __flowmatorVars?: IDataObject }).__flowmatorVars ?? {},
       }),
     );
     if (result === undefined) return { ok: true, text: '[undefined]' };

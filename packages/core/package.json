@@ -1,5 +1,5 @@
 {
-  "name": "@8n8/core",
+  "name": "@flowmator/core",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
@@ -10,10 +10,10 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@8n8/workflow": "workspace:*"
+    "@flowmator/workflow": "workspace:*"
   },
   "devDependencies": {
-    "@8n8/nodes-base": "workspace:^",
+    "@flowmator/nodes-base": "workspace:^",
     "@electric-sql/pglite": "0.5.13",
     "@electric-sql/pglite-pgvector": "0.0.14",
     "@electric-sql/pglite-socket": "^0.2.16",

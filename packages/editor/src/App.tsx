@@ -20,7 +20,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="app">
       <nav className="sidebar">
         <div className="brand">
-          <span className="brand-mark">8n8</span> 8n8
+          <span className="brand-mark">fm</span> Flowmator
         </div>
         <NavLink to="/home/workflows"><Workflow size={16} /> Workflows</NavLink>
         <NavLink to="/home/executions"><Activity size={16} /> Executions</NavLink>
@@ -46,7 +46,7 @@ export function App() {
     connectPush();
   }, []);
 
-  if (error) return <div className="empty">Could not reach the 8n8 server: {error}</div>;
+  if (error) return <div className="empty">Could not reach the Flowmator server: {error}</div>;
   if (!loaded) return <div className="empty"><ListTree className="spin" /> Loading…</div>;
 
   return (

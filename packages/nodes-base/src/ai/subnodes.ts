@@ -1,5 +1,5 @@
 import vm from 'node:vm';
-import type { IDataObject, ILoadOptionsFunctions, INodeType, ISupplyDataFunctions } from '@8n8/workflow';
+import type { IDataObject, ILoadOptionsFunctions, INodeType, ISupplyDataFunctions } from '@flowmator/workflow';
 import { Redis } from 'ioredis';
 import { pgPool, type PgCreds } from '../nodes/integrations/postgres';
 import { anthropicModel, geminiModel, listAnthropicModels, ollamaModel, openAiModel, toToolName, type HistoryMessage, type ToolSpec } from './llm';
@@ -9,7 +9,7 @@ const clip = (s: string) => (s.length > MAX_TOOL_OUTPUT ? `${s.slice(0, MAX_TOOL
 const asText = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
 
 export const subNode = (name: string, displayName: string, description: string, output: string, icon: string, extra: Partial<INodeType['description']> = {}) => ({
-  name: `8n8-ai.${name}`,
+  name: `flowmator-ai.${name}`,
   displayName,
   description,
   group: ['transform' as const],

@@ -1,5 +1,5 @@
-import { nodes } from '@8n8/nodes-base';
-import { Workflow, type IConnections, type INode, type INodeExecutionData, type IPinData, type IWorkflowSettings } from '@8n8/workflow';
+import { nodes } from '@flowmator/nodes-base';
+import { Workflow, type IConnections, type INode, type INodeExecutionData, type IPinData, type IWorkflowSettings } from '@flowmator/workflow';
 import { NodeTypesRegistry, WorkflowExecute, type IWorkflowExecuteAdditionalData } from '../src';
 
 export const nodeTypes = new NodeTypesRegistry();
@@ -8,7 +8,7 @@ nodeTypes.registerAll(nodes);
 let counter = 0;
 // test parameters are plain object literals; INodeParameters' index signature is too strict for them
 export function node(name: string, type: string, parameters: Record<string, any> = {}, extra: Partial<INode> = {}): INode {
-  return { id: `id-${++counter}`, name, type: type.includes('.') ? type : `8n8.${type}`, typeVersion: 1, position: [0, 0], parameters, ...extra };
+  return { id: `id-${++counter}`, name, type: type.includes('.') ? type : `flowmator.${type}`, typeVersion: 1, position: [0, 0], parameters, ...extra };
 }
 
 /** connect("A", "B") or connect("A", "B", outputIndex, inputIndex) */

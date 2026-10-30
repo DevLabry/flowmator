@@ -12,10 +12,10 @@ import {
   type IRunData,
   type ITaskData,
   type IWorkflowSettings,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { create } from 'zustand';
 import { Api, type NodeIO, type WorkflowData } from '../lib/api';
-import { getNodeType, useApp } from './app';
+import { getNodeType, localNodeType, useApp } from './app';
 
 export const pushRef = Math.random().toString(36).slice(2, 12);
 
@@ -228,7 +228,7 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
     for (const n of nodes) {
       const name = uniqueName(n.name, existing);
       renames[n.name] = name;
-      const node = { ...structuredClone(n), id: uid(), name, type: n.type.replace(/^n8n-nodes-base\./, '8n8.') };
+      const node = { ...structuredClone(n), id: uid(), name, type: localNodeType(n.type) };
       existing.push(node);
       added.push(node);
     }

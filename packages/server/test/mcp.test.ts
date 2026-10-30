@@ -10,7 +10,7 @@ import { createApp, type App } from '../src';
 
 /**
  * The MCP Server Trigger serves the tools connected to it; the MCP Client Tool gives an agent the tools
- * of an MCP server. Here one 8n8 instance does both, with a fake Claude answering the agent.
+ * of an MCP server. Here one Flowmator instance does both, with a fake Claude answering the agent.
  */
 
 let app: App;
@@ -34,7 +34,7 @@ beforeAll(async () => {
   await new Promise<void>((r) => claude.listen(0, '127.0.0.1', r));
   claudeUrl = `http://127.0.0.1:${(claude.address() as AddressInfo).port}`;
 
-  dir = mkdtempSync(path.join(os.tmpdir(), '8n8-mcp-'));
+  dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-mcp-'));
   app = await createApp({ userFolder: dir, port: 0, host: '127.0.0.1', webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
   base = (await app.start()).replace(/\/$/, '');
 });
@@ -83,9 +83,9 @@ describe('MCP', () => {
       await api('POST', '/rest/workflows', {
         name: 'MCP tools',
         nodes: [
-          node('MCP Server', '8n8-ai.mcpTrigger', { path: 'my-tools', authentication: 'bearerAuth' }, { httpBearerAuth: token }),
-          node('calculator', '8n8-ai.toolCalculator'),
-          node('shout', '8n8-ai.toolCode', { toolDescription: 'Upper-cases text', jsCode: 'return query.toUpperCase();' }),
+          node('MCP Server', 'flowmator-ai.mcpTrigger', { path: 'my-tools', authentication: 'bearerAuth' }, { httpBearerAuth: token }),
+          node('calculator', 'flowmator-ai.toolCalculator'),
+          node('shout', 'flowmator-ai.toolCode', { toolDescription: 'Upper-cases text', jsCode: 'return query.toUpperCase();' }),
         ],
         connections: { calculator: toTarget('MCP Server', 'ai_tool'), shout: toTarget('MCP Server', 'ai_tool') },
       })
@@ -128,7 +128,7 @@ describe('MCP', () => {
 
   it('lists the server tools in the MCP Client Tool node', async () => {
     const res = await api('POST', '/rest/dynamic-node-parameters/options', {
-      nodeTypeAndVersion: { name: '8n8-ai.mcpClientTool', version: 1 },
+      nodeTypeAndVersion: { name: 'flowmator-ai.mcpClientTool', version: 1 },
       methodName: 'getTools',
       currentNodeParameters: { endpointUrl: `${base}/webhook/my-tools`, authentication: 'bearerAuth' },
       credentials: { httpBearerAuth: token },
@@ -144,10 +144,10 @@ describe('MCP', () => {
       await api('POST', '/rest/workflows', {
         name: 'MCP agent',
         nodes: [
-          node('Start', '8n8.manualTrigger'),
-          node('Agent', '8n8-ai.agent', { promptType: 'define', text: '12 squared?' }),
-          node('Model', '8n8-ai.lmChatAnthropic', { model: 'claude-opus-5-5', options: { refusalFallback: false } }, { anthropicApi: { id: anthropic.id, name: anthropic.name } }),
-          node('MCP', '8n8-ai.mcpClientTool', { endpointUrl: `${base}/webhook/my-tools`, authentication: 'bearerAuth', include: 'selected', includeTools: ['calculator'] }, { httpBearerAuth: token }),
+          node('Start', 'flowmator.manualTrigger'),
+          node('Agent', 'flowmator-ai.agent', { promptType: 'define', text: '12 squared?' }),
+          node('Model', 'flowmator-ai.lmChatAnthropic', { model: 'claude-opus-5-5', options: { refusalFallback: false } }, { anthropicApi: { id: anthropic.id, name: anthropic.name } }),
+          node('MCP', 'flowmator-ai.mcpClientTool', { endpointUrl: `${base}/webhook/my-tools`, authentication: 'bearerAuth', include: 'selected', includeTools: ['calculator'] }, { httpBearerAuth: token }),
         ],
         connections: { Start: { main: [[{ node: 'Agent', type: 'main', index: 0 }]] }, Model: toTarget('Agent', 'ai_languageModel'), MCP: toTarget('Agent', 'ai_tool') },
       })

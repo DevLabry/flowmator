@@ -4,8 +4,8 @@ import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite-pgvector';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { characterSplitter, cosineSimilarity, recursiveSplitter, tokenSplitter } from '@8n8/nodes-base';
-import type { IConnections, INode } from '@8n8/workflow';
+import { characterSplitter, cosineSimilarity, recursiveSplitter, tokenSplitter } from '@flowmator/nodes-base';
+import type { IConnections, INode } from '@flowmator/workflow';
 import { items, makeWorkflow, node, out as rawOut, run } from './helpers';
 import { calls, creds, credentialsHelper, route, withCred } from './integration-harness';
 
@@ -25,7 +25,7 @@ creds.anthropicApi = { apiKey: 'test-key', url: 'https://claude.test' };
 creds.googlePalmApi = { apiKey: 'g-key', host: 'https://gemini.test' };
 creds.qdrantApi = { qdrantUrl: 'https://qdrant.test', apiKey: 'q-key' };
 
-const sub = (name: string, type: string, params: Record<string, unknown> = {}, cred?: string) => node(name, `8n8-ai.${type}`, params, cred ? withCred(cred) : {});
+const sub = (name: string, type: string, params: Record<string, unknown> = {}, cred?: string) => node(name, `flowmator-ai.${type}`, params, cred ? withCred(cred) : {});
 
 /** Links sub-nodes: [from, to, connection type] */
 function wire(main: Array<[string, string]>, ai: Array<[string, string, string]>): IConnections {
@@ -145,7 +145,7 @@ describe('Simple Vector Store', () => {
     const wf = makeWorkflow(
       [
         node('Trigger', 'manualTrigger'),
-        node('Agent', '8n8-ai.agent', { promptType: 'define', text: 'Best Italian food?' }),
+        node('Agent', 'flowmator-ai.agent', { promptType: 'define', text: 'Best Italian food?' }),
         sub('Model', 'lmChatAnthropic', { model: 'claude-opus-5-5' }, 'anthropicApi'),
         sub('Knowledge', 'vectorStoreInMemory', { mode: 'retrieve-as-tool', memoryKey: 'agent-kb', toolDescription: 'Facts about pets, food and cars', topK: 1 }),
         sub('Embeddings', 'embeddingsOpenAi', {}, 'openAiApi'),
@@ -182,7 +182,7 @@ describe('chains', () => {
     const wf = makeWorkflow(
       [
         node('Trigger', 'manualTrigger'),
-        node('QA', '8n8-ai.chainRetrievalQa', {}),
+        node('QA', 'flowmator-ai.chainRetrievalQa', {}),
         sub('Model', 'lmChatAnthropic', { model: 'claude-opus-5-5' }, 'anthropicApi'),
         sub('Retriever', 'retrieverVectorStore', { topK: 1 }),
         sub('Store', 'vectorStoreInMemory', { mode: 'retrieve', memoryKey: 'qa' }),
@@ -201,7 +201,7 @@ describe('chains', () => {
     const wf = makeWorkflow(
       [
         node('Trigger', 'manualTrigger'),
-        node('Chain', '8n8-ai.chainLlm', { promptType: 'define', text: '={{ "Capital of " + $json.country }}' }),
+        node('Chain', 'flowmator-ai.chainLlm', { promptType: 'define', text: '={{ "Capital of " + $json.country }}' }),
         sub('Model', 'lmChatAnthropic', { model: 'claude-opus-5-5' }, 'anthropicApi'),
         sub('Parser', 'outputParserStructured', { schemaType: 'fromJson', jsonSchemaExample: '{"city":"x"}' }),
       ],
@@ -255,7 +255,7 @@ describe('Google Gemini', () => {
       return { candidates: [{ content: { role: 'model', parts: [{ text: 'thinking…', thought: true }, { text: 'It is 42.' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 3, candidatesTokenCount: 2 } };
     });
     const wf = makeWorkflow(
-      [node('Trigger', 'manualTrigger'), node('Agent', '8n8-ai.agent', { promptType: 'define', text: '6 times 7?' }), sub('Model', 'lmChatGoogleGemini', { modelName: 'models/gemini-2.5-flash' }, 'googlePalmApi'), sub('Calc', 'toolCalculator')],
+      [node('Trigger', 'manualTrigger'), node('Agent', 'flowmator-ai.agent', { promptType: 'define', text: '6 times 7?' }), sub('Model', 'lmChatGoogleGemini', { modelName: 'models/gemini-2.5-flash' }, 'googlePalmApi'), sub('Calc', 'toolCalculator')],
       wire([['Trigger', 'Agent']], [['Model', 'Agent', 'ai_languageModel'], ['Calc', 'Agent', 'ai_tool']]),
     );
     expect(out(await exec(wf), 'Agent')).toEqual([{ output: 'It is 42.' }]);
@@ -303,7 +303,7 @@ describe('Postgres AI nodes', () => {
     const answers = ['Hi Ada!', 'Your name is Ada.'];
     route(/POST https:\/\/claude.test\/v1\/messages/, () => claude([{ type: 'text', text: answers.shift()! }], 'end_turn'));
     const wf = makeWorkflow(
-      [node('Trigger', 'manualTrigger'), node('Agent', '8n8-ai.agent', {}), sub('Model', 'lmChatAnthropic', { model: 'claude-opus-5-5' }, 'anthropicApi'), sub('Memory', 'memoryPostgresChat', { contextWindowLength: 5 }, 'postgres')],
+      [node('Trigger', 'manualTrigger'), node('Agent', 'flowmator-ai.agent', {}), sub('Model', 'lmChatAnthropic', { model: 'claude-opus-5-5' }, 'anthropicApi'), sub('Memory', 'memoryPostgresChat', { contextWindowLength: 5 }, 'postgres')],
       wire([['Trigger', 'Agent']], [['Model', 'Agent', 'ai_languageModel'], ['Memory', 'Agent', 'ai_memory']]),
     );
     await exec(wf, items({ sessionId: 's1', chatInput: 'I am Ada' }));
@@ -340,7 +340,7 @@ describe.skipIf(!redisBinary)('Redis Chat Memory', () => {
     const answers = ['one', 'two', 'three'];
     route(/POST https:\/\/claude.test\/v1\/messages/, () => claude([{ type: 'text', text: answers.shift()! }], 'end_turn'));
     const wf = makeWorkflow(
-      [node('Trigger', 'manualTrigger'), node('Agent', '8n8-ai.agent', {}), sub('Model', 'lmChatAnthropic', { model: 'claude-opus-5-5' }, 'anthropicApi'), sub('Memory', 'memoryRedisChat', { contextWindowLength: 1, sessionTTL: 60 }, 'redis')],
+      [node('Trigger', 'manualTrigger'), node('Agent', 'flowmator-ai.agent', {}), sub('Model', 'lmChatAnthropic', { model: 'claude-opus-5-5' }, 'anthropicApi'), sub('Memory', 'memoryRedisChat', { contextWindowLength: 1, sessionTTL: 60 }, 'redis')],
       wire([['Trigger', 'Agent']], [['Model', 'Agent', 'ai_languageModel'], ['Memory', 'Agent', 'ai_memory']]),
     );
     for (const q of ['q1', 'q2', 'q3']) await exec(wf, items({ sessionId: 'r1', chatInput: q }));

@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { ICredentialType, IDataObject, IExecuteFunctions, IHookFunctions, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { ICredentialType, IDataObject, IExecuteFunctions, IHookFunctions, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 const API = 'https://api.stripe.com/v1';
@@ -199,7 +199,7 @@ const properties: INodeProperties[] = [
 
 export const Stripe: INodeType = {
   description: {
-    name: '8n8.stripe',
+    name: 'flowmator.stripe',
     displayName: 'Stripe',
     description: 'Customers, charges, payment intents, coupons and cards in Stripe',
     group: ['transform'],
@@ -290,7 +290,7 @@ const EVENTS = [
 
 export const StripeTrigger: INodeType = {
   description: {
-    name: '8n8.stripeTrigger',
+    name: 'flowmator.stripeTrigger',
     displayName: 'Stripe Trigger',
     description: 'Starts the workflow on Stripe events (creates a webhook endpoint; needs a public URL)',
     group: ['trigger'],
@@ -324,7 +324,7 @@ export const StripeTrigger: INodeType = {
         const hook = await stripe(this, 'POST', '/webhook_endpoints', {
           url: this.getNodeWebhookUrl('default'),
           enabled_events: this.getNodeParameter('events', []) as string[],
-          description: `8n8 workflow ${this.getWorkflow().id ?? ''}`.trim(),
+          description: `flowmator workflow ${this.getWorkflow().id ?? ''}`.trim(),
           ...(apiVersion ? { api_version: apiVersion } : {}),
         });
         data.webhookId = hook.id as string;

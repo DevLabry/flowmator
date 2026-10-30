@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { ICredentialType, IDataObject, IExecuteFunctions, IHookFunctions, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { ICredentialType, IDataObject, IExecuteFunctions, IHookFunctions, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 import { apiRequest, forEachItem, forOp, operationProp } from '../../utils/api';
 
 const API = 'https://api.trello.com/1';
@@ -168,7 +168,7 @@ const properties: INodeProperties[] = [
 
 export const Trello: INodeType = {
   description: {
-    name: '8n8.trello',
+    name: 'flowmator.trello',
     displayName: 'Trello',
     description: 'Boards, lists, cards, checklists and labels in Trello',
     group: ['transform'],
@@ -263,7 +263,7 @@ export const Trello: INodeType = {
 
 export const TrelloTrigger: INodeType = {
   description: {
-    name: '8n8.trelloTrigger',
+    name: 'flowmator.trelloTrigger',
     displayName: 'Trello Trigger',
     description: 'Starts the workflow when a board, list or card changes (creates a Trello webhook; needs a public URL)',
     group: ['trigger'],
@@ -294,7 +294,7 @@ export const TrelloTrigger: INodeType = {
       },
       async create(this: IHookFunctions) {
         const data = this.getWorkflowStaticData('node');
-        const hook = await trello(this, 'POST', '/webhooks', { callbackURL: this.getNodeWebhookUrl('default'), idModel: this.getNodeParameter('id') as string, description: '8n8 webhook' });
+        const hook = await trello(this, 'POST', '/webhooks', { callbackURL: this.getNodeWebhookUrl('default'), idModel: this.getNodeParameter('id') as string, description: 'flowmator webhook' });
         data.webhookId = hook.id as string;
         return true;
       },

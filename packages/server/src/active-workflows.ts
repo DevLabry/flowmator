@@ -1,6 +1,6 @@
 import { Cron } from 'croner';
-import { HookContext, PollContext, TriggerContext, type NodeTypesRegistry } from '@8n8/core';
-import type { IDataObject, INode, INodeExecutionData, ITriggerResponse, Workflow } from '@8n8/workflow';
+import { HookContext, PollContext, TriggerContext, type NodeTypesRegistry } from '@flowmator/core';
+import type { IDataObject, INode, INodeExecutionData, ITriggerResponse, Workflow } from '@flowmator/workflow';
 import type { ServerConfig } from './config';
 import type { Database, WorkflowEntity } from './db';
 import type { ExecutionService } from './execution-service';

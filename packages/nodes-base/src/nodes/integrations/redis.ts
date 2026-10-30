@@ -1,6 +1,6 @@
 import type { Redis } from 'ioredis';
-import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType, ITriggerFunctions } from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType, ITriggerFunctions } from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { redisClient } from '../../ai/subnodes';
 import { errorItem } from '../../utils/object';
 
@@ -113,7 +113,7 @@ const properties: INodeProperties[] = [
 
 export const RedisNode: INodeType = {
   description: {
-    name: '8n8.redis',
+    name: 'flowmator.redis',
     displayName: 'Redis',
     description: 'Get, set, increment, publish and push data in Redis',
     group: ['input'],
@@ -218,7 +218,7 @@ async function runRedis(ctx: IExecuteFunctions, redis: Redis, op: string, i: num
 
 export const RedisTrigger: INodeType = {
   description: {
-    name: '8n8.redisTrigger',
+    name: 'flowmator.redisTrigger',
     displayName: 'Redis Trigger',
     description: 'Starts the workflow when a message is published to a Redis channel',
     group: ['trigger'],

@@ -1,4 +1,4 @@
-import { ExecuteContext, HookContext, WebhookContext, type NodeTypesRegistry } from '@8n8/core';
+import { ExecuteContext, HookContext, WebhookContext, type NodeTypesRegistry } from '@flowmator/core';
 import {
   evaluateExpression,
   getNodeParametersWithDefaults,
@@ -11,8 +11,8 @@ import {
   type IWebhookRequest,
   type IWebhookResponse,
   type IWorkflowBase,
-} from '@8n8/workflow';
-import { formPageOf, parseSubmission, renderForm, renderPage, renderSubmitted, type FormNodePage } from '@8n8/nodes-base';
+} from '@flowmator/workflow';
+import { formPageOf, parseSubmission, renderForm, renderPage, renderSubmitted, type FormNodePage } from '@flowmator/nodes-base';
 import type { ServerConfig } from './config';
 import type { ExecutionService } from './execution-service';
 import type { PushSender } from './push';

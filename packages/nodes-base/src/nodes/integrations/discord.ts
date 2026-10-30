@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeProperties, INodeType } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeProperties, INodeType } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, jsonParam, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 const API = 'https://discord.com/api/v10';
@@ -91,7 +91,7 @@ async function messagePayload(ctx: IExecuteFunctions, i: number, extra: IDataObj
 
 export const Discord: INodeType = {
   description: {
-    name: '8n8.discord',
+    name: 'flowmator.discord',
     displayName: 'Discord',
     description: 'Send messages and manage channels and members in Discord',
     group: ['output'],

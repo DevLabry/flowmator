@@ -12,7 +12,7 @@ const ws = new WebSocket('ws://localhost:5699/rest/push?pushRef=smoke');
 ws.onmessage = (m) => events.push(JSON.parse(String(m.data)).type);
 await new Promise((r) => (ws.onopen = r));
 
-const node = (name: string, type: string, parameters = {}) => ({ id: name, name, type: `8n8.${type}`, typeVersion: 1, position: [0, 0], parameters });
+const node = (name: string, type: string, parameters = {}) => ({ id: name, name, type: `flowmator.${type}`, typeVersion: 1, position: [0, 0], parameters });
 const wf = (await post('/rest/workflows', {
   name: 'Smoke',
   nodes: [node('Hook', 'webhook', { path: 'smoke', httpMethod: 'POST', responseMode: 'lastNode' }), node('Code', 'code', { jsCode: 'return [{ sum: $input.first().json.body.a + $input.first().json.body.b }]' })],

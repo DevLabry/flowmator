@@ -39,7 +39,7 @@ function basicAuthHook(app: FastifyInstance) {
     if (!req.url.startsWith('/rest') && req.url !== '/' && !req.url.startsWith('/workflow')) return;
     if (req.url.startsWith('/rest/oauth2-credential/callback')) return;
     if (req.headers.authorization !== expected) {
-      reply.header('WWW-Authenticate', 'Basic realm="8n8"').code(401).send({ message: 'Unauthorized' });
+      reply.header('WWW-Authenticate', 'Basic realm="flowmator"').code(401).send({ message: 'Unauthorized' });
     }
   });
 }
@@ -118,7 +118,7 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
   await webhookRoutes(app, ctx);
   await publicApiRoutes(app, ctx);
 
-  // Built editor (pnpm --filter @8n8/editor build). In development, Vite serves it on :5173 instead.
+  // Built editor (pnpm --filter @flowmator/editor build). In development, Vite serves it on :5173 instead.
   const editorDir = ctx.config.editorDistDir ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../editor/dist');
   if (existsSync(path.join(editorDir, 'index.html'))) {
     // wildcard: files are looked up per request, so a rebuilt editor is served without a restart

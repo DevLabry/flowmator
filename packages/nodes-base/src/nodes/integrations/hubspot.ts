@@ -1,4 +1,4 @@
-import type { ICredentialType, IDataObject, IExecuteFunctions, ILoadOptionsFunctions, INodeProperties, INodeType } from '@8n8/workflow';
+import type { ICredentialType, IDataObject, IExecuteFunctions, ILoadOptionsFunctions, INodeProperties, INodeType } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 const API = 'https://api.hubapi.com';
@@ -210,7 +210,7 @@ const loadProperties = (object: string) =>
 
 export const Hubspot: INodeType = {
   description: {
-    name: '8n8.hubspot',
+    name: 'flowmator.hubspot',
     displayName: 'HubSpot',
     description: 'Contacts, companies, deals, tickets and engagements in HubSpot CRM',
     group: ['output'],

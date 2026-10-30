@@ -3,12 +3,12 @@ import {
   type IExecuteFunctions,
   type INodeExecutionData,
   type INodeType,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { evaluateFilter, type FilterValue } from '../utils/filter';
 
 export const ManualTrigger: INodeType = {
   description: {
-    name: '8n8.manualTrigger',
+    name: 'flowmator.manualTrigger',
     displayName: 'Manual Trigger',
     description: 'Starts the workflow when you click "Execute workflow"',
     group: ['trigger'],
@@ -29,7 +29,7 @@ export const ManualTrigger: INodeType = {
 
 export const NoOp: INodeType = {
   description: {
-    name: '8n8.noOp',
+    name: 'flowmator.noOp',
     displayName: 'No Operation, do nothing',
     description: 'Passes its input through unchanged',
     group: ['organization'],
@@ -47,7 +47,7 @@ export const NoOp: INodeType = {
 
 export const StickyNote: INodeType = {
   description: {
-    name: '8n8.stickyNote',
+    name: 'flowmator.stickyNote',
     displayName: 'Sticky Note',
     description: 'A note on the canvas',
     group: ['input'],
@@ -66,7 +66,7 @@ export const StickyNote: INodeType = {
 
 export const StopAndError: INodeType = {
   description: {
-    name: '8n8.stopAndError',
+    name: 'flowmator.stopAndError',
     displayName: 'Stop and Error',
     description: 'Throws an error, stopping the workflow',
     group: ['input'],
@@ -149,7 +149,7 @@ function splitByFilter(ctx: IExecuteFunctions, param = 'conditions') {
 
 export const If: INodeType = {
   description: {
-    name: '8n8.if',
+    name: 'flowmator.if',
     displayName: 'If',
     description: 'Routes items to "true" or "false" based on conditions',
     group: ['transform'],
@@ -169,7 +169,7 @@ export const If: INodeType = {
 
 export const Filter: INodeType = {
   description: {
-    name: '8n8.filter',
+    name: 'flowmator.filter',
     displayName: 'Filter',
     description: 'Keeps only items that match the conditions',
     group: ['transform'],
@@ -206,7 +206,7 @@ const rulesOf = (p: Record<string, unknown>) => ((p.rules as { values?: SwitchRu
 
 export const Switch: INodeType = {
   description: {
-    name: '8n8.switch',
+    name: 'flowmator.switch',
     displayName: 'Switch',
     description: 'Routes items to different outputs by rules or by an expression',
     group: ['transform'],
@@ -322,7 +322,7 @@ export const Switch: INodeType = {
 
 export const ErrorTrigger: INodeType = {
   description: {
-    name: '8n8.errorTrigger',
+    name: 'flowmator.errorTrigger',
     displayName: 'Error Trigger',
     description: 'Starts this workflow when another workflow that uses it as its error workflow fails',
     group: ['trigger'],

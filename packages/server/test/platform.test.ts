@@ -30,7 +30,7 @@ async function serve(handler: (req: { method: string; url: string; headers: Reco
 }
 
 beforeAll(async () => {
-  dir = mkdtempSync(path.join(os.tmpdir(), '8n8-platform-'));
+  dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-platform-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
   await app.ctx.executions.start();
 });
@@ -51,7 +51,7 @@ const api = async (method: string, url: string, payload?: unknown) => {
 };
 
 let n = 0;
-const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `n${++n}`, name, type: type.includes('.') ? type : `8n8.${type}`, typeVersion: 1, position: [0, 0], parameters });
+const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `n${++n}`, name, type: type.includes('.') ? type : `flowmator.${type}`, typeVersion: 1, position: [0, 0], parameters });
 const chain = (...names: string[]) => Object.fromEntries(names.slice(0, -1).map((name, i) => [name, { main: [[{ node: names[i + 1], type: 'main', index: 0 }]] }]));
 
 async function waitFor<T>(fn: () => T | undefined | false, timeout = 5000): Promise<T> {
@@ -66,8 +66,8 @@ async function waitFor<T>(fn: () => T | undefined | false, timeout = 5000): Prom
 
 describe('event bus and log streaming', () => {
   it('formats syslog lines and Sentry endpoints', () => {
-    const line = syslogMessage({ facility: 16, app_name: '8n8' }, { __type: '$$EventMessageWorkflow', id: 'e1', ts: '2026-10-29T10:00:00.000Z', eventName: 'n8n.workflow.failed', message: '', payload: { workflowId: 'w1' } });
-    expect(line).toMatch(/^<131>1 2026-10-29T10:00:00.000Z \S+ 8n8 \d+ n8n\.workflow\.failed - \{"workflowId":"w1"/);
+    const line = syslogMessage({ facility: 16, app_name: 'flowmator' }, { __type: '$$EventMessageWorkflow', id: 'e1', ts: '2026-10-29T10:00:00.000Z', eventName: 'n8n.workflow.failed', message: '', payload: { workflowId: 'w1' } });
+    expect(line).toMatch(/^<131>1 2026-10-29T10:00:00.000Z \S+ flowmator \d+ n8n\.workflow\.failed - \{"workflowId":"w1"/);
     expect(sentryEndpoint('https://abc123@o1.ingest.sentry.io/42')).toMatchObject({ url: 'https://o1.ingest.sentry.io/api/42/envelope/', auth: expect.stringContaining('sentry_key=abc123') });
   });
 
@@ -169,7 +169,7 @@ describe('external secrets', () => {
     expect((await api('POST', '/rest/external-secrets/providers/vault/test', {})).body.data).toEqual({ success: true, count: 2 });
     const p = (await api('POST', '/rest/external-secrets/providers/vault/connect', { connected: true })).body.data;
     expect(p).toMatchObject({ connected: true, state: 'connected', secrets: ['db', 'team/api'] });
-    expect(p.settings.token).toBe('__8N8_REDACTED__');
+    expect(p.settings.token).toBe('__FLOWMATOR_REDACTED__');
     expect((await api('GET', '/rest/external-secrets/secrets')).body.data).toEqual({ vault: ['db', 'team/api'] });
 
     const cred = (await api('POST', '/rest/credentials', { name: 'From vault', type: 'httpBasicAuth', data: { user: '={{ $secrets.vault.db.user }}', password: "={{ $secrets.vault['team/api'].key }}" } })).body.data;
@@ -349,7 +349,7 @@ module.exports = { Shout };`,
     expect((await svc.checkUpdates())[0].updateAvailable).toBe('1.3.0');
 
     // a fresh process finds it in <userFolder>/nodes
-    const { NodeTypesRegistry, CredentialTypesRegistry } = await import('@8n8/core');
+    const { NodeTypesRegistry, CredentialTypesRegistry } = await import('@flowmator/core');
     const fresh = new CommunityPackagesService(dir, new NodeTypesRegistry(), new CredentialTypesRegistry());
     fresh.loadAll();
     expect(fresh.list().map((p) => p.packageName)).toEqual(['n8n-nodes-shout']);

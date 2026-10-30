@@ -1,5 +1,5 @@
-import type { IDataObject, IExecuteFunctions, IHelpers, ILoadOptionsFunctions, INodeExecutionData, INodeType } from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHelpers, ILoadOptionsFunctions, INodeExecutionData, INodeType } from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { apiRequest, forOp, operationProp } from '../../utils/api';
 import { errorItem } from '../../utils/object';
 
@@ -85,7 +85,7 @@ const cellValue = (v: unknown) => (v === null || v === undefined ? '' : typeof v
 
 export const GoogleSheets: INodeType = {
   description: {
-    name: '8n8.googleSheets',
+    name: 'flowmator.googleSheets',
     displayName: 'Google Sheets',
     description: 'Read, append and update rows in Google Sheets',
     group: ['input', 'output'],

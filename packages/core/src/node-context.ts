@@ -26,7 +26,7 @@ import {
   type IWebhookResponse,
   type IWorkflowMeta,
   type Workflow,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { IWorkflowExecuteAdditionalData } from './additional-data';
 import { consoleLogger } from './additional-data';
 import { MemoryBinaryDataStore, mimeFromFileName, extensionFromMime } from './binary-data';
@@ -339,7 +339,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
     }
     if (!info.code) throw new NodeOperationError(this.node, 'Executing workflows by id requires the server runtime');
     // In-process fallback (used by tests and the CLI)
-    const { Workflow } = await import('@8n8/workflow');
+    const { Workflow } = await import('@flowmator/workflow');
     const { WorkflowExecute } = await import('./workflow-execute');
     const sub = new Workflow({ ...info.code, nodeTypes: this.workflow.nodeTypes });
     const run = await new WorkflowExecute({ ...this.additionalData, executionId: `${this.additionalData.executionId}-sub`, mode: 'integrated' }).run({

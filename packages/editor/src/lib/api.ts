@@ -15,7 +15,7 @@ import type {
   IDataTable,
   DataTableColumnType,
   DataTableRow,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 
 export class ApiError extends Error {
   constructor(

@@ -88,7 +88,7 @@ export interface IDataTableRowsQuery {
   take?: number;
 }
 
-/** Data tables: small tables stored by 8n8 itself, shared by every workflow. */
+/** Data tables: small tables stored by Flowmator itself, shared by every workflow. */
 export interface IDataTableService {
   listTables(filter?: { name?: string }): Promise<IDataTable[]>;
   /** Finds a table by id, or by name when no id matches. */

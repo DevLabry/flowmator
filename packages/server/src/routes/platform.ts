@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { IDataObject } from '@8n8/workflow';
+import type { IDataObject } from '@flowmator/workflow';
 import type { AppContext } from '../context';
 import { EVENT_NAMES } from '../events';
 import { SECRET_PROVIDERS } from '../external-secrets';

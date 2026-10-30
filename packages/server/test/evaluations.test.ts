@@ -9,7 +9,7 @@ let app: App;
 let dir: string;
 
 beforeAll(async () => {
-  dir = mkdtempSync(path.join(os.tmpdir(), '8n8-eval-'));
+  dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-eval-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
   await app.ctx.executions.start();
 });
@@ -25,7 +25,7 @@ const api = async (method: string, url: string, payload?: unknown) => {
 };
 
 let n = 0;
-const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `n${++n}`, name, type: `8n8.${type}`, typeVersion: 1, position: [0, 0], parameters });
+const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `n${++n}`, name, type: `flowmator.${type}`, typeVersion: 1, position: [0, 0], parameters });
 const chain = (...names: string[]) => {
   const c: Record<string, unknown> = {};
   for (let i = 0; i < names.length - 1; i++) c[names[i]] = { main: [[{ node: names[i + 1], type: 'main', index: 0 }]] };

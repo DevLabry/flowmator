@@ -1,4 +1,4 @@
-import type { INodeExecutionData } from '@8n8/workflow';
+import type { INodeExecutionData } from '@flowmator/workflow';
 import { FileText } from 'lucide-react';
 import { useState } from 'react';
 
@@ -15,8 +15,8 @@ interface DragSource {
 
 function startDrag(e: React.DragEvent, src: DragSource, path: Array<string | number>) {
   const expr = path.reduce<string>((acc, k) => joinPath(acc, k), src.root);
-  e.dataTransfer.setData('application/8n8-expr', `{{ ${expr} }}`);
-  e.dataTransfer.setData('application/8n8-path', path.join('.'));
+  e.dataTransfer.setData('application/flowmator-expr', `{{ ${expr} }}`);
+  e.dataTransfer.setData('application/flowmator-path', path.join('.'));
   e.dataTransfer.setData('text/plain', `{{ ${expr} }}`);
   e.dataTransfer.effectAllowed = 'copy';
 }

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeExecutionData, INodeProperties, INodeType, IPollFunctions } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeExecutionData, INodeProperties, INodeType, IPollFunctions } from '@flowmator/workflow';
 import { forEachItem, forOp, listLimit, operationProp, pollTimesProp, returnAllProps } from '../../utils/api';
 import { googleAuthProp, googleCredentials, googlePages, googleRequest } from './google';
 
@@ -47,7 +47,7 @@ const EXPORTS: Record<string, Record<string, { mime: string; ext: string }>> = {
 
 /** multipart/related body: JSON metadata, then the file content. */
 export function multipartRelated(metadata: IDataObject, content: Buffer, mimeType: string) {
-  const boundary = `8n8-${randomBytes(12).toString('hex')}`;
+  const boundary = `flowmator-${randomBytes(12).toString('hex')}`;
   const body = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
     content,
@@ -85,7 +85,7 @@ const shareProps: INodeProperties[] = [
 
 export const GoogleDrive: INodeType = {
   description: {
-    name: '8n8.googleDrive',
+    name: 'flowmator.googleDrive',
     displayName: 'Google Drive',
     description: 'Upload, download, search, share and organize files in Google Drive',
     group: ['input'],
@@ -282,7 +282,7 @@ export const GoogleDrive: INodeType = {
 
 export const GoogleDriveTrigger: INodeType = {
   description: {
-    name: '8n8.googleDriveTrigger',
+    name: 'flowmator.googleDriveTrigger',
     displayName: 'Google Drive Trigger',
     description: 'Starts the workflow when files or folders are created or changed (checks on a schedule)',
     group: ['trigger'],

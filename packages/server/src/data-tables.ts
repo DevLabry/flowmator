@@ -6,7 +6,7 @@ import type {
   IDataTableFilter,
   IDataTableRowsQuery,
   IDataTableService,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { newId, type Database } from './db';
 
 export const DATA_TABLE_SCHEMA = `

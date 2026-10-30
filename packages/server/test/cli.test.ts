@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createContext, type ConfigOverrides } from '../src';
 import { executeWorkflow, exportCredentials, exportWorkflows, importCredentials, importWorkflows, listWorkflows, updateWorkflows } from '../src/commands/data';
 
-const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/8n8.mjs');
+const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/flowmator.mjs');
 let dir: string;
 let overrides: ConfigOverrides;
 
@@ -26,7 +26,7 @@ const n8nExport = {
 };
 
 beforeAll(() => {
-  dir = mkdtempSync(path.join(os.tmpdir(), '8n8-cli-'));
+  dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-cli-'));
   overrides = { userFolder: path.join(dir, 'data'), encryptionKey: 'cli-key' };
 });
 
@@ -48,7 +48,7 @@ describe('cli: workflows', () => {
     expect(await importWorkflows({ input: file }, overrides)).toContain('1 new');
     const wf = withDb((ctx) => ctx.db.getWorkflow('wf-from-n8n'))!;
     expect(wf.active).toBe(false);
-    expect(wf.nodes[1].type).toBe('8n8.set');
+    expect(wf.nodes[1].type).toBe('flowmator.set');
     expect(wf.tags).toEqual(['imported']);
 
     writeFileSync(file, JSON.stringify([{ ...n8nExport, name: 'Renamed' }]));
@@ -126,7 +126,7 @@ describe('cli: credentials', () => {
 });
 
 describe('cli: launcher', () => {
-  it('runs commands through bin/8n8.mjs', () => {
+  it('runs commands through bin/flowmator.mjs', () => {
     const env = { ...process.env, N8N_USER_FOLDER: overrides.userFolder!, N8N_ENCRYPTION_KEY: 'cli-key' };
     expect(execFileSync(process.execPath, [bin, 'list:workflow', '--onlyId'], { env, encoding: 'utf8' }).trim()).toBe('wf-from-n8n');
     const bad = spawnSync(process.execPath, [bin, 'export:workflow'], { env, encoding: 'utf8' });

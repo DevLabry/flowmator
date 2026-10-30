@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { INodeProperties } from '@8n8/workflow';
+import type { INodeProperties } from '@flowmator/workflow';
 
 export type FilterOperatorType = 'string' | 'number' | 'boolean' | 'dateTime' | 'array' | 'object' | 'any';
 

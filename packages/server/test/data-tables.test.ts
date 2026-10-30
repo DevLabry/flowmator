@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src';
-import type { IDataTableFilter } from '@8n8/workflow';
+import type { IDataTableFilter } from '@flowmator/workflow';
 import type { DataTableService } from '../src/data-tables';
 
 let app: App;
@@ -11,7 +11,7 @@ let dir: string;
 let tables: DataTableService;
 
 beforeAll(async () => {
-  dir = mkdtempSync(path.join(os.tmpdir(), '8n8-dt-'));
+  dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-dt-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
   await app.ctx.executions.start();
   tables = app.ctx.dataTables;
@@ -32,7 +32,7 @@ const api = async (method: string, url: string, payload?: unknown, headers: Reco
 };
 
 let n = 0;
-const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `n${++n}`, name, type: `8n8.${type}`, typeVersion: 1, position: [0, 0], parameters });
+const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `n${++n}`, name, type: `flowmator.${type}`, typeVersion: 1, position: [0, 0], parameters });
 const chain = (...names: string[]) => {
   const c: Record<string, unknown> = {};
   for (let i = 0; i < names.length - 1; i++) c[names[i]] = { main: [[{ node: names[i + 1], type: 'main', index: 0 }]] };
@@ -241,11 +241,11 @@ describe('Data Table node', () => {
   it('offers tables and columns to the editor', async () => {
     const t = tables.findTable('contacts')!;
     const params = { operation: 'insert', dataTableId: rl(t.id) };
-    const list = await api('POST', '/rest/dynamic-node-parameters/options', { nodeTypeAndVersion: { name: '8n8.dataTable' }, methodName: 'tableSearch', currentNodeParameters: params, filter: 'cont' });
+    const list = await api('POST', '/rest/dynamic-node-parameters/options', { nodeTypeAndVersion: { name: 'flowmator.dataTable' }, methodName: 'tableSearch', currentNodeParameters: params, filter: 'cont' });
     expect(list.body.data.results).toEqual([{ name: 'contacts', value: t.id }]);
-    const fields = await api('POST', '/rest/dynamic-node-parameters/resource-mapper-fields', { nodeTypeAndVersion: { name: '8n8.dataTable' }, methodName: 'getColumns', currentNodeParameters: params });
+    const fields = await api('POST', '/rest/dynamic-node-parameters/resource-mapper-fields', { nodeTypeAndVersion: { name: 'flowmator.dataTable' }, methodName: 'getColumns', currentNodeParameters: params });
     expect(fields.body.data.fields.map((f: { id: string; type: string }) => `${f.id}:${f.type}`)).toEqual(['email:string', 'score:number', 'vip:boolean']);
-    const cols = await api('POST', '/rest/dynamic-node-parameters/options', { nodeTypeAndVersion: { name: '8n8.dataTable' }, methodName: 'getDataTableColumns', currentNodeParameters: params });
+    const cols = await api('POST', '/rest/dynamic-node-parameters/options', { nodeTypeAndVersion: { name: 'flowmator.dataTable' }, methodName: 'getDataTableColumns', currentNodeParameters: params });
     expect(cols.body.data.map((c: { value: string }) => c.value)).toEqual(['id', 'email', 'score', 'vip', 'createdAt', 'updatedAt']);
   });
 });

@@ -1,8 +1,8 @@
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { calculate, extractJson, schemaFromExample } from '@8n8/nodes-base';
-import type { IConnections, INode } from '@8n8/workflow';
+import { calculate, extractJson, schemaFromExample } from '@flowmator/nodes-base';
+import type { IConnections, INode } from '@flowmator/workflow';
 import type { ICredentialsHelper } from '../src';
 import { items, makeWorkflow, node, out, run } from './helpers';
 
@@ -77,11 +77,11 @@ const credentialsHelper: ICredentialsHelper = {
 function agentWorkflow(subNodes: Array<{ node: INode; type: string }>, agentParams: Record<string, unknown> = {}) {
   const connections: IConnections = { Trigger: { main: [[{ node: 'Agent', type: 'main', index: 0 }]] } };
   for (const s of subNodes) connections[s.node.name] = { [s.type]: [[{ node: 'Agent', type: s.type, index: 0 }]] };
-  return makeWorkflow([node('Trigger', 'manualTrigger'), node('Agent', '8n8-ai.agent', agentParams), ...subNodes.map((s) => s.node)], connections);
+  return makeWorkflow([node('Trigger', 'manualTrigger'), node('Agent', 'flowmator-ai.agent', agentParams), ...subNodes.map((s) => s.node)], connections);
 }
 const cred = (type: string) => ({ credentials: { [type]: { id: 'c1', name: 'test' } } });
-const claudeModel = (params: Record<string, unknown> = {}) => ({ node: node('Claude', '8n8-ai.lmChatAnthropic', { model: 'claude-opus-5-5', ...params }, cred('anthropicApi')), type: 'ai_languageModel' });
-const calculator = { node: node('Calc', '8n8-ai.toolCalculator'), type: 'ai_tool' };
+const claudeModel = (params: Record<string, unknown> = {}) => ({ node: node('Claude', 'flowmator-ai.lmChatAnthropic', { model: 'claude-opus-5-5', ...params }, cred('anthropicApi')), type: 'ai_languageModel' });
+const calculator = { node: node('Calc', 'flowmator-ai.toolCalculator'), type: 'ai_tool' };
 const runAgent = (wf: ReturnType<typeof makeWorkflow>, input = items({ chatInput: 'What is 2+3*4?', sessionId: 's1' })) =>
   run(wf, { triggerData: input, additional: { credentialsHelper } });
 
@@ -142,7 +142,7 @@ describe('AI Agent with Claude', () => {
   });
 
   it('remembers the conversation per session with Simple Memory', async () => {
-    const memory = { node: node('Memory', '8n8-ai.memoryBufferWindow', { contextWindowLength: 5 }), type: 'ai_memory' };
+    const memory = { node: node('Memory', 'flowmator-ai.memoryBufferWindow', { contextWindowLength: 5 }), type: 'ai_memory' };
     queue.anthropic.push(claude([{ type: 'text', text: 'Hi Ada!' }], 'end_turn'), claude([{ type: 'text', text: 'Your name is Ada.' }], 'end_turn'), claude([{ type: 'text', text: 'Who?' }], 'end_turn'));
     const wf = agentWorkflow([claudeModel(), memory]);
     await runAgent(wf, items({ chatInput: 'I am Ada', sessionId: 'mem-1' }));
@@ -157,7 +157,7 @@ describe('AI Agent with Claude', () => {
   });
 
   it('parses structured output and asks once more when it does not match', async () => {
-    const parser = { node: node('Parser', '8n8-ai.outputParserStructured', { schemaType: 'fromJson', jsonSchemaExample: '{"city": "Paris", "population": 1}' }), type: 'ai_outputParser' };
+    const parser = { node: node('Parser', 'flowmator-ai.outputParserStructured', { schemaType: 'fromJson', jsonSchemaExample: '{"city": "Paris", "population": 1}' }), type: 'ai_outputParser' };
     queue.anthropic.push(
       claude([{ type: 'text', text: 'Sure! {"city": "Paris"}' }], 'end_turn'),
       claude([{ type: 'text', text: '```json\n{"city": "Paris", "population": 2100000}\n```' }], 'end_turn'),
@@ -169,7 +169,7 @@ describe('AI Agent with Claude', () => {
   });
 
   it('calls an API through the HTTP Request Tool', async () => {
-    const http = { node: node('Weather', '8n8-ai.toolHttpRequest', { toolDescription: 'Weather by city', url: `${base}/weather/{city}`, placeholders: { values: [{ name: 'city', description: 'City name' }] } }), type: 'ai_tool' };
+    const http = { node: node('Weather', 'flowmator-ai.toolHttpRequest', { toolDescription: 'Weather by city', url: `${base}/weather/{city}`, placeholders: { values: [{ name: 'city', description: 'City name' }] } }), type: 'ai_tool' };
     queue.anthropic.push(
       claude([{ type: 'tool_use', id: 't1', name: 'Weather', input: { city: 'São Paulo' } }], 'tool_use'),
       claude([{ type: 'text', text: 'It is 21°C.' }], 'end_turn'),
@@ -192,7 +192,7 @@ describe('other providers', () => {
       { choices: [{ finish_reason: 'tool_calls', message: { role: 'assistant', content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'calculator', arguments: '{"expression":"6*7"}' } }] } }], usage: { prompt_tokens: 3, completion_tokens: 2 } },
       { choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: '42' } }] },
     );
-    const model = { node: node('GPT', '8n8-ai.lmChatOpenAi', { model: 'some-model' }, cred('openAiApi')), type: 'ai_languageModel' };
+    const model = { node: node('GPT', 'flowmator-ai.lmChatOpenAi', { model: 'some-model' }, cred('openAiApi')), type: 'ai_languageModel' };
     const r = await runAgent(agentWorkflow([model, calculator]));
     expect(out(r, 'Agent')).toEqual([{ output: '42' }]);
     expect(requests[0].headers.authorization).toBe('Bearer sk-test');
@@ -205,7 +205,7 @@ describe('other providers', () => {
       { message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'calculator', arguments: { expression: '10/4' } } }] } },
       { message: { role: 'assistant', content: '2.5' }, done_reason: 'stop' },
     );
-    const model = { node: node('Llama', '8n8-ai.lmChatOllama', { model: 'llama3.2' }, cred('ollamaApi')), type: 'ai_languageModel' };
+    const model = { node: node('Llama', 'flowmator-ai.lmChatOllama', { model: 'llama3.2' }, cred('ollamaApi')), type: 'ai_languageModel' };
     const r = await runAgent(agentWorkflow([model, calculator]));
     expect(out(r, 'Agent')).toEqual([{ output: '2.5' }]);
     expect(requests[0].body).toMatchObject({ model: 'llama3.2', stream: false });

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { levenshtein, serpSummary, signAws, stringSimilarity, toolsUsedScore } from '@8n8/nodes-base';
-import type { IConnections, INode } from '@8n8/workflow';
+import { levenshtein, serpSummary, signAws, stringSimilarity, toolsUsedScore } from '@flowmator/nodes-base';
+import type { IConnections, INode } from '@flowmator/workflow';
 import { items, makeWorkflow, node, out as rawOut, run } from './helpers';
 import { calls, creds, credentialsHelper, route, withCred } from './integration-harness';
 
@@ -44,7 +44,7 @@ creds.serpApi = { apiKey: 'serp-key' };
 creds.supabaseApi = { host: 'https://proj.supabase.test', serviceRole: 'service-key' };
 creds.mongoDb = { configurationType: 'connectionString', connectionString: 'mongodb+srv://u:p@cluster.test', database: 'kb' };
 
-const sub = (name: string, type: string, params: Record<string, unknown> = {}, cred?: string) => node(name, `8n8-ai.${type}`, params, cred ? withCred(cred) : {});
+const sub = (name: string, type: string, params: Record<string, unknown> = {}, cred?: string) => node(name, `flowmator-ai.${type}`, params, cred ? withCred(cred) : {});
 
 function wire(main: Array<[string, string, number?]>, ai: Array<[string, string, string]>): IConnections {
   const c: IConnections = {};
@@ -98,7 +98,7 @@ describe('AI chains', () => {
       return claude('{"company_name":"Acme Corp","hires":12}');
     });
     const wf = withModel(
-      node('Extract', '8n8-ai.informationExtractor', {
+      node('Extract', 'flowmator-ai.informationExtractor', {
         text: '={{ $json.note }}',
         schemaType: 'fromAttributes',
         attributes: { attributes: [{ name: 'company_name', type: 'string', required: true }, { name: 'hires', type: 'number' }] },
@@ -110,7 +110,7 @@ describe('AI chains', () => {
   it('asks again when the extraction misses a required attribute', async () => {
     const answers = ['{"hires":3}', '{"company_name":"Initech","hires":3}'];
     claudeRoute(() => claude(answers.shift()!));
-    const wf = withModel(node('Extract', '8n8-ai.informationExtractor', { text: 'x', schemaType: 'fromAttributes', attributes: { attributes: [{ name: 'company_name', type: 'string', required: true }, { name: 'hires', type: 'number' }] } }));
+    const wf = withModel(node('Extract', 'flowmator-ai.informationExtractor', { text: 'x', schemaType: 'fromAttributes', attributes: { attributes: [{ name: 'company_name', type: 'string', required: true }, { name: 'hires', type: 'number' }] } }));
     expect(out(await exec(wf), 'Extract')).toEqual([{ output: { company_name: 'Initech', hires: 3 } }]);
     expect(calls.filter((c) => c.url.hostname === 'claude.test')).toHaveLength(2);
   });
@@ -122,7 +122,7 @@ describe('AI chains', () => {
       return claude(JSON.stringify(text.includes('invoice') ? { billing: true, support: false, fallback: false } : text.includes('broken') ? { billing: false, support: true, fallback: false } : { billing: false, support: false, fallback: true }));
     });
     const wf = withModel(
-      node('Classify', '8n8-ai.textClassifier', { inputText: '={{ $json.msg }}', categories: { categories: [{ category: 'billing' }, { category: 'support' }] }, options: { fallback: 'other' } }),
+      node('Classify', 'flowmator-ai.textClassifier', { inputText: '={{ $json.msg }}', categories: { categories: [{ category: 'billing' }, { category: 'support' }] }, options: { fallback: 'other' } }),
       { after: [node('Billing', 'noOp'), node('Support', 'noOp'), node('Other', 'noOp')] },
     );
     const r = await exec(wf, items({ msg: 'Where is my invoice?' }, { msg: 'The app is broken' }, { msg: 'Hello!' }));
@@ -136,7 +136,7 @@ describe('AI chains', () => {
       expect(b.system).toContain('Positive, Neutral, Negative');
       return claude('{"sentiment":"negative","strength":0.8,"confidence":0.9}');
     });
-    const wf = withModel(node('Sentiment', '8n8-ai.sentimentAnalysis', { inputText: '={{ $json.review }}', options: { includeDetailedResults: true } }), {
+    const wf = withModel(node('Sentiment', 'flowmator-ai.sentimentAnalysis', { inputText: '={{ $json.review }}', options: { includeDetailedResults: true } }), {
       after: [node('Pos', 'noOp'), node('Neu', 'noOp'), node('Neg', 'noOp')],
     });
     const r = await exec(wf, items({ review: 'Terrible service' }));
@@ -151,7 +151,7 @@ describe('AI chains', () => {
       return claude(`summary ${prompts.length}`);
     });
     const long = 'word '.repeat(60).trim();
-    const wf = withModel(node('Summarize', '8n8-ai.chainSummarization', { options: { chunkingMode: 'simple', chunkSize: 100, chunkOverlap: 0 } }));
+    const wf = withModel(node('Summarize', 'flowmator-ai.chainSummarization', { options: { chunkingMode: 'simple', chunkSize: 100, chunkOverlap: 0 } }));
     const r = await exec(wf, items({ text: long }));
     expect(prompts.length).toBeGreaterThan(2);
     // the last call combines the partial summaries
@@ -165,7 +165,7 @@ describe('AI chains', () => {
       expect(b.messages[0].content).toContain('"title":"Hi"');
       return claude('Short.');
     });
-    const wf = withModel(node('Summarize', '8n8-ai.chainSummarization', { options: { summarizationMethod: 'stuff' } }));
+    const wf = withModel(node('Summarize', 'flowmator-ai.chainSummarization', { options: { summarizationMethod: 'stuff' } }));
     expect(out(await exec(wf, items({ title: 'Hi' })), 'Summarize')).toEqual([{ response: { text: 'Short.' } }]);
   });
 });
@@ -184,7 +184,7 @@ async function agentWithTool(tool: INode, toolName: string, input: Record<string
     expect(b.tools.map((t: { name: string }) => t.name)).toContain(toolName);
     return claude('', { content: [{ type: 'tool_use', id: 't1', name: toolName, input }], stop: 'tool_use' });
   });
-  const wf = withModel(node('Agent', '8n8-ai.agent', { promptType: 'define', text: 'go' }), { nodes: [tool], ai: [[tool.name, 'Agent', 'ai_tool']] });
+  const wf = withModel(node('Agent', 'flowmator-ai.agent', { promptType: 'define', text: 'go' }), { nodes: [tool], ai: [[tool.name, 'Agent', 'ai_tool']] });
   await exec(wf);
   return seen;
 }
@@ -196,7 +196,7 @@ describe('AI tools', () => {
 
   it('looks pages up on Wikipedia', async () => {
     route(/GET https:\/\/es.wikipedia.org\/w\/api.php/, (c) => {
-      expect(c.headers['user-agent']).toContain('8n8');
+      expect(c.headers['user-agent']).toContain('flowmator');
       if (c.url.searchParams.get('list') === 'search') {
         expect(c.url.searchParams.get('srsearch')).toBe('Madrid');
         return { query: { search: [{ title: 'Madrid' }, { title: 'Real Madrid' }] } };
@@ -230,7 +230,7 @@ describe('AI tools', () => {
 
 const extractWith = (m: INode) =>
   makeWorkflow(
-    [node('Trigger', 'manualTrigger'), node('Extract', '8n8-ai.informationExtractor', { text: 'Bob is 30', schemaType: 'fromAttributes', attributes: { attributes: [{ name: 'age', type: 'number' }] } }), m],
+    [node('Trigger', 'manualTrigger'), node('Extract', 'flowmator-ai.informationExtractor', { text: 'Bob is 30', schemaType: 'fromAttributes', attributes: { attributes: [{ name: 'age', type: 'number' }] } }), m],
     wire([['Trigger', 'Extract']], [[m.name, 'Extract', 'ai_languageModel']]),
   );
 
@@ -281,7 +281,7 @@ describe('more chat models', () => {
       return { output: { message: { role: 'assistant', content: [{ text: 'All good.' }] } }, stopReason: 'end_turn', usage: { inputTokens: 9, outputTokens: 3 } };
     });
     const wf = makeWorkflow(
-      [node('Trigger', 'manualTrigger'), node('Agent', '8n8-ai.agent', { promptType: 'define', text: 'go' }), sub('Bedrock', 'lmChatAwsBedrock', { model: 'anthropic.claude-v2:1', options: { maxTokens: 500, temperature: 0.2 } }, 'aws'), sub('Think', 'toolThink')],
+      [node('Trigger', 'manualTrigger'), node('Agent', 'flowmator-ai.agent', { promptType: 'define', text: 'go' }), sub('Bedrock', 'lmChatAwsBedrock', { model: 'anthropic.claude-v2:1', options: { maxTokens: 500, temperature: 0.2 } }, 'aws'), sub('Think', 'toolThink')],
       wire([['Trigger', 'Agent']], [['Bedrock', 'Agent', 'ai_languageModel'], ['Think', 'Agent', 'ai_tool']]),
     );
     expect(out(await exec(wf), 'Agent')).toEqual([{ output: 'All good.' }]);

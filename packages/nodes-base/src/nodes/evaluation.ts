@@ -11,16 +11,16 @@ import type {
   INodeParameters,
   INodeProperties,
   INodeType,
-} from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+} from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { askJson } from '../ai/chains';
 import type { ChatModel } from '../ai/llm';
 import { DataTable, buildFilter, filterProps, resolveTable, tableProp } from './data-table';
 import { googleAuthProp } from './integrations/google';
 import { GoogleSheets, credTypeOf, sheetRows, writeSheetRow } from './integrations/sheets';
 
-export const EVALUATION_TRIGGER = '8n8.evaluationTrigger';
-export const EVALUATION_NODE = '8n8.evaluation';
+export const EVALUATION_TRIGGER = 'flowmator.evaluationTrigger';
+export const EVALUATION_NODE = 'flowmator.evaluation';
 
 /** Set by the Evaluation Trigger so Evaluation nodes later in the run know which dataset row they belong to. */
 type EvaluationRowRef =

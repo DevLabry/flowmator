@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, unlinkSync, w
 import path from 'node:path';
 import { promisify } from 'node:util';
 import ssh2 from 'ssh2';
-import { isExpression, type IDataObject } from '@8n8/workflow';
+import { normalizeNodeTypeName } from '@flowmator/core';
+import { isExpression, type IDataObject } from '@flowmator/workflow';
 import type { ActiveWorkflows } from './active-workflows';
 import type { CredentialsService, Cipher } from './credentials';
 import type { Database, WorkflowEntity } from './db';
@@ -89,8 +90,8 @@ export class SourceControlService {
       branchColor: '#5296D6',
       connectionType: 'ssh',
       keyGeneratorType: 'ed25519',
-      authorName: '8n8',
-      authorEmail: '8n8@localhost',
+      authorName: 'flowmator',
+      authorEmail: 'flowmator@localhost',
       ...p,
     };
   }
@@ -110,12 +111,12 @@ export class SourceControlService {
   }
 
   private keyFile() {
-    return path.join(this.sshDir, 'id_8n8');
+    return path.join(this.sshDir, 'id_flowmator');
   }
 
   /** Creates a deploy key pair; add the public key to the repository with write access. */
   generateKeyPair(type: 'ed25519' | 'rsa' = this.preferences().keyGeneratorType) {
-    const pair = type === 'rsa' ? ssh2.utils.generateKeyPairSync('rsa', { bits: 4096, comment: '8n8 deploy key' }) : ssh2.utils.generateKeyPairSync('ed25519', { comment: '8n8 deploy key' });
+    const pair = type === 'rsa' ? ssh2.utils.generateKeyPairSync('rsa', { bits: 4096, comment: 'flowmator deploy key' }) : ssh2.utils.generateKeyPairSync('ed25519', { comment: 'flowmator deploy key' });
     this.saveSecrets({ ...this.secrets(), privateKey: pair.private });
     this.database.setSetting(PREFS, { ...this.database.getSetting(PREFS, {}), keyGeneratorType: type, publicKey: pair.public.trim() });
     this.writeKey();
@@ -344,7 +345,7 @@ export class SourceControlService {
         }
       }
       await this.git(['add', '-A', '--', ...new Set(selected.map((s) => s.file.split('/')[0]))]);
-      const message = opts.commitMessage?.trim() || `Update ${selected.length} file${selected.length === 1 ? '' : 's'} from 8n8`;
+      const message = opts.commitMessage?.trim() || `Update ${selected.length} file${selected.length === 1 ? '' : 's'} from Flowmator`;
       await this.git(['-c', `user.name=${prefs.authorName}`, '-c', `user.email=${prefs.authorEmail}`, 'commit', '-q', '--allow-empty', '-m', message]);
       await this.git(['push', '-q', 'origin', `HEAD:refs/heads/${prefs.branchName}`]);
       this.database.setSetting(BASE, base);
@@ -408,7 +409,8 @@ export class SourceControlService {
   /** Returns true when the workflow is active and needs re-registering. */
   private importWorkflow(data: WorkflowFile): boolean {
     const existing = this.database.getWorkflow(data.id);
-    const fields = { name: data.name, nodes: data.nodes, connections: data.connections, settings: data.settings ?? {}, meta: data.meta, parentFolderId: data.parentFolderId ?? null, isArchived: false, pinData: existing?.pinData };
+    const nodes = data.nodes?.map((n) => ({ ...n, type: normalizeNodeTypeName(n.type) }));
+    const fields = { name: data.name, nodes, connections: data.connections, settings: data.settings ?? {}, meta: data.meta, parentFolderId: data.parentFolderId ?? null, isArchived: false, pinData: existing?.pinData };
     if (existing) {
       this.database.updateWorkflow(data.id, fields);
       return existing.active;

@@ -1,4 +1,4 @@
-import type { IWorkflowSettings } from '@8n8/workflow';
+import type { IWorkflowSettings } from '@flowmator/workflow';
 import { ArrowLeft, Download, Ellipsis, History, Redo2, RotateCcw, Save, Settings2, Undo2, Upload, Copy, Trash2, Bug } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';

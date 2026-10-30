@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { MongoClient, type Document } from 'mongodb';
-import type { ICredentialType, IDataObject, INodeType, IExecuteFunctions, ISupplyDataFunctions } from '@8n8/workflow';
+import type { ICredentialType, IDataObject, INodeType, IExecuteFunctions, ISupplyDataFunctions } from '@flowmator/workflow';
 import { vectorStoreNode, type AiDocument } from './rag';
 import { redisClient } from './subnodes';
 
