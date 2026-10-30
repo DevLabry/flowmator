@@ -1,4 +1,4 @@
-import type { IDataObject, INodeExecutionData, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INode, INodeExecutionData, INodeProperties, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
 
 export interface FormField {
   fieldLabel: string;
@@ -197,3 +197,111 @@ export const FormTrigger: INodeType = {
     };
   },
 };
+
+/* ---------------- Form (next page / ending) ---------------- */
+
+/** The page a waiting Form node shows, or what its ending does. */
+export interface FormNodePage {
+  kind: 'page' | 'completion';
+  title?: string;
+  description?: string;
+  fields: FormField[];
+  buttonLabel?: string;
+  respondWith?: 'text' | 'redirect' | 'showText';
+  completionTitle?: string;
+  completionMessage?: string;
+  redirectUrl?: string;
+  responseText?: string;
+}
+
+export const Form: INodeType = {
+  description: {
+    name: '8n8.form',
+    displayName: 'Form',
+    description: 'Adds a page or the ending screen to a form started by "On form submission"',
+    group: ['input'],
+    version: [1],
+    defaults: { name: 'Form', color: '#6c5ce7' },
+    icon: 'fa:list-alt',
+    inputs: ['main'],
+    outputs: ['main'],
+    codex: { alias: ['Form', 'Multi-step', 'Page', 'Wizard'] },
+    properties: [
+      {
+        displayName: 'Page Type',
+        name: 'operation',
+        type: 'options',
+        noDataExpression: true,
+        default: 'page',
+        options: [
+          { name: 'Next Form Page', value: 'page' },
+          { name: 'Form Ending', value: 'completion' },
+        ],
+      },
+      { ...formFieldsProperty, displayOptions: { show: { operation: ['page'] } } },
+      {
+        displayName: 'On n8n Form Submission',
+        name: 'respondWith',
+        type: 'options',
+        default: 'text',
+        displayOptions: { show: { operation: ['completion'] } },
+        options: [
+          { name: 'Show Completion Screen', value: 'text' },
+          { name: 'Redirect to URL', value: 'redirect' },
+          { name: 'Show Text', value: 'showText', description: 'Replace the page with your own HTML' },
+        ],
+      },
+      { displayName: 'Completion Title', name: 'completionTitle', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['completion'], respondWith: ['text'] } } },
+      { displayName: 'Completion Message', name: 'completionMessage', type: 'string', typeOptions: { rows: 2 }, default: '', displayOptions: { show: { operation: ['completion'], respondWith: ['text'] } } },
+      { displayName: 'URL', name: 'redirectUrl', type: 'string', default: '', required: true, placeholder: 'https://example.com', displayOptions: { show: { operation: ['completion'], respondWith: ['redirect'] } } },
+      { displayName: 'Text', name: 'responseText', type: 'string', typeOptions: { rows: 4 }, default: '', placeholder: '<h1>Thanks!</h1>', displayOptions: { show: { operation: ['completion'], respondWith: ['showText'] } } },
+      {
+        displayName: 'Options',
+        name: 'options',
+        type: 'collection',
+        default: {},
+        displayOptions: { show: { operation: ['page'] } },
+        options: [
+          { displayName: 'Form Title', name: 'formTitle', type: 'string', default: '' },
+          { displayName: 'Form Description', name: 'formDescription', type: 'string', typeOptions: { rows: 2 }, default: '' },
+          { displayName: 'Button Label', name: 'buttonLabel', type: 'string', default: 'Submit' },
+        ],
+      },
+    ],
+  },
+  async execute(this: IExecuteFunctions) {
+    const input = this.getInputData();
+    const resumed = this.getResumeData();
+    if (resumed) return [this.getNodeParameter('operation', 0) === 'page' ? (resumed.data ?? input) : input];
+    // the page is served (and the ending shown) by the form-waiting URL
+    await this.putExecutionToWait(new Date('3000-01-01T00:00:00Z'));
+    return [input];
+  },
+};
+
+/**
+ * What a waiting Form node (or a Wait node set to "On Form Submitted") shows; null for other nodes.
+ * `param` reads the node's parameters with expressions resolved against its input.
+ */
+export function formPageOf(node: INode, param: (name: string, fallback?: unknown) => unknown): FormNodePage | null {
+  const fields = () => (((param('formFields', {}) as { values?: FormField[] }).values ?? []) as FormField[]);
+  if (node.type.endsWith('.wait')) {
+    if (param('resume') !== 'form') return null;
+    return { kind: 'page', title: param('formTitle', '') as string, description: param('formDescription', '') as string, fields: fields() };
+  }
+  if (!node.type.endsWith('.form')) return null;
+  if (param('operation', 'page') === 'page') {
+    const o = param('options', {}) as IDataObject;
+    return { kind: 'page', title: o.formTitle as string, description: o.formDescription as string, buttonLabel: o.buttonLabel as string, fields: fields() };
+  }
+  const respondWith = (param('respondWith', 'text') as FormNodePage['respondWith']) ?? 'text';
+  return {
+    kind: 'completion',
+    fields: [],
+    respondWith,
+    completionTitle: respondWith === 'text' ? (param('completionTitle', '') as string) : undefined,
+    completionMessage: respondWith === 'text' ? (param('completionMessage', '') as string) : undefined,
+    redirectUrl: respondWith === 'redirect' ? (param('redirectUrl', '') as string) : undefined,
+    responseText: respondWith === 'showText' ? (param('responseText', '') as string) : undefined,
+  };
+}

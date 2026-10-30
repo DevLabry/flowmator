@@ -95,4 +95,52 @@ export const Smtp: ICredentialType = {
   ],
 };
 
-export const credentials: ICredentialType[] = [Smtp, HttpBasicAuth, HttpHeaderAuth, HttpQueryAuth, HttpBearerAuth, HttpCustomAuth, OAuth2Api];
+export const Imap: ICredentialType = {
+  name: 'imap',
+  displayName: 'IMAP',
+  properties: [
+    { displayName: 'User', name: 'user', type: 'string', default: '' },
+    { displayName: 'Password', name: 'password', type: 'string', typeOptions: password, default: '' },
+    { displayName: 'Host', name: 'host', type: 'string', default: '' },
+    { displayName: 'Port', name: 'port', type: 'number', default: 993 },
+    { displayName: 'SSL/TLS', name: 'secure', type: 'boolean', default: true },
+    { displayName: 'Allow Self-Signed Certificates', name: 'allowUnauthorizedCerts', type: 'boolean', default: false },
+  ],
+};
+
+const sshHost = [
+  { displayName: 'Host', name: 'host', type: 'string' as const, default: '' },
+  { displayName: 'Port', name: 'port', type: 'number' as const, default: 22 },
+  { displayName: 'Username', name: 'username', type: 'string' as const, default: '' },
+];
+const privateKey = [
+  { displayName: 'Private Key', name: 'privateKey', type: 'string' as const, typeOptions: { ...password, rows: 4 }, default: '', description: 'OpenSSH or PEM private key' },
+  { displayName: 'Passphrase', name: 'passphrase', type: 'string' as const, typeOptions: password, default: '', description: 'Only if the key is encrypted' },
+];
+
+export const SshPassword: ICredentialType = {
+  name: 'sshPassword',
+  displayName: 'SSH Password',
+  properties: [...sshHost, { displayName: 'Password', name: 'password', type: 'string', typeOptions: password, default: '' }],
+};
+
+export const SshPrivateKey: ICredentialType = { name: 'sshPrivateKey', displayName: 'SSH Private Key', properties: [...sshHost, ...privateKey] };
+
+export const Ftp: ICredentialType = {
+  name: 'ftp',
+  displayName: 'FTP',
+  properties: [
+    { displayName: 'Host', name: 'host', type: 'string', default: '', placeholder: 'localhost' },
+    { displayName: 'Port', name: 'port', type: 'number', default: 21 },
+    { displayName: 'Username', name: 'username', type: 'string', default: '' },
+    { displayName: 'Password', name: 'password', type: 'string', typeOptions: password, default: '' },
+  ],
+};
+
+export const Sftp: ICredentialType = {
+  name: 'sftp',
+  displayName: 'SFTP',
+  properties: [...sshHost, { displayName: 'Password', name: 'password', type: 'string', typeOptions: password, default: '' }, ...privateKey],
+};
+
+export const credentials: ICredentialType[] = [Smtp, Imap, SshPassword, SshPrivateKey, Ftp, Sftp, HttpBasicAuth, HttpHeaderAuth, HttpQueryAuth, HttpBearerAuth, HttpCustomAuth, OAuth2Api];

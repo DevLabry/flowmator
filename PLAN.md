@@ -42,12 +42,12 @@ Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are a
 - [x] Code node (JS in node:vm; Python via python3 subprocess, untested)
 
 ### Core nodes
-Done: Manual Trigger, Form Trigger (+ Wait on form), Date & Time, Crypto, Rename Keys, Summarize, Compare Datasets, XML, HTML, Markdown, Extract from File (CSV/XLSX/PDF/JSON/HTML/text), Convert to File (CSV/XLSX/JSON/HTML/text/base64), Read/Write Files from Disk, Send Email (SMTP), Execute Command, Webhook, Schedule Trigger, Error Trigger, HTTP Request (auth, pagination, batching, files), Respond to Webhook, Execute Workflow Trigger, If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Sticky Note.
+Done: Manual Trigger, Form Trigger (+ Wait on form), Form (multi-page forms: next pages and an ending with text, redirect or custom HTML), Email Trigger (IMAP: IDLE, custom search rules, simple/resolved/raw, attachments), Local File Trigger, SSH (commands, upload/download), FTP/SFTP (list, upload, download, rename, delete), Date & Time, Crypto, Rename Keys, Summarize, Compare Datasets, XML, HTML, Markdown, Extract from File (CSV/XLSX/XLS/ODS/RTF/PDF/JSON/HTML/iCal/text), Convert to File (CSV/XLSX/XLS/ODS/RTF/JSON/HTML/iCal/text/base64), Read/Write Files from Disk, Send Email (SMTP), Execute Command, Webhook, Schedule Trigger, Error Trigger, HTTP Request (auth, pagination, batching, files), Respond to Webhook, Execute Workflow Trigger, If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Sticky Note.
 
-- [ ] Triggers still missing: Chat, Local File Trigger, Email (IMAP)
+- [x] Triggers: Email (IMAP), Local File Trigger, Chat (in AI)
 - [x] Flow: If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Respond to Webhook
-- [ ] Data still missing: ODS/RTF/iCal file formats, multi-page Form node
-- [ ] Network still missing: SSH, FTP, cURL import in the editor
+- [x] Data: ODS/XLS/RTF (SheetJS) and iCal file formats, multi-page Form node
+- [x] Network: SSH, FTP/SFTP, cURL import in the HTTP Request node
 
 ### App integrations
 - [x] Slack (messages, channels, users, reactions; token or OAuth2)

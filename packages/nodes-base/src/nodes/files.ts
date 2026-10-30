@@ -4,8 +4,10 @@ import path from 'node:path';
 import { load } from 'cheerio';
 import ExcelJS from 'exceljs';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
 import { deepCopy, getValue, setValue } from '../utils/object';
+import { buildIcs, parseIcs, type IcsEvent } from './ical';
 import { perItem } from './markup';
 
 /* ---------------- file access rules ---------------- */
@@ -103,9 +105,13 @@ export const ReadWriteFile: INodeType = {
 const EXTRACT_OPS = [
   { name: 'Extract From CSV', value: 'csv' },
   { name: 'Extract From HTML Table', value: 'html' },
+  { name: 'Extract From ICS', value: 'fromIcs' },
   { name: 'Extract From JSON', value: 'fromJson' },
+  { name: 'Extract From ODS', value: 'ods' },
   { name: 'Extract From PDF', value: 'pdf' },
+  { name: 'Extract From RTF', value: 'rtf' },
   { name: 'Extract From Text File', value: 'text' },
+  { name: 'Extract From XLS', value: 'xls' },
   { name: 'Extract From XLSX', value: 'xlsx' },
   { name: 'Move File to Base64 String', value: 'binaryToPropery' },
 ];
@@ -136,11 +142,28 @@ function rowsToObjects(rows: unknown[][], headerRow: boolean, includeEmpty: bool
   });
 }
 
+/** Spreadsheet formats exceljs can't handle (ODS, RTF, XLS) go through SheetJS. */
+function readSheetJs(buffer: Buffer, sheetName?: string): unknown[][] {
+  const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const name = sheetName || wb.SheetNames[0];
+  const sheet = wb.Sheets[name];
+  if (!sheet) throw new Error(`Sheet "${sheetName}" not found. Sheets: ${wb.SheetNames.join(', ')}`);
+  return XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true, blankrows: false }).map((r) => r.map((v) => (v instanceof Date ? v.toISOString() : v)));
+}
+
+function writeSheetJs(rows: unknown[][], bookType: 'ods' | 'rtf' | 'xls', sheetName: string): Buffer {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName);
+  return Buffer.from(XLSX.write(wb, { bookType, type: 'buffer' }) as Buffer);
+}
+
+const SHEET_MIME = { ods: 'application/vnd.oasis.opendocument.spreadsheet', rtf: 'application/rtf', xls: 'application/vnd.ms-excel' };
+
 export const ExtractFromFile: INodeType = {
   description: {
     name: '8n8.extractFromFile',
     displayName: 'Extract from File',
-    description: 'Turns a binary file (CSV, XLSX, PDF, JSON, HTML, text) into item data',
+    description: 'Turns a binary file (CSV, XLSX, ODS, PDF, JSON, HTML, iCal, text) into item data',
     group: ['input'],
     version: [1, 1.1],
     defaults: { name: 'Extract from File', color: '#2244FF' },
@@ -150,7 +173,7 @@ export const ExtractFromFile: INodeType = {
     properties: [
       { displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true, default: 'csv', options: EXTRACT_OPS },
       { displayName: 'Input Binary Field', name: 'binaryPropertyName', type: 'string', default: 'data', required: true },
-      { displayName: 'Destination Output Field', name: 'destinationKey', type: 'string', default: 'data', displayOptions: { show: { operation: ['fromJson', 'text', 'binaryToPropery'] } } },
+      { displayName: 'Destination Output Field', name: 'destinationKey', type: 'string', default: 'data', displayOptions: { show: { operation: ['fromJson', 'fromIcs', 'text', 'binaryToPropery'] } } },
       {
         displayName: 'Options',
         name: 'options',
@@ -158,13 +181,13 @@ export const ExtractFromFile: INodeType = {
         default: {},
         options: [
           { displayName: 'Delimiter', name: 'delimiter', type: 'string', default: ',', displayOptions: { show: { '/operation': ['csv'] } } },
-          { displayName: 'Header Row', name: 'headerRow', type: 'boolean', default: true, displayOptions: { show: { '/operation': ['csv', 'xlsx', 'html'] } } },
-          { displayName: 'Include Empty Cells', name: 'includeEmptyCells', type: 'boolean', default: false, displayOptions: { show: { '/operation': ['csv', 'xlsx', 'html'] } } },
+          { displayName: 'Header Row', name: 'headerRow', type: 'boolean', default: true, displayOptions: { show: { '/operation': ['csv', 'xlsx', 'xls', 'ods', 'rtf', 'html'] } } },
+          { displayName: 'Include Empty Cells', name: 'includeEmptyCells', type: 'boolean', default: false, displayOptions: { show: { '/operation': ['csv', 'xlsx', 'xls', 'ods', 'rtf', 'html'] } } },
           { displayName: 'Starting Line', name: 'fromLine', type: 'number', default: 0, displayOptions: { show: { '/operation': ['csv'] } } },
-          { displayName: 'Max Number of Rows to Load', name: 'maxRowCount', type: 'number', default: -1, displayOptions: { show: { '/operation': ['csv', 'xlsx'] } } },
-          { displayName: 'Sheet Name', name: 'sheetName', type: 'string', default: '', description: 'Defaults to the first sheet', displayOptions: { show: { '/operation': ['xlsx'] } } },
-          { displayName: 'Encoding', name: 'encoding', type: 'options', default: 'utf8', options: ['utf8', 'latin1', 'utf16le', 'ascii'].map((e) => ({ name: e, value: e })), displayOptions: { show: { '/operation': ['csv', 'text', 'fromJson', 'html'] } } },
-          { displayName: 'Keep Source', name: 'keepSource', type: 'options', default: 'json', options: [{ name: 'JSON', value: 'json' }, { name: 'Binary', value: 'binary' }, { name: 'Both', value: 'both' }], displayOptions: { show: { '/operation': ['fromJson', 'text', 'binaryToPropery', 'pdf'] } } },
+          { displayName: 'Max Number of Rows to Load', name: 'maxRowCount', type: 'number', default: -1, displayOptions: { show: { '/operation': ['csv', 'xlsx', 'xls', 'ods', 'rtf'] } } },
+          { displayName: 'Sheet Name', name: 'sheetName', type: 'string', default: '', description: 'Defaults to the first sheet', displayOptions: { show: { '/operation': ['xlsx', 'xls', 'ods'] } } },
+          { displayName: 'Encoding', name: 'encoding', type: 'options', default: 'utf8', options: ['utf8', 'latin1', 'utf16le', 'ascii'].map((e) => ({ name: e, value: e })), displayOptions: { show: { '/operation': ['csv', 'text', 'fromJson', 'fromIcs', 'html'] } } },
+          { displayName: 'Keep Source', name: 'keepSource', type: 'options', default: 'json', options: [{ name: 'JSON', value: 'json' }, { name: 'Binary', value: 'binary' }, { name: 'Both', value: 'both' }], displayOptions: { show: { '/operation': ['fromJson', 'fromIcs', 'text', 'binaryToPropery', 'pdf'] } } },
           { displayName: 'Join Pages', name: 'joinPages', type: 'boolean', default: true, displayOptions: { show: { '/operation': ['pdf'] } } },
           { displayName: 'Password', name: 'password', type: 'string', typeOptions: { password: true }, default: '', displayOptions: { show: { '/operation': ['pdf'] } } },
         ],
@@ -216,6 +239,15 @@ export const ExtractFromFile: INodeType = {
             });
             return limit(rowsToObjects(rows, headerRow, includeEmpty)).map((json) => ({ json }));
           }
+          case 'ods':
+          case 'rtf':
+          case 'xls':
+            return limit(rowsToObjects(readSheetJs(buffer, o.sheetName as string), headerRow, includeEmpty)).map((json) => ({ json }));
+          case 'fromIcs': {
+            const json: IDataObject = {};
+            setValue(json, this.getNodeParameter('destinationKey', i) as string, parseIcs(buffer.toString(encoding)));
+            return keep(json);
+          }
           case 'pdf': {
             const { extractText, getDocumentProxy, getMeta } = await import('unpdf');
             const pdf = await getDocumentProxy(new Uint8Array(buffer), o.password ? { password: String(o.password) } : undefined);
@@ -252,7 +284,7 @@ export const ConvertToFile: INodeType = {
   description: {
     name: '8n8.convertToFile',
     displayName: 'Convert to File',
-    description: 'Turns item data into a binary file (CSV, XLSX, JSON, HTML, text)',
+    description: 'Turns item data into a binary file (CSV, XLSX, ODS, JSON, HTML, iCal, text)',
     group: ['input'],
     version: [1, 1.1],
     defaults: { name: 'Convert to File', color: '#2244FF' },
@@ -269,8 +301,12 @@ export const ConvertToFile: INodeType = {
         options: [
           { name: 'Convert to CSV', value: 'csv' },
           { name: 'Convert to HTML', value: 'html' },
+          { name: 'Convert to ICS', value: 'iCal' },
           { name: 'Convert to JSON', value: 'toJson' },
+          { name: 'Convert to ODS', value: 'ods' },
+          { name: 'Convert to RTF', value: 'rtf' },
           { name: 'Convert to Text File', value: 'toText' },
+          { name: 'Convert to XLS', value: 'xls' },
           { name: 'Convert to XLSX', value: 'xlsx' },
           { name: 'Move Base64 String to File', value: 'toBinary' },
         ],
@@ -278,6 +314,31 @@ export const ConvertToFile: INodeType = {
       { displayName: 'Mode', name: 'mode', type: 'options', default: 'once', displayOptions: { show: { operation: ['toJson'] } },
         options: [{ name: 'All Items to One File', value: 'once' }, { name: 'Each Item to Separate File', value: 'each' }] },
       { displayName: 'Text Input Field', name: 'sourceProperty', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['toText', 'toBinary'] } } },
+      { displayName: 'Event Title', name: 'title', type: 'string', default: '', displayOptions: { show: { operation: ['iCal'] } } },
+      { displayName: 'Start', name: 'start', type: 'dateTime', default: '', required: true, displayOptions: { show: { operation: ['iCal'] } } },
+      { displayName: 'End', name: 'end', type: 'dateTime', default: '', description: 'Defaults to one hour after the start (or the same day for all-day events)', displayOptions: { show: { operation: ['iCal'] } } },
+      { displayName: 'All Day', name: 'allDay', type: 'boolean', default: false, displayOptions: { show: { operation: ['iCal'] } } },
+      {
+        displayName: 'Additional Fields',
+        name: 'additionalFields',
+        type: 'collection',
+        default: {},
+        displayOptions: { show: { operation: ['iCal'] } },
+        options: [
+          { displayName: 'Attendees', name: 'attendees', type: 'string', default: '', placeholder: 'Ana <ana@example.com>, bob@example.com', description: 'Comma-separated' },
+          { displayName: 'Busy Status', name: 'busyStatus', type: 'options', default: 'BUSY', options: ['FREE', 'BUSY', 'TENTATIVE', 'OOF'].map((v) => ({ name: v[0] + v.slice(1).toLowerCase(), value: v })) },
+          { displayName: 'Calendar Name', name: 'calName', type: 'string', default: '' },
+          { displayName: 'Description', name: 'description', type: 'string', typeOptions: { rows: 3 }, default: '' },
+          { displayName: 'Geolocation', name: 'geolocation', type: 'string', default: '', placeholder: '40.4168,-3.7038', description: 'Latitude,longitude' },
+          { displayName: 'Location', name: 'location', type: 'string', default: '' },
+          { displayName: 'Organizer', name: 'organizer', type: 'string', default: '', placeholder: 'Ana <ana@example.com>' },
+          { displayName: 'Recurrence Rule', name: 'recurrenceRule', type: 'string', default: '', placeholder: 'FREQ=WEEKLY;BYDAY=MO;COUNT=10' },
+          { displayName: 'Sequence', name: 'sequence', type: 'number', default: 0, description: 'Raise it when sending an update of the same event' },
+          { displayName: 'Status', name: 'status', type: 'options', default: 'CONFIRMED', options: ['CONFIRMED', 'TENTATIVE', 'CANCELLED'].map((v) => ({ name: v[0] + v.slice(1).toLowerCase(), value: v })) },
+          { displayName: 'UID', name: 'uid', type: 'string', default: '', description: 'Keep it the same to update an event; generated when empty' },
+          { displayName: 'URL', name: 'url', type: 'string', default: '' },
+        ],
+      },
       { displayName: 'Put Output File in Field', name: 'binaryPropertyName', type: 'string', default: 'data' },
       {
         displayName: 'Options',
@@ -287,8 +348,8 @@ export const ConvertToFile: INodeType = {
         options: [
           { displayName: 'File Name', name: 'fileName', type: 'string', default: '' },
           { displayName: 'Delimiter', name: 'delimiter', type: 'string', default: ',', displayOptions: { show: { '/operation': ['csv'] } } },
-          { displayName: 'Header Row', name: 'headerRow', type: 'boolean', default: true, displayOptions: { show: { '/operation': ['csv', 'xlsx', 'html'] } } },
-          { displayName: 'Sheet Name', name: 'sheetName', type: 'string', default: 'Sheet', displayOptions: { show: { '/operation': ['xlsx'] } } },
+          { displayName: 'Header Row', name: 'headerRow', type: 'boolean', default: true, displayOptions: { show: { '/operation': ['csv', 'xlsx', 'xls', 'ods', 'rtf', 'html'] } } },
+          { displayName: 'Sheet Name', name: 'sheetName', type: 'string', default: 'Sheet', displayOptions: { show: { '/operation': ['xlsx', 'xls', 'ods'] } } },
           { displayName: 'Format', name: 'format', type: 'boolean', default: false, description: 'Pretty-print the JSON', displayOptions: { show: { '/operation': ['toJson'] } } },
           { displayName: 'MIME Type', name: 'mimeType', type: 'string', default: '', displayOptions: { show: { '/operation': ['toBinary', 'toText'] } } },
           { displayName: 'Encoding', name: 'encoding', type: 'options', default: 'utf8', options: ['utf8', 'latin1', 'utf16le', 'ascii'].map((e) => ({ name: e, value: e })), displayOptions: { show: { '/operation': ['toText', 'toJson', 'csv'] } } },
@@ -336,6 +397,42 @@ export const ConvertToFile: INodeType = {
         const buf = Buffer.from(await wb.xlsx.writeBuffer());
         return [[await file(buf, 'data.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')]];
       }
+      case 'ods':
+      case 'rtf':
+      case 'xls': {
+        const cols = columns();
+        const rows = items.map((i) => cols.map((c) => flat(i.json[c])));
+        const buf = writeSheetJs(o.headerRow === false ? rows : [cols, ...rows], op, String(o.sheetName || 'Sheet'));
+        return [[await file(buf, `data.${op}`, SHEET_MIME[op])]];
+      }
+      case 'iCal':
+        return [
+          await Promise.all(
+            items.map(async (_, i) => {
+              const f = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+              const [lat, lon] = String(f.geolocation ?? '').split(',').map((v) => Number(v.trim()));
+              const event: IcsEvent = {
+                title: this.getNodeParameter('title', i, '') as string,
+                start: this.getNodeParameter('start', i) as string,
+                end: (this.getNodeParameter('end', i, '') as string) || undefined,
+                allDay: !!this.getNodeParameter('allDay', i, false),
+                description: f.description as string,
+                location: f.location as string,
+                url: f.url as string,
+                uid: f.uid as string,
+                status: f.status as string,
+                busyStatus: f.busyStatus as string,
+                recurrenceRule: f.recurrenceRule as string,
+                organizer: f.organizer as string,
+                attendees: String(f.attendees ?? '').split(',').map((a) => a.trim()).filter(Boolean),
+                sequence: f.sequence === undefined ? undefined : Number(f.sequence),
+                geolocation: Number.isFinite(lat) && Number.isFinite(lon) && f.geolocation ? { lat, lon } : undefined,
+              };
+              if (!event.start) throw new NodeOperationError(this.getNode(), 'The event needs a start date', { itemIndex: i });
+              return file(Buffer.from(buildIcs([event], f.calName as string)), 'event.ics', 'text/calendar', {}, { item: i });
+            }),
+          ),
+        ];
       case 'toJson': {
         const fmt = (v: unknown) => bom(JSON.stringify(v, null, o.format ? 2 : undefined));
         if (this.getNodeParameter('mode', 0, 'once') === 'each') {

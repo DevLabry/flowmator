@@ -126,6 +126,8 @@ const ICON_MAP: Record<string, keyof typeof Icons> = {
   plug: 'Plug',
   'google-drive': 'HardDrive',
   'data-table': 'Table2',
+  inbox: 'Inbox',
+  'folder-open': 'FolderOpen',
 };
 
 export function NodeIcon({ icon, color, size = 18, label }: { icon?: string; color?: string; size?: number; label?: string }) {
