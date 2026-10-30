@@ -38,7 +38,7 @@ export interface ChatSession {
 }
 
 export interface ChatModel {
-  provider: 'anthropic' | 'openai' | 'ollama' | 'gemini';
+  provider: 'anthropic' | 'openai' | 'ollama' | 'gemini' | 'bedrock';
   model: string;
   createSession(opts: { system?: string; history?: HistoryMessage[]; tools: ToolSpec[] }): ChatSession;
 }
@@ -184,13 +184,27 @@ export interface OpenAiOptions {
   baseURL: string;
   model: string;
   maxTokens?: number;
+  /** Providers that predate max_completion_tokens (Mistral, DeepSeek...) want max_tokens */
+  maxTokensField?: 'max_completion_tokens' | 'max_tokens';
+  temperature?: number;
   organization?: string;
+  /** Full chat completions URL, for providers with their own path layout (Azure) */
+  url?: string;
+  /** Replaces the Bearer authorization header */
+  headers?: Record<string, string>;
+  /** Sent with every request (e.g. OpenRouter's app attribution) */
+  extraBody?: Record<string, unknown>;
   signal?: AbortSignal;
 }
 
 export function openAiModel(o: OpenAiOptions): ChatModel {
-  const url = `${o.baseURL.replace(/\/$/, '')}/chat/completions`;
-  const headers: Record<string, string> = { authorization: `Bearer ${o.apiKey}`, ...(o.organization ? { 'openai-organization': o.organization } : {}) };
+  const url = o.url ?? `${o.baseURL.replace(/\/$/, '')}/chat/completions`;
+  const headers: Record<string, string> = o.headers ?? { authorization: `Bearer ${o.apiKey}`, ...(o.organization ? { 'openai-organization': o.organization } : {}) };
+  const settings = {
+    ...(o.maxTokens ? { [o.maxTokensField ?? 'max_completion_tokens']: o.maxTokens } : {}),
+    ...(o.temperature !== undefined ? { temperature: o.temperature } : {}),
+    ...o.extraBody,
+  };
   return {
     provider: 'openai',
     model: o.model,
@@ -201,7 +215,7 @@ export function openAiModel(o: OpenAiOptions): ChatModel {
         const res = await postJson<{
           choices: Array<{ message: OpenAiMessage; finish_reason: string }>;
           usage?: { prompt_tokens: number; completion_tokens: number };
-        }>(url, { model: o.model, messages, ...(toolDefs.length ? { tools: toolDefs } : {}), ...(o.maxTokens ? { max_completion_tokens: o.maxTokens } : {}) }, headers, o.signal);
+        }>(url, { model: o.model, messages, ...(toolDefs.length ? { tools: toolDefs } : {}), ...settings }, headers, o.signal);
         const choice = res.choices[0];
         messages.push(choice.message);
         const toolCalls = (choice.message.tool_calls ?? []).map((c) => ({ id: c.id, name: c.function.name, input: safeParse(c.function.arguments) }));

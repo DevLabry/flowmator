@@ -9,6 +9,7 @@ import type { ConfigOverrides } from './config';
 import { createContext, type AppContext } from './context';
 import { credentialRoutes } from './routes/credentials';
 import { dataTableRoutes } from './routes/data-tables';
+import { evaluationRoutes } from './routes/evaluations';
 import { HttpError } from './routes/errors';
 import { executionRoutes } from './routes/executions';
 import { miscRoutes } from './routes/misc';
@@ -111,6 +112,7 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
   credentialRoutes(app, ctx);
   miscRoutes(app, ctx);
   dataTableRoutes(app, ctx);
+  evaluationRoutes(app, ctx);
   await webhookRoutes(app, ctx);
   await publicApiRoutes(app, ctx);
 
@@ -140,6 +142,7 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
     },
     async stop() {
       await ctx.activeWorkflows.shutdown();
+      await ctx.evaluations.stopAll();
       await ctx.executions.stopAll();
       await ctx.scaling?.close();
       ctx.push.closeAll();

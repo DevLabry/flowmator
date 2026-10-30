@@ -35,7 +35,7 @@ const CONDITIONS: Array<{ name: string; value: DataTableCondition }> = [
 ];
 const NO_VALUE: DataTableCondition[] = ['isEmpty', 'isNotEmpty', 'isTrue', 'isFalse'];
 
-const tableProp: INodeProperties = {
+export const tableProp: INodeProperties = {
   displayName: 'Data Table',
   name: 'dataTableId',
   type: 'resourceLocator',
@@ -47,7 +47,7 @@ const tableProp: INodeProperties = {
   ],
 };
 
-const filterProps: INodeProperties[] = [
+export const filterProps: INodeProperties[] = [
   {
     displayName: 'Must Match',
     name: 'matchType',
@@ -114,7 +114,7 @@ export function rowData(table: IDataTable, columns: ResourceMapperValue | undefi
   return Object.fromEntries(Object.entries(columns.value ?? {}).filter(([k, v]) => names.has(k) && !removed.has(k) && v !== undefined));
 }
 
-async function resolveTable(ctx: Pick<IExecuteFunctions, 'getNodeParameter' | 'getDataTables' | 'getNode'>, i: number): Promise<IDataTable> {
+export async function resolveTable(ctx: Pick<IExecuteFunctions, 'getNodeParameter' | 'getDataTables' | 'getNode'>, i: number): Promise<IDataTable> {
   const ref = String(ctx.getNodeParameter('dataTableId', i, '', { extractValue: true }) ?? '').trim();
   if (!ref) throw new NodeOperationError(ctx.getNode(), 'Select a data table', { itemIndex: i });
   const table = await ctx.getDataTables().getTable(ref);

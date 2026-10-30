@@ -220,3 +220,15 @@ button.active-choice { border-color: var(--accent); color: var(--accent); backgr
 .dt-cell input[type='checkbox'] { margin-left: 10px; }
 .dt-cell.num input { text-align: right; font-variant-numeric: tabular-nums; }
 .dt-footer { display: flex; align-items: center; gap: 8px; padding: 8px; border-top: 1px solid var(--border); position: sticky; left: 0; bottom: 0; background: var(--surface); margin-top: auto; }
+
+/* Evaluations tab */
+.eval-page { flex: 1; overflow: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.eval-page .card:not([style*='padding: 0']) { padding: 16px; }
+.eval-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.eval-metric-value { font-size: 24px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.eval-trends { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.eval-trend { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; display: grid; gap: 8px; }
+.eval-trend svg { width: 100%; height: 40px; display: block; }
+.eval-cell { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.callout { padding: 10px 12px; border-radius: var(--radius); font-size: 13px; }
+.callout.error { background: var(--danger-soft); color: var(--danger); }

@@ -608,7 +608,7 @@ export function schemaFromExample(v: unknown): Record<string, unknown> {
   return { type: typeof v === 'number' ? 'number' : typeof v === 'boolean' ? 'boolean' : 'string' };
 }
 
-function checkSchema(value: unknown, schema: Record<string, unknown>, path = '$'): string[] {
+export function checkSchema(value: unknown, schema: Record<string, unknown>, path = '$'): string[] {
   const types = ([] as unknown[]).concat(schema.type ?? []);
   const actual = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
   const numberOk = actual === 'number' && types.includes('integer') && Number.isInteger(value);

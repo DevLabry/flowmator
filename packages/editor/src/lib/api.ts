@@ -99,6 +99,32 @@ export interface NodeIO {
   outputNames: string[];
 }
 
+export interface TestRun {
+  id: string;
+  workflowId: string;
+  status: 'new' | 'running' | 'completed' | 'error' | 'cancelled';
+  runAt: string | null;
+  completedAt: string | null;
+  metrics: Record<string, number> | null;
+  errorCode: string | null;
+  errorDetails: { message?: string } | null;
+  createdAt: string;
+  finalResult?: 'success' | 'error' | 'warning' | null;
+}
+
+export interface TestCaseExecution {
+  id: string;
+  testRunId: string;
+  executionId: string | null;
+  status: 'new' | 'running' | 'success' | 'error' | 'cancelled';
+  runAt: string | null;
+  completedAt: string | null;
+  metrics: Record<string, number> | null;
+  inputs: IDataObject | null;
+  errorCode: string | null;
+  errorDetails: { message?: string } | null;
+}
+
 export const Api = {
   settings: () => api<IDataObject>('GET', '/rest/settings'),
   nodeTypes: () => api<NodeTypeDescription[]>('GET', '/rest/node-types'),
@@ -132,6 +158,13 @@ export const Api = {
   deleteExecutions: (body: IDataObject) => api('POST', '/rest/executions/delete', body),
   retryExecution: (id: string, loadWorkflow: boolean) => api<{ status: string }>('POST', `/rest/executions/${id}/retry`, { loadWorkflow }),
   stopExecution: (id: string) => api('POST', `/rest/executions/${id}/stop`),
+
+  testRuns: (workflowId: string) => api<TestRun[]>('GET', `/rest/workflows/${workflowId}/test-runs`),
+  testRun: (workflowId: string, runId: string) => api<TestRun>('GET', `/rest/workflows/${workflowId}/test-runs/${runId}`),
+  testCases: (workflowId: string, runId: string) => api<TestCaseExecution[]>('GET', `/rest/workflows/${workflowId}/test-runs/${runId}/test-cases`),
+  startTestRun: (workflowId: string) => api<TestRun>('POST', `/rest/workflows/${workflowId}/test-runs/new`),
+  cancelTestRun: (workflowId: string, runId: string) => api<TestRun>('POST', `/rest/workflows/${workflowId}/test-runs/${runId}/cancel`),
+  deleteTestRun: (workflowId: string, runId: string) => api('DELETE', `/rest/workflows/${workflowId}/test-runs/${runId}`),
 
   credentials: (type?: string) => api<CredentialSummary[]>('GET', `/rest/credentials${type ? `?type=${type}` : ''}`),
   credential: (id: string) => api<CredentialSummary>('GET', `/rest/credentials/${id}?includeData=true`),

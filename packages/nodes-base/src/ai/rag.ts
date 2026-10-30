@@ -481,7 +481,7 @@ export function cosineSimilarity(a: number[], b: number[]) {
 
 const matchesFilter = (metadata: IDataObject, filter?: IDataObject) => !filter || Object.entries(filter).every(([k, v]) => String(metadata[k]) === String(v));
 
-interface VectorStoreSpec {
+export interface VectorStoreSpec {
   name: string;
   displayName: string;
   description: string;
@@ -496,7 +496,7 @@ interface VectorStoreSpec {
 }
 
 /** Builds a vector store node with n8n's four modes: get many, insert, retrieve (for chains) and retrieve as tool. */
-function vectorStoreNode(spec: VectorStoreSpec): INodeType {
+export function vectorStoreNode(spec: VectorStoreSpec): INodeType {
   const show = (...modes: Mode[]) => ({ show: { mode: modes } });
   const store = (backend: VectorBackend, embeddings: Embeddings): VectorStore => ({
     async addDocuments(docs) {
