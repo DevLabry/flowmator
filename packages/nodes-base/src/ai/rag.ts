@@ -55,13 +55,13 @@ async function ask(model: ChatModel, system: string | undefined, prompt: string)
 
 /* ---------------- embeddings ---------------- */
 
-async function inBatches<T>(texts: string[], size: number, embed: (batch: string[]) => Promise<T[]>) {
+export async function inBatches<T>(texts: string[], size: number, embed: (batch: string[]) => Promise<T[]>) {
   const out: T[] = [];
   for (let i = 0; i < texts.length; i += size) out.push(...(await embed(texts.slice(i, i + size))));
   return out;
 }
 
-const embeddingsOf = (embedDocuments: (texts: string[]) => Promise<number[][]>): Embeddings => ({
+export const embeddingsOf = (embedDocuments: (texts: string[]) => Promise<number[][]>): Embeddings => ({
   embedDocuments: (texts) => (texts.length ? embedDocuments(texts) : Promise.resolve([])),
   embedQuery: async (text) => (await embedDocuments([text]))[0],
 });

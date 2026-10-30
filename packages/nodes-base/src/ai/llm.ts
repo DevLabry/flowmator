@@ -322,6 +322,9 @@ export interface GeminiOptions {
   apiKey: string;
   host: string;
   model: string;
+  /** Vertex AI: the full generateContent URL and a fresh Bearer header per call */
+  url?: string;
+  auth?: () => Promise<Record<string, string>>;
   maxTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
@@ -329,8 +332,7 @@ export interface GeminiOptions {
 
 export function geminiModel(o: GeminiOptions): ChatModel {
   const model = o.model.replace(/^models\//, '');
-  const url = `${o.host.replace(/\/$/, '')}/v1beta/models/${model}:generateContent`;
-  const headers = { 'x-goog-api-key': o.apiKey };
+  const url = o.url ?? `${o.host.replace(/\/$/, '')}/v1beta/models/${model}:generateContent`;
   return {
     provider: 'gemini',
     model,
@@ -354,7 +356,7 @@ export function geminiModel(o: GeminiOptions): ChatModel {
             ...(toolDefs ? { tools: toolDefs } : {}),
             generationConfig: { ...(o.maxTokens ? { maxOutputTokens: o.maxTokens } : {}), ...(o.temperature !== undefined ? { temperature: o.temperature } : {}) },
           },
-          headers,
+          o.auth ? await o.auth() : { 'x-goog-api-key': o.apiKey },
           o.signal,
         );
         const candidate = res.candidates?.[0];

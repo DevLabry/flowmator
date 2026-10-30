@@ -99,8 +99,8 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Form (multi-page forms: nex
 - [x] AI Agent with sub-node slots (Model, Memory, Tools, Output Parser), tool loop, iteration limit
 - [x] Chat models: Anthropic (official SDK, refusal fallback, effort), OpenAI-compatible, Ollama, Google Gemini (function calling, thought signatures kept), Mistral, Groq, DeepSeek, OpenRouter, xAI Grok, Azure OpenAI (deployments, api-key), AWS Bedrock (Converse API with SigV4 signing, tool use, on-demand models or inference profiles)
 - [x] Memory: Simple, Postgres Chat Memory, Redis Chat Memory (LangChain/n8n storage layout, so existing tables and keys work)
-- [x] RAG: embeddings (OpenAI, Ollama, Gemini), Default Data Loader (JSON, text, CSV, JSON files, PDF per page, metadata), text splitters (recursive with code modes, character, token)
-- [x] Vector stores with n8n's modes (get many, insert, retrieve for chains, retrieve as agent tool) and metadata filters: Simple (in memory), Postgres PGVector, Qdrant, Pinecone, Supabase (PostgREST + match function), MongoDB Atlas ($vectorSearch)
+- [x] RAG: embeddings (OpenAI, Ollama, Gemini, Cohere, Hugging Face, Vertex AI), Default Data Loader (JSON, text, CSV, JSON files, PDF per page, metadata), text splitters (recursive with code modes, character, token)
+- [x] Vector stores with n8n's modes (get many, insert, retrieve for chains, retrieve as agent tool) and metadata filters: Simple (in memory), Postgres PGVector, Qdrant, Pinecone, Supabase (PostgREST + match function), MongoDB Atlas ($vectorSearch), Weaviate (nearVector GraphQL), Milvus/Zilliz (REST v2, LangChain fields), Redis (Query Engine KNN, LangChain hash layout)
 - [x] Vector Store Retriever, Question and Answer Chain, Basic LLM Chain, Answer Questions with a Vector Store tool
 - [x] Information Extractor (attributes, JSON example or schema; retries on invalid output), Text Classifier (one output per category, multi-class, fallback), Sentiment Analysis (custom categories, strength/confidence), Summarization Chain (map-reduce, stuff, refine; node input or document loader; simple or connected splitter)
 - [x] Tools: Workflow, HTTP Request, Code, Calculator, Think, Wikipedia, SerpApi (Google Search), MCP Client Tool (Streamable HTTP and SSE, auth, include/exclude tools)
@@ -108,4 +108,5 @@ Done: Manual Trigger, Form Trigger (+ Wait on form), Form (multi-page forms: nex
 - [x] Sub-node connections (database pools, MCP clients) are closed when the root node finishes
 - [x] Chat trigger with hosted page and editor chat panel
 - [x] Evaluations: Evaluation Trigger (dataset from a data table, limit and filter rows), Evaluation node (set outputs back to the row, metrics: correctness and helpfulness judged by a model, string similarity, categorization, tools used, custom; check if evaluating), test runs that execute the workflow per row in "evaluation" mode and average the metrics, Evaluations tab in the editor (runs, metric trends, per-case results linked to executions, cancel/delete)
-- [ ] Still missing: Weaviate, Milvus, Redis and other vector stores; Cohere/Hugging Face/Vertex chat models; Google Sheets as an evaluation dataset
+- [x] Cohere (compatibility API), Hugging Face (Inference Providers router) and Google Vertex AI (Gemini with a service account) chat models
+- [x] Google Sheets as an evaluation dataset (lookup filters, row limit; outputs written back to the row, new columns added to the header)

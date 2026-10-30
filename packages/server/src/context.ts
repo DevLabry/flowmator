@@ -77,7 +77,7 @@ export function createContext(overrides: ConfigOverrides = {}, role: ProcessRole
   executions.events = bus;
   const dataTables = new DataTableService(db);
   executions.dataTables = dataTables;
-  const evaluations = new EvaluationService(db, executions, dataTables, role === 'main');
+  const evaluations = new EvaluationService(db, executions, dataTables, role === 'main', credentialsHelper);
   const webhooks = new WebhookService(config, nodeTypes, executions, events, (id) => db.getWorkflow(id));
   const activeWorkflows = new ActiveWorkflows(config, db, nodeTypes, executions, webhooks, events);
   // webhook processes serve production webhooks too, so they must hear about (de)activations

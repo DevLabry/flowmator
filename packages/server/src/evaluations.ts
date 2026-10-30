@@ -1,5 +1,6 @@
+import { httpRequest, type ICredentialsHelper } from '@8n8/core';
 import { collectMetrics, EVALUATION_NODE, EVALUATION_TRIGGER, evaluationDataset } from '@8n8/nodes-base';
-import type { DataTableRow, IDataObject, IRun } from '@8n8/workflow';
+import type { DataTableRow, IDataObject, IHelpers, INode, IRun } from '@8n8/workflow';
 import { newId, type Database } from './db';
 import type { DataTableService } from './data-tables';
 import type { ExecutionService } from './execution-service';
@@ -106,6 +107,8 @@ export class EvaluationService {
     private readonly dataTables: DataTableService,
     /** Only main runs evaluations; workers and webhook processes share the database and must not touch them. */
     recover = true,
+    /** Lets the trigger's credentials read datasets that live outside 8n8 (Google Sheets) */
+    private readonly credentialsHelper?: ICredentialsHelper,
   ) {
     database.db.exec(EVALUATION_SCHEMA);
     if (!recover) return;
@@ -170,6 +173,19 @@ export class EvaluationService {
     return (this.db.prepare('SELECT * FROM test_case_executions WHERE testRunId = ? ORDER BY createdAt, rowid').all(testRunId) as Row[]).map((r) => this.toCase(r));
   }
 
+  /** Authenticated requests with a node's credentials, outside an execution. */
+  private helpersFor(node: INode): IHelpers | undefined {
+    const helper = this.credentialsHelper;
+    if (!helper) return undefined;
+    return {
+      httpRequest,
+      async httpRequestWithAuthentication(type, options) {
+        const credentials = await helper.getDecrypted(node, type);
+        return httpRequest(await helper.authenticate(type, credentials, { ...options }, node));
+      },
+    } as Partial<IHelpers> as IHelpers;
+  }
+
   private updateRun(id: string, fields: Partial<Record<'status' | 'runAt' | 'completedAt' | 'metrics' | 'errorCode' | 'errorDetails', string | null>>) {
     const keys = Object.keys(fields);
     this.db.prepare(`UPDATE test_runs SET ${keys.map((k) => `${k} = ?`).join(', ')}, updatedAt = ? WHERE id = ?`).run(...keys.map((k) => fields[k as keyof typeof fields] ?? null), now(), id);
@@ -199,7 +215,7 @@ export class EvaluationService {
 
     state.promise = (async () => {
       try {
-        const { rows } = await evaluationDataset(this.dataTables, trigger);
+        const { rows } = await evaluationDataset(this.dataTables, trigger, this.helpersFor(trigger));
         if (!rows.length) {
           this.updateRun(id, { status: 'error', completedAt: now(), errorCode: 'EVALUATION_DATASET_EMPTY', errorDetails: JSON.stringify({ message: 'The dataset has no rows' }) });
           return;

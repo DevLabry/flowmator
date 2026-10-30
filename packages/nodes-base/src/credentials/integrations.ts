@@ -94,6 +94,7 @@ export const integrationCredentials: ICredentialType[] = [
     properties: [
       { displayName: 'Service Account Email', name: 'email', type: 'string', default: '', placeholder: 'name@project.iam.gserviceaccount.com' },
       { displayName: 'Private Key', name: 'privateKey', type: 'string', typeOptions: { password: true, rows: 4 }, default: '', description: 'The private_key from the JSON key file (including the BEGIN/END lines)' },
+      { displayName: 'Region', name: 'region', type: 'string', default: 'us-central1', description: 'Vertex AI location (or "global")' },
       { displayName: 'Impersonate a User', name: 'delegatedEmail', type: 'string', default: '', description: 'For Gmail: the mailbox to act as (needs domain-wide delegation)' },
       {
         displayName: 'Scopes',
