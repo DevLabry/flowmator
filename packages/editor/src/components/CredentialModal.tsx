@@ -1,4 +1,4 @@
-import { getParameterDisplayed, type IDataObject, type INodeParameters } from '@8n8/workflow';
+import { getParameterDisplayed, type IDataObject, type INodeParameters } from '@flowmator/workflow';
 import { useEffect, useState } from 'react';
 import { Api, type CredentialSummary } from '../lib/api';
 import { errorToast, useApp } from '../store/app';
@@ -63,9 +63,9 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
     if (!saved) return;
     const url = await Api.oauthUrl(saved.id).catch(errorToast('Could not start OAuth'));
     if (!url) return;
-    const popup = window.open(url, '8n8-oauth', 'width=600,height=700');
+    const popup = window.open(url, 'flowmator-oauth', 'width=600,height=700');
     const onMsg = (e: MessageEvent) => {
-      if (e.data !== '8n8-oauth-success') return;
+      if (e.data !== 'flowmator-oauth-success') return;
       window.removeEventListener('message', onMsg);
       popup?.close();
       Api.credential(saved.id).then((c) => setData(c.data ?? {}));
@@ -111,7 +111,7 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
                 type={p.typeOptions?.password ? 'password' : p.type === 'number' ? 'number' : 'text'}
                 value={String(v ?? '')}
                 placeholder={p.placeholder}
-                onFocus={(e) => v === '__8N8_REDACTED__' && e.target.select()}
+                onFocus={(e) => v === '__FLOWMATOR_REDACTED__' && e.target.select()}
                 onChange={(e) => set(p.type === 'number' ? Number(e.target.value) : e.target.value)}
               />
             )}

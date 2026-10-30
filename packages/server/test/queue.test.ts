@@ -41,7 +41,7 @@ describe.skipIf(!redisBinary)('queue mode', () => {
   beforeAll(async () => {
     const port = await freePort();
     redis = spawn(redisBinary, ['--port', String(port), '--save', '', '--appendonly', 'no'], { stdio: 'ignore' });
-    dir = mkdtempSync(path.join(os.tmpdir(), '8n8-queue-'));
+    dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-queue-'));
     overrides = {
       userFolder: dir,
       port: 0,
@@ -85,7 +85,7 @@ describe.skipIf(!redisBinary)('queue mode', () => {
   };
 
   let n = 0;
-  const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `q${++n}`, name, type: `8n8.${type}`, typeVersion: 1, position: [0, 0], parameters });
+  const node = (name: string, type: string, parameters: Record<string, unknown> = {}) => ({ id: `q${++n}`, name, type: `flowmator.${type}`, typeVersion: 1, position: [0, 0], parameters });
   const chain = (...names: string[]) =>
     Object.fromEntries(names.slice(0, -1).map((name, i) => [name, { main: [[{ node: names[i + 1], type: 'main', index: 0 }]] }]));
   const setNode = (name: string, assignments: Array<[string, string]>) =>

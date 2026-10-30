@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { ExecutionStatus } from '@8n8/workflow';
+import type { ExecutionStatus } from '@flowmator/workflow';
 import { normalizeWorkflow, type AppContext } from '../context';
 import { dataTableRowRoutes } from './data-tables';
 import { HttpError } from './errors';
@@ -13,7 +13,7 @@ export async function publicApiRoutes(app: FastifyInstance, ctx: AppContext) {
 
   await app.register(async (api) => {
     api.addHook('onRequest', async (req) => {
-      const key = req.headers['x-n8n-api-key'] ?? req.headers['x-8n8-api-key'];
+      const key = req.headers['x-n8n-api-key'] ?? req.headers['x-flowmator-api-key'];
       if (!key || !db.findApiKey(String(key))) throw new HttpError(401, 'unauthorized');
     });
 

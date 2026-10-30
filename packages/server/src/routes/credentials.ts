@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { IDataObject } from '@8n8/workflow';
+import type { IDataObject } from '@flowmator/workflow';
 import type { AppContext } from '../context';
 import { testCredential } from '../credentials';
 import { HttpError } from './errors';
@@ -46,7 +46,7 @@ export function credentialRoutes(app: FastifyInstance, ctx: AppContext) {
     let data = input.data ?? {};
     if (input.id) {
       const { __type, __name, ...stored } = credentials.getDecrypted(input.id);
-      data = { ...stored, ...Object.fromEntries(Object.entries(data).filter(([, v]) => v !== '__8N8_REDACTED__')) };
+      data = { ...stored, ...Object.fromEntries(Object.entries(data).filter(([, v]) => v !== '__FLOWMATOR_REDACTED__')) };
     }
     return { data: await testCredential(credentials, credentialsHelper, input.type, data) };
   });
@@ -84,7 +84,7 @@ export function credentialRoutes(app: FastifyInstance, ctx: AppContext) {
     const page = (title: string, msg: string, ok: boolean) =>
       reply
         .type('text/html')
-        .send(`<!doctype html><html><body style="font-family:sans-serif;padding:2rem"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(msg)}</p>${ok ? '<script>window.opener&&window.opener.postMessage("8n8-oauth-success","*");setTimeout(()=>window.close(),800)</script>' : ''}</body></html>`);
+        .send(`<!doctype html><html><body style="font-family:sans-serif;padding:2rem"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(msg)}</p>${ok ? '<script>window.opener&&window.opener.postMessage("flowmator-oauth-success","*");setTimeout(()=>window.close(),800)</script>' : ''}</body></html>`);
     if (q.error) return page('Authorization failed', q.error_description ?? q.error, false);
     try {
       const state = JSON.parse(Buffer.from(String(q.state), 'base64url').toString()) as { cid: string; token: string };

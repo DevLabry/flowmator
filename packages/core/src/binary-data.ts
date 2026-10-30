@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { IBinaryData } from '@8n8/workflow';
+import type { IBinaryData } from '@flowmator/workflow';
 
 export interface BinaryDataStore {
   /** Stores the buffer and returns the binary metadata (with `id` set when stored externally). */

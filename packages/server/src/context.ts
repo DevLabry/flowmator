@@ -1,6 +1,6 @@
-import { CredentialTypesRegistry, NodeTypesRegistry, normalizeNodeTypeName } from '@8n8/core';
-import { credentials as builtinCredentials, nodes as builtinNodes } from '@8n8/nodes-base';
-import type { IWorkflowBase } from '@8n8/workflow';
+import { CredentialTypesRegistry, NodeTypesRegistry, normalizeNodeTypeName } from '@flowmator/core';
+import { credentials as builtinCredentials, nodes as builtinNodes } from '@flowmator/nodes-base';
+import type { IWorkflowBase } from '@flowmator/workflow';
 import { ActiveWorkflows } from './active-workflows';
 import { loadConfig, type ConfigOverrides, type ServerConfig } from './config';
 import { Cipher, CredentialsHelper, CredentialsService } from './credentials';
@@ -42,7 +42,7 @@ export interface AppContext {
   scaling?: ScalingService;
 }
 
-/** Converts node types from n8n exports (n8n-nodes-base.x) to 8n8 names so stored workflows are consistent. */
+/** Converts node types from n8n exports (n8n-nodes-base.x) to Flowmator names so stored workflows are consistent. */
 export function normalizeWorkflow<T extends Partial<IWorkflowBase>>(wf: T): T {
   if (!wf.nodes) return wf;
   return { ...wf, nodes: wf.nodes.map((n) => ({ ...n, type: normalizeNodeTypeName(n.type) })) };

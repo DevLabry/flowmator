@@ -1,6 +1,6 @@
 import { exec } from 'node:child_process';
 import nodemailer from 'nodemailer';
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@flowmator/workflow';
 import { fieldList } from '../utils/object';
 import { perItem } from './markup';
 
@@ -18,7 +18,7 @@ interface SmtpCredentials {
 
 export const SendEmail: INodeType = {
   description: {
-    name: '8n8.emailSend',
+    name: 'flowmator.emailSend',
     displayName: 'Send Email',
     description: 'Sends an email through an SMTP server',
     group: ['output'],
@@ -98,9 +98,9 @@ export const SendEmail: INodeType = {
 
 export const ExecuteCommand: INodeType = {
   description: {
-    name: '8n8.executeCommand',
+    name: 'flowmator.executeCommand',
     displayName: 'Execute Command',
-    description: 'Runs a shell command on the computer running 8n8',
+    description: 'Runs a shell command on the computer running Flowmator',
     group: ['transform'],
     version: 1,
     defaults: { name: 'Execute Command', color: '#886644' },

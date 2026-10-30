@@ -12,7 +12,7 @@ export function VariablesPage() {
   const refresh = useCallback(() => {
     Api.variables().then((vars) => {
       setList(vars);
-      (window as unknown as { __8n8Vars: Record<string, string> }).__8n8Vars = Object.fromEntries(vars.map((v) => [v.key, v.value]));
+      (window as unknown as { __flowmatorVars: Record<string, string> }).__flowmatorVars = Object.fromEntries(vars.map((v) => [v.key, v.value]));
     }, errorToast('Could not load variables'));
   }, []);
   useEffect(refresh, [refresh]);

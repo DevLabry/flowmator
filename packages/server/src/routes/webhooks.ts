@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { IDataObject, IWebhookRequest, IWebhookResponse } from '@8n8/workflow';
+import type { IDataObject, IWebhookRequest, IWebhookResponse } from '@flowmator/workflow';
 import type { AppContext } from '../context';
 import { WebhookError } from '../webhooks';
 

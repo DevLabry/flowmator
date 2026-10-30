@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
-import type { ExecutionMode, ExecutionStatus, IConnections, IDataObject, INode, IPinData, IRun, IWorkflowBase, IWorkflowSettings } from '@8n8/workflow';
+import type { ExecutionMode, ExecutionStatus, IConnections, IDataObject, INode, IPinData, IRun, IWorkflowBase, IWorkflowSettings } from '@flowmator/workflow';
 
 // Loaded via require: Vite (vitest) doesn't recognize node:sqlite as a built-in yet and fails to resolve the import.
 const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
@@ -135,6 +135,16 @@ export class Database {
     // exclusive lock that SQLite doesn't wait for, so concurrent first opens retry instead
     retryWhileLocked(() => this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;'));
     retryWhileLocked(() => this.db.exec(SCHEMA));
+    retryWhileLocked(() => this.renameLegacyNodeTypes());
+  }
+
+  /** Flowmator was called 8n8: stored node types move from 8n8.x / 8n8-ai.x to flowmator.x / flowmator-ai.x. */
+  private renameLegacyNodeTypes() {
+    for (const table of ['workflows', 'workflow_history']) {
+      this.db
+        .prepare(`UPDATE ${table} SET nodes = REPLACE(REPLACE(nodes, '"type":"8n8-ai.', '"type":"flowmator-ai.'), '"type":"8n8.', '"type":"flowmator.') WHERE nodes LIKE '%"type":"8n8%'`)
+        .run();
+    }
   }
 
   close() {

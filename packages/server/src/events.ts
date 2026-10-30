@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { IDataObject } from '@8n8/workflow';
+import type { IDataObject } from '@flowmator/workflow';
 
 /** An event as log streaming destinations receive it (n8n's event bus message shape). */
 export interface BusEvent {

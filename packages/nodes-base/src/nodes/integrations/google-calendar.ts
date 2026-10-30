@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeProperties, INodeType, IPollFunctions } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeProperties, INodeType, IPollFunctions } from '@flowmator/workflow';
 import { forEachItem, forOp, listLimit, operationProp, pollTimesProp, returnAllProps } from '../../utils/api';
 import { googleAuthProp, googleCredentials, googlePages, googleRequest } from './google';
 
@@ -68,7 +68,7 @@ export function buildEvent(f: EventFields): { body: IDataObject; withConference:
 
 export const GoogleCalendar: INodeType = {
   description: {
-    name: '8n8.googleCalendar',
+    name: 'flowmator.googleCalendar',
     displayName: 'Google Calendar',
     description: 'Create, find and update events and check availability in Google Calendar',
     group: ['input'],
@@ -207,7 +207,7 @@ const timeOf = (t: IDataObject | undefined) => new Date(String(t?.dateTime ?? t?
 
 export const GoogleCalendarTrigger: INodeType = {
   description: {
-    name: '8n8.googleCalendarTrigger',
+    name: 'flowmator.googleCalendarTrigger',
     displayName: 'Google Calendar Trigger',
     description: 'Starts the workflow when events are created, changed, cancelled, start or end (checks on a schedule)',
     group: ['trigger'],

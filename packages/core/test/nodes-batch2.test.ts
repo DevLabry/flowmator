@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { INodeExecutionData } from '@8n8/workflow';
+import type { INodeExecutionData } from '@flowmator/workflow';
 import { connections, items, makeWorkflow, node, out, run } from './helpers';
 
 /** Runs Trigger → (node) and returns the run, so tests can read any output. */
@@ -14,7 +14,7 @@ async function runNode(type: string, parameters: Record<string, unknown>, input:
   return r;
 }
 
-const tmp = mkdtempSync(path.join(os.tmpdir(), '8n8-nodes-'));
+const tmp = mkdtempSync(path.join(os.tmpdir(), 'flowmator-nodes-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 describe('Date & Time', () => {

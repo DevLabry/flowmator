@@ -394,7 +394,7 @@ function DestinationModal({ initial, onClose, onSaved }: { initial: Partial<LogD
           <>
             <div className="row" style={{ alignItems: 'flex-start' }}>
               <div style={{ width: 110 }}>{field('Method', <select value={d.method ?? 'POST'} onChange={(e) => set({ method: e.target.value })}>{['POST', 'PUT', 'GET'].map((m) => <option key={m}>{m}</option>)}</select>)}</div>
-              <div className="grow">{field('URL', <input className="mono" placeholder="https://logs.example.com/8n8" value={d.url ?? ''} onChange={(e) => set({ url: e.target.value })} />)}</div>
+              <div className="grow">{field('URL', <input className="mono" placeholder="https://logs.example.com/flowmator" value={d.url ?? ''} onChange={(e) => set({ url: e.target.value })} />)}</div>
             </div>
             {field('Headers', (
               <div className="col" style={{ gap: 6 }}>
@@ -416,7 +416,7 @@ function DestinationModal({ initial, onClose, onSaved }: { initial: Partial<LogD
             <div style={{ width: 90 }}>{field('Port', <input type="number" value={d.port ?? 514} onChange={(e) => set({ port: Number(e.target.value) })} />)}</div>
             <div style={{ width: 90 }}>{field('Protocol', <select value={d.protocol ?? 'udp'} onChange={(e) => set({ protocol: e.target.value as 'udp' | 'tcp' })}><option>udp</option><option>tcp</option></select>)}</div>
             <div style={{ width: 90 }}>{field('Facility', <input type="number" min={0} max={23} value={d.facility ?? 16} onChange={(e) => set({ facility: Number(e.target.value) })} />)}</div>
-            <div style={{ width: 110 }}>{field('App name', <input value={d.app_name ?? '8n8'} onChange={(e) => set({ app_name: e.target.value })} />)}</div>
+            <div style={{ width: 110 }}>{field('App name', <input value={d.app_name ?? 'flowmator'} onChange={(e) => set({ app_name: e.target.value })} />)}</div>
           </div>
         )}
         {d.type === '$$MessageEventBusDestinationSentry' && field('DSN', <input className="mono" placeholder="https://key@o0.ingest.sentry.io/0" value={d.dsn ?? ''} onChange={(e) => set({ dsn: e.target.value })} />)}

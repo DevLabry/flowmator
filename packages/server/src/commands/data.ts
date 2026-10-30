@@ -1,13 +1,13 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { IDataObject, IWorkflowBase } from '@8n8/workflow';
+import type { IDataObject, IWorkflowBase } from '@flowmator/workflow';
 import type { ConfigOverrides } from '../config';
 import { createContext, normalizeWorkflow, type AppContext } from '../context';
 import { Cipher } from '../credentials';
 import type { WorkflowEntity } from '../db';
 
 /**
- * Commands that work on the data folder directly (no server needed). They also work while 8n8 is
+ * Commands that work on the data folder directly (no server needed). They also work while Flowmator is
  * running; changes to active workflows take effect when main restarts or the workflow is re-saved.
  */
 async function withContext<T>(overrides: ConfigOverrides, fn: (ctx: AppContext) => T | Promise<T>): Promise<T> {
@@ -76,7 +76,7 @@ export function exportWorkflows(opts: ExportOptions, overrides: ConfigOverrides 
   });
 }
 
-/** Imports n8n or 8n8 workflow exports. IDs are kept, so importing again updates instead of duplicating. */
+/** Imports n8n or flowmator workflow exports. IDs are kept, so importing again updates instead of duplicating. */
 export function importWorkflows(opts: { input: string; separate?: boolean }, overrides: ConfigOverrides = {}) {
   return withContext(overrides, (ctx) => {
     const entries = readJsonInput(opts.input, !!opts.separate) as Array<Omit<Partial<WorkflowEntity>, 'tags'> & { tags?: Array<string | { name: string }> }>;
@@ -116,7 +116,7 @@ export function updateWorkflows(opts: { id?: string; all?: boolean; active: bool
     const targets = opts.id ? [ctx.db.getWorkflow(opts.id)].filter((w): w is WorkflowEntity => !!w) : ctx.db.listWorkflows({});
     if (opts.id && !targets.length) throw new Error(`No workflow with ID "${opts.id}"`);
     for (const wf of targets) ctx.db.updateWorkflow(wf.id, { active: opts.active });
-    return `${opts.active ? 'Activated' : 'Deactivated'} ${targets.length} workflow(s). Restart 8n8 for a running instance to pick this up.`;
+    return `${opts.active ? 'Activated' : 'Deactivated'} ${targets.length} workflow(s). Restart Flowmator for a running instance to pick this up.`;
   });
 }
 

@@ -1,5 +1,5 @@
 import { createSign } from 'node:crypto';
-import type { ICredentialType, IDataObject, IHelpers, ILoadOptionsFunctions, INodeProperties, INodeType, ISupplyDataFunctions } from '@8n8/workflow';
+import type { ICredentialType, IDataObject, IHelpers, ILoadOptionsFunctions, INodeProperties, INodeType, ISupplyDataFunctions } from '@flowmator/workflow';
 import { signAws, type AwsCredentials } from '../utils/aws';
 import { geminiModel, openAiModel, type ChatModel, type ModelTurn, type OpenAiOptions } from './llm';
 import { embeddingsOf, inBatches } from './rag';

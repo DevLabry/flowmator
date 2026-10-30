@@ -1,6 +1,6 @@
 import { createHash, createHmac, createSign, randomBytes, randomUUID } from 'node:crypto';
 import { DateTime, type DateTimeUnit, type DurationLikeObject } from 'luxon';
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeProperties, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeProperties, type INodeType } from '@flowmator/workflow';
 import { deepCopy, errorItem, getValue, setValue, unsetValue } from '../utils/object';
 
 /* ---------------- Date & Time ---------------- */
@@ -40,7 +40,7 @@ const FORMAT_PRESETS: Record<string, string> = {
 
 export const DateTimeNode: INodeType = {
   description: {
-    name: '8n8.dateTime',
+    name: 'flowmator.dateTime',
     displayName: 'Date & Time',
     description: 'Manipulate date and time values',
     group: ['transform'],
@@ -208,7 +208,7 @@ const nodeAlgo = (t: string) => t.toLowerCase();
 
 export const CryptoNode: INodeType = {
   description: {
-    name: '8n8.crypto',
+    name: 'flowmator.crypto',
     displayName: 'Crypto',
     description: 'Hash, sign and generate random values',
     group: ['transform'],
@@ -316,7 +316,7 @@ function renameByRegex(obj: IDataObject, re: RegExp, replacement: string, depth:
 
 export const RenameKeys: INodeType = {
   description: {
-    name: '8n8.renameKeys',
+    name: 'flowmator.renameKeys',
     displayName: 'Rename Keys',
     description: 'Renames fields of items',
     group: ['transform'],

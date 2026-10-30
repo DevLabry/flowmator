@@ -1,4 +1,4 @@
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType, type IPairedItem } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType, type IPairedItem } from '@flowmator/workflow';
 import { deepCopy, fieldList, getValue, isEqual, setValue } from '../utils/object';
 
 /* ---------------- Summarize ---------------- */
@@ -46,7 +46,7 @@ const outputName = (f: SummarizeField) => `${f.aggregation === 'countUnique' ? '
 
 export const Summarize: INodeType = {
   description: {
-    name: '8n8.summarize',
+    name: 'flowmator.summarize',
     displayName: 'Summarize',
     description: 'Sum, count, average and concatenate fields, optionally grouped (like a pivot table)',
     group: ['transform'],
@@ -166,7 +166,7 @@ export const Summarize: INodeType = {
 
 export const CompareDatasets: INodeType = {
   description: {
-    name: '8n8.compareDatasets',
+    name: 'flowmator.compareDatasets',
     displayName: 'Compare Datasets',
     description: 'Compares two inputs and splits items by whether they match',
     group: ['transform'],

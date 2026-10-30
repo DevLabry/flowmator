@@ -1,4 +1,4 @@
-import type { ICredentialType, INodeProperties } from '@8n8/workflow';
+import type { ICredentialType, INodeProperties } from '@flowmator/workflow';
 
 const password = { password: true };
 
@@ -127,7 +127,7 @@ export const integrationCredentials: ICredentialType[] = [
       { displayName: 'Access Token', name: 'accessToken', type: 'string', typeOptions: password, default: '' },
     ],
     authenticate: { type: 'generic', properties: { headers: { Authorization: '=Bearer {{$credentials.accessToken}}' } } },
-    test: { request: { url: '={{$credentials.server}}/user', headers: { 'User-Agent': '8n8' } } },
+    test: { request: { url: '={{$credentials.server}}/user', headers: { 'User-Agent': 'flowmator' } } },
   },
   {
     name: 'githubOAuth2Api',

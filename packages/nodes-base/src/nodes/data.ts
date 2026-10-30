@@ -1,11 +1,11 @@
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@flowmator/workflow';
 import { deepCopy, fieldList, getValue, isEqual, setValue } from '../utils/object';
 
 const withPair = (item: INodeExecutionData, i: number): INodeExecutionData => ({ ...item, pairedItem: { item: i } });
 
 export const Limit: INodeType = {
   description: {
-    name: '8n8.limit',
+    name: 'flowmator.limit',
     displayName: 'Limit',
     description: 'Restricts the number of items',
     group: ['transform'],
@@ -30,7 +30,7 @@ export const Limit: INodeType = {
 
 export const Sort: INodeType = {
   description: {
-    name: '8n8.sort',
+    name: 'flowmator.sort',
     displayName: 'Sort',
     description: 'Changes the order of items',
     group: ['transform'],
@@ -104,7 +104,7 @@ export const Sort: INodeType = {
 
 export const Aggregate: INodeType = {
   description: {
-    name: '8n8.aggregate',
+    name: 'flowmator.aggregate',
     displayName: 'Aggregate',
     description: 'Combines a field from many items into a list in a single item',
     group: ['transform'],
@@ -216,7 +216,7 @@ export const Aggregate: INodeType = {
 
 export const SplitOut: INodeType = {
   description: {
-    name: '8n8.splitOut',
+    name: 'flowmator.splitOut',
     displayName: 'Split Out',
     description: 'Turns a list inside an item into separate items',
     group: ['transform'],
@@ -285,7 +285,7 @@ export const SplitOut: INodeType = {
 
 export const RemoveDuplicates: INodeType = {
   description: {
-    name: '8n8.removeDuplicates',
+    name: 'flowmator.removeDuplicates',
     displayName: 'Remove Duplicates',
     description: 'Deletes items with matching field values',
     group: ['transform'],

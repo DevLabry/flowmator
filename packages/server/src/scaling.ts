@@ -1,6 +1,6 @@
 import { Job, Queue, QueueEvents, Worker, type RedisOptions as QueueConnection } from 'bullmq';
 import { Redis, type RedisOptions } from 'ioredis';
-import type { ExecutionStatus, INodeExecutionData, IRun, IWebhookResponse } from '@8n8/workflow';
+import type { ExecutionStatus, INodeExecutionData, IRun, IWebhookResponse } from '@flowmator/workflow';
 import type { ServerConfig } from './config';
 import type { QueuedRunRequest } from './execution-service';
 import type { PushEvent } from './push';
@@ -61,7 +61,7 @@ export class ScalingService {
       defaultJobOptions: { attempts: 1, removeOnComplete: true, removeOnFail: { age: 3600 } },
     });
     this.queue.on('error', (e) => console.error(`Queue error: ${e.message}`));
-    this.channel = `${config.queue.prefix}:8n8-events`;
+    this.channel = `${config.queue.prefix}:flowmator-events`;
     this.pub = new Redis(this.connection());
     this.pub.on('error', (e) => console.error(`Redis error: ${e.message}`));
   }

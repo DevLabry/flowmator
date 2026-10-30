@@ -1,12 +1,12 @@
-import type { IDataObject, IExecuteFunctions, IHelpers, IHttpRequestOptions, INodeExecutionData, INodeProperties, NodeParameterValue } from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHelpers, IHttpRequestOptions, INodeExecutionData, INodeProperties, NodeParameterValue } from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { errorItem } from './object';
 
 type Ctx = { helpers: IHelpers };
 
 /** Authenticated JSON request using the credential type the node's "authentication" parameter selects. */
 export function apiRequest<T = any>(ctx: Ctx, credentialType: string, options: IHttpRequestOptions, itemIndex = 0): Promise<T> {
-  return ctx.helpers.httpRequestWithAuthentication(credentialType, { json: true, ...options, headers: { 'User-Agent': '8n8', ...(options.headers ?? {}) } }, itemIndex);
+  return ctx.helpers.httpRequestWithAuthentication(credentialType, { json: true, ...options, headers: { 'User-Agent': 'flowmator', ...(options.headers ?? {}) } }, itemIndex);
 }
 
 /** "Return All" / "Limit" parameters shared by every list operation. */

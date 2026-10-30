@@ -1,4 +1,4 @@
-import type { IDataObject, INodeType, ISupplyDataFunctions } from '@8n8/workflow';
+import type { IDataObject, INodeType, ISupplyDataFunctions } from '@flowmator/workflow';
 import type { ToolSpec } from './llm';
 import { subNode } from './subnodes';
 
@@ -27,7 +27,7 @@ export const ThinkTool: INodeType = {
 
 /* ---------------- Wikipedia ---------------- */
 
-const USER_AGENT = '8n8 workflow automation (https://github.com/8n8)';
+const USER_AGENT = 'Flowmator workflow automation (https://github.com/flowmator)';
 
 export const WikipediaTool: INodeType = {
   description: {

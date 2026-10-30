@@ -1,6 +1,6 @@
 import pg from 'pg';
-import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType } from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties, INodeType } from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { errorItem } from '../../utils/object';
 
 export interface PgCreds {
@@ -82,7 +82,7 @@ export function pgPool(creds: PgCreds) {
 
 export const Postgres: INodeType = {
   description: {
-    name: '8n8.postgres',
+    name: 'flowmator.postgres',
     displayName: 'Postgres',
     description: 'Query and modify a PostgreSQL database',
     group: ['input'],

@@ -1,4 +1,4 @@
-import type { ICredentialType } from '@8n8/workflow';
+import type { ICredentialType } from '@flowmator/workflow';
 
 const password = { password: true };
 

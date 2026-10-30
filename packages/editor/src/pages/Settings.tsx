@@ -9,7 +9,7 @@ export function SettingsPage() {
   const settings = useApp((s) => s.settings);
   const [keys, setKeys] = useState<Array<{ id: string; label: string; apiKey: string; createdAt: string }>>([]);
   const [newKey, setNewKey] = useState<string | null>(null);
-  const [theme, setTheme] = useState(() => localStorageGet('8n8-theme') ?? 'system');
+  const [theme, setTheme] = useState(() => localStorageGet('flowmator-theme') ?? 'system');
   const refresh = useCallback(() => Api.apiKeys().then(setKeys, errorToast('Could not load API keys')), []);
   useEffect(() => {
     refresh();
@@ -17,7 +17,7 @@ export function SettingsPage() {
 
   const applyTheme = (t: string) => {
     setTheme(t);
-    localStorageSet('8n8-theme', t);
+    localStorageSet('flowmator-theme', t);
     if (t === 'system') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', t);
   };
@@ -113,5 +113,5 @@ function localStorageSet(k: string, v: string) {
 }
 
 // apply the saved theme on load
-const saved = localStorageGet('8n8-theme');
+const saved = localStorageGet('flowmator-theme');
 if (saved && saved !== 'system') document.documentElement.setAttribute('data-theme', saved);

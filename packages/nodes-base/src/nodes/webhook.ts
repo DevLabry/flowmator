@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 
 const HTTP_METHODS = ['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'].map((m) => ({ name: m, value: m }));
 
@@ -13,7 +13,7 @@ function ipAllowed(ip: string | undefined, whitelist: string): boolean {
 
 export const Webhook: INodeType = {
   description: {
-    name: '8n8.webhook',
+    name: 'flowmator.webhook',
     displayName: 'Webhook',
     description: 'Starts the workflow when a webhook is called',
     group: ['trigger'],
@@ -160,7 +160,7 @@ export const Webhook: INodeType = {
 
 export const RespondToWebhook: INodeType = {
   description: {
-    name: '8n8.respondToWebhook',
+    name: 'flowmator.respondToWebhook',
     displayName: 'Respond to Webhook',
     description: 'Returns data for the webhook that started the workflow',
     group: ['transform'],

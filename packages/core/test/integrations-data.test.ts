@@ -1,7 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { createServer, type AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mongoConnector, parseRedisInfo, s3KeyPath, s3Url, signAws, toObjectIds, type MongoCollection } from '@8n8/nodes-base';
+import { mongoConnector, parseRedisInfo, s3KeyPath, s3Url, signAws, toObjectIds, type MongoCollection } from '@flowmator/nodes-base';
 import { ObjectId } from '../../nodes-base/node_modules/mongodb';
 import { connections, items, makeWorkflow, node, out, run } from './helpers';
 import { calls, creds, credentialsHelper, route, runNode, withCred } from './integration-harness';

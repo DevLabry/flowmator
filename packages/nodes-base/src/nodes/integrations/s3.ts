@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { XMLParser } from 'fast-xml-parser';
-import type { IDataObject, ICredentialType, IExecuteFunctions, INodeProperties, INodeType } from '@8n8/workflow';
+import type { IDataObject, ICredentialType, IExecuteFunctions, INodeProperties, INodeType } from '@flowmator/workflow';
 import { collectPages, forEachItem, forOp, listLimit, operationProp, returnAllProps } from '../../utils/api';
 import { encodeRfc3986, signAws, type AwsCredentials } from '../../utils/aws';
 
@@ -343,14 +343,14 @@ const description = (name: string, displayName: string, description: string, cre
 });
 
 export const AwsS3: INodeType = {
-  description: description('8n8.awsS3', 'AWS S3', 'Upload, download, copy and list files in AWS S3 buckets', 'aws'),
+  description: description('flowmator.awsS3', 'AWS S3', 'Upload, download, copy and list files in AWS S3 buckets', 'aws'),
   execute(this: IExecuteFunctions) {
     return execute.call(this, 'aws');
   },
 };
 
 export const S3: INodeType = {
-  description: description('8n8.s3', 'S3', 'Files in S3-compatible storage: MinIO, Cloudflare R2, Wasabi, Backblaze B2, DigitalOcean Spaces…', 's3'),
+  description: description('flowmator.s3', 'S3', 'Files in S3-compatible storage: MinIO, Cloudflare R2, Wasabi, Backblaze B2, DigitalOcean Spaces…', 's3'),
   execute(this: IExecuteFunctions) {
     return execute.call(this, 's3');
   },

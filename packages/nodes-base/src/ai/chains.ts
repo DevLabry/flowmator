@@ -7,7 +7,7 @@ import {
   type INodeInputConfiguration,
   type INodeParameters,
   type INodeType,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { deepCopy, errorItem } from '../utils/object';
 import type { ChatModel } from './llm';
 import { recursiveSplitter, type AiDocument, type DocumentLoader, type TextSplitter } from './rag';
@@ -18,7 +18,7 @@ import { checkSchema, extractJson, schemaFromExample } from './subnodes';
 const modelInput: INodeInputConfiguration = { type: 'ai_languageModel', displayName: 'Model', required: true, maxConnections: 1 };
 
 const chainNode = (name: string, displayName: string, description: string, icon: string, alias: string[]) => ({
-  name: `8n8-ai.${name}`,
+  name: `flowmator-ai.${name}`,
   displayName,
   description,
   group: ['transform' as const],

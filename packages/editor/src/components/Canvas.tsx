@@ -16,7 +16,7 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
 } from '@xyflow/react';
-import type { ConnectionType, IConnections, INode } from '@8n8/workflow';
+import type { ConnectionType, IConnections, INode } from '@flowmator/workflow';
 import { Play, Plus, Trash2, Square, Copy, MessageCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getNodeType, useApp } from '../store/app';
@@ -309,7 +309,7 @@ function CanvasInner() {
       className="canvas-wrap"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
-        const type = e.dataTransfer.getData('application/8n8-node');
+        const type = e.dataTransfer.getData('application/flowmator-node');
         if (!type) return;
         const p = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
         placeNode(type, [Math.round(p.x - 42), Math.round(p.y - 42)]);

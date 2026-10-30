@@ -26,11 +26,11 @@ importers:
 
   packages/core:
     dependencies:
-      '@8n8/workflow':
+      '@flowmator/workflow':
         specifier: workspace:*
         version: link:../workflow
     devDependencies:
-      '@8n8/nodes-base':
+      '@flowmator/nodes-base':
         specifier: workspace:^
         version: link:../nodes-base
       '@electric-sql/pglite':
@@ -57,7 +57,7 @@ importers:
 
   packages/editor:
     dependencies:
-      '@8n8/workflow':
+      '@flowmator/workflow':
         specifier: workspace:*
         version: link:../workflow
       '@codemirror/autocomplete':
@@ -115,10 +115,10 @@ importers:
 
   packages/nodes-base:
     dependencies:
-      '@8n8/core':
+      '@flowmator/core':
         specifier: workspace:*
         version: link:../core
-      '@8n8/workflow':
+      '@flowmator/workflow':
         specifier: workspace:*
         version: link:../workflow
       '@anthropic-ai/sdk':
@@ -212,13 +212,13 @@ importers:
 
   packages/server:
     dependencies:
-      '@8n8/core':
+      '@flowmator/core':
         specifier: workspace:*
         version: link:../core
-      '@8n8/nodes-base':
+      '@flowmator/nodes-base':
         specifier: workspace:*
         version: link:../nodes-base
-      '@8n8/workflow':
+      '@flowmator/workflow':
         specifier: workspace:*
         version: link:../workflow
       '@fastify/cors':

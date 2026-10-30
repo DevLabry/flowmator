@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeExecutionData, INodeType } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeExecutionData, INodeType } from '@flowmator/workflow';
 import { forEachItem, forOp, operationProp } from '../utils/api';
 
 interface OpenAiCreds {
@@ -37,7 +37,7 @@ const textOf = (content: unknown) => (Array.isArray(content) ? content.map((p) =
 
 export const OpenAi: INodeType = {
   description: {
-    name: '8n8-ai.openAi',
+    name: 'flowmator-ai.openAi',
     displayName: 'OpenAI',
     description: 'Message models, analyze and generate images, and generate or transcribe audio with OpenAI',
     group: ['transform'],

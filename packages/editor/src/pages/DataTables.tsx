@@ -1,4 +1,4 @@
-import type { DataTableColumnType, DataTableRow, IDataTable, IDataTableColumn } from '@8n8/workflow';
+import type { DataTableColumnType, DataTableRow, IDataTable, IDataTableColumn } from '@flowmator/workflow';
 import { ArrowDown, ArrowLeft, ArrowUp, Calendar, ChevronLeft, ChevronRight, Download, Hash, MoreHorizontal, Plus, Search, Table2, ToggleLeft, Trash2, Type, Upload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -143,7 +143,7 @@ export function DataTablesPage() {
       <div className="page-header">
         <div>
           <h1>Data tables</h1>
-          <div className="muted" style={{ marginTop: 4 }}>Tables stored by 8n8. Read and write them from workflows with the Data Table node.</div>
+          <div className="muted" style={{ marginTop: 4 }}>Tables stored by Flowmator. Read and write them from workflows with the Data Table node.</div>
         </div>
         <button className="primary" onClick={() => setCreating(true)}><Plus size={14} /> Create data table</button>
       </div>

@@ -1,5 +1,5 @@
 {
-  "name": "@8n8/nodes-base",
+  "name": "@flowmator/nodes-base",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
@@ -10,8 +10,8 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@8n8/core": "workspace:*",
-    "@8n8/workflow": "workspace:*",
+    "@flowmator/core": "workspace:*",
+    "@flowmator/workflow": "workspace:*",
     "@anthropic-ai/sdk": "^1.3.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "basic-ftp": "6.2.3",

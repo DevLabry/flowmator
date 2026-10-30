@@ -1,4 +1,4 @@
-import type { ICredentialType, INodeType } from '@8n8/workflow';
+import type { ICredentialType, INodeType } from '@flowmator/workflow';
 import { Code } from './nodes/code';
 import { Aggregate, Limit, RemoveDuplicates, Sort, SplitOut } from './nodes/data';
 import { DataTable } from './nodes/data-table';

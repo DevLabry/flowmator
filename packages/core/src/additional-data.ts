@@ -12,7 +12,7 @@ import type {
   IRun,
   ITaskData,
   IWebhookResponse,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { BinaryDataStore } from './binary-data';
 
 export interface ICredentialsHelper {

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../components/ui';
 import { Api, Templates, type TemplateSummary } from '../lib/api';
-import { errorToast, useApp } from '../store/app';
+import { errorToast, localNodeType, useApp } from '../store/app';
 
 /** Browse n8n's public template library and import a template as a new workflow. */
 export function TemplatesPage() {
@@ -92,10 +92,9 @@ function TemplateModal({ template, onClose }: { template: TemplateSummary; onClo
     }
   };
 
-  // nodes 8n8 doesn't have yet are imported anyway, but flagged here
+  // nodes Flowmator doesn't have yet are imported anyway, but flagged here
   const missing = [...new Set((detail?.nodes ?? template.nodes ?? []).map((n) => n.name))].filter((n) => {
-    const name = n.replace(/^n8n-nodes-base\./, '8n8.').replace(/^@n8n\/n8n-nodes-langchain\./, '8n8-ai.');
-    return !nodeTypes[name];
+    return !nodeTypes[localNodeType(n)];
   });
 
   return (
@@ -104,7 +103,7 @@ function TemplateModal({ template, onClose }: { template: TemplateSummary; onClo
         <div className="row" style={{ flexWrap: 'wrap', gap: 4 }}>
           {[...new Set((detail?.nodes ?? template.nodes ?? []).map((n) => n.displayName))].map((n) => <span key={n} className="badge">{n}</span>)}
         </div>
-        {missing.length > 0 && <div className="card text-danger" style={{ padding: 10 }}>Not available in 8n8: {missing.join(', ')}</div>}
+        {missing.length > 0 && <div className="card text-danger" style={{ padding: 10 }}>Not available in Flowmator: {missing.join(', ')}</div>}
         <div className="muted" style={{ whiteSpace: 'pre-wrap', maxHeight: 380, overflow: 'auto' }}>{detail?.description ?? template.description ?? 'Loading…'}</div>
       </div>
     </Modal>

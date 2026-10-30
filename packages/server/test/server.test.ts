@@ -38,7 +38,7 @@ function startEcho() {
 }
 
 beforeAll(async () => {
-  dir = mkdtempSync(path.join(os.tmpdir(), '8n8-test-'));
+  dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-test-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
   app.ctx.executions.start();
   await startEcho();
@@ -66,7 +66,7 @@ let n = 0;
 const node = (name: string, type: string, parameters: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({
   id: `n${++n}`,
   name,
-  type: `8n8.${type}`,
+  type: `flowmator.${type}`,
   typeVersion: 1,
   position: [0, 0],
   parameters,
@@ -123,7 +123,7 @@ describe('workflows', () => {
       connections: {},
       tags: [{ name: 'imported' }],
     });
-    expect(res.body.data[0].nodes[0].type).toBe('8n8.manualTrigger');
+    expect(res.body.data[0].nodes[0].type).toBe('flowmator.manualTrigger');
     expect(res.body.data[0].tags).toEqual(['imported']);
   });
 });
@@ -213,7 +213,7 @@ describe('production webhooks', () => {
   it('turns multipart uploads into binary data', async () => {
     const wf = await createWorkflow({ name: 'Upload', nodes: [node('Webhook', 'webhook', { httpMethod: 'POST', path: 'upload', responseMode: 'lastNode' })], connections: {} });
     await api('POST', `/rest/workflows/${wf.id}/activate`);
-    const boundary = '----8n8test';
+    const boundary = '----flowmatortest';
     const payload =
       `--${boundary}\r\nContent-Disposition: form-data; name="title"\r\n\r\nReport\r\n` +
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="a.txt"\r\nContent-Type: text/plain\r\n\r\nhello file\r\n--${boundary}--\r\n`;
@@ -277,8 +277,8 @@ describe('credentials and HTTP Request', () => {
   it('never returns secrets and keeps them when saving the redacted form', async () => {
     const created = (await api('POST', '/rest/credentials', { name: 'API', type: 'httpBearerAuth', data: { token: 'abc123' } })).body.data;
     const read = (await api('GET', `/rest/credentials/${created.id}?includeData=true`)).body.data;
-    expect(read.data.token).toBe('__8N8_REDACTED__');
-    await api('PATCH', `/rest/credentials/${created.id}`, { name: 'API 2', data: { token: '__8N8_REDACTED__' } });
+    expect(read.data.token).toBe('__FLOWMATOR_REDACTED__');
+    await api('PATCH', `/rest/credentials/${created.id}`, { name: 'API 2', data: { token: '__FLOWMATOR_REDACTED__' } });
     expect(app.ctx.credentials.getDecrypted(created.id).token).toBe('abc123');
   });
 
@@ -412,7 +412,7 @@ describe('variables', () => {
 
 describe('forms', () => {
   const multipart = (fields: Array<[string, string]>) => {
-    const boundary = '----8n8form';
+    const boundary = '----flowmatorform';
     const body = fields.map(([k, v]) => `--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`).join('') + `--${boundary}--\r\n`;
     return { body, headers: { 'content-type': `multipart/form-data; boundary=${boundary}` } };
   };
@@ -523,8 +523,8 @@ describe('chat trigger', () => {
     ],
     connections: chain('Chat', 'Reply'),
   });
-  // chat nodes live in the AI package (8n8-ai.*)
-  const asAi = (wf: ReturnType<typeof chatWorkflow>) => ({ ...wf, nodes: wf.nodes.map((n) => (n.name === 'Chat' ? { ...n, type: '8n8-ai.chatTrigger' } : n)) });
+  // chat nodes live in the AI package (flowmator-ai.*)
+  const asAi = (wf: ReturnType<typeof chatWorkflow>) => ({ ...wf, nodes: wf.nodes.map((n) => (n.name === 'Chat' ? { ...n, type: 'flowmator-ai.chatTrigger' } : n)) });
 
   it('serves a public chat page and answers messages', async () => {
     const wf = await createWorkflow({ name: 'Public chat', ...asAi(chatWorkflow(true)) });

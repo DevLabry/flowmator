@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, INodeProperties, INodeTypeDescription } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, INodeProperties, INodeTypeDescription } from '@flowmator/workflow';
 import { apiRequest } from '../../utils/api';
 
 /** OAuth2 (per-service credential) or a service account, like the other Google nodes. */

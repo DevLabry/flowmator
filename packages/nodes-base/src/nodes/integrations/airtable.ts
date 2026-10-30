@@ -1,4 +1,4 @@
-import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeProperties, INodeType } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHttpRequestOptions, ILoadOptionsFunctions, INodeProperties, INodeType } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 const API = 'https://api.airtable.com/v0';
@@ -48,7 +48,7 @@ const fieldsInput: INodeProperties[] = [
 
 export const Airtable: INodeType = {
   description: {
-    name: '8n8.airtable',
+    name: 'flowmator.airtable',
     displayName: 'Airtable',
     description: 'Read, create, update and delete Airtable records',
     group: ['input'],

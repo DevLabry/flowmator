@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import type { IBinaryData, IDataObject, IExecuteFunctions, IHelpers, INodeExecutionData, INodeProperties, INodeType, IPollFunctions } from '@8n8/workflow';
+import type { IBinaryData, IDataObject, IExecuteFunctions, IHelpers, INodeExecutionData, INodeProperties, INodeType, IPollFunctions } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, pollTimesProp, returnAllProps } from '../../utils/api';
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
@@ -24,7 +24,7 @@ export interface MailInput {
 /** RFC 2047 encoded-word for non-ASCII header values. */
 const encodeHeader = (v: string) => (/^[\x20-\x7e]*$/.test(v) ? v : `=?UTF-8?B?${Buffer.from(v, 'utf8').toString('base64')}?=`);
 const wrap76 = (b64: string) => b64.replace(/.{1,76}/g, '$&\r\n').trimEnd();
-const boundary = () => `8n8_${randomBytes(12).toString('hex')}`;
+const boundary = () => `flowmator_${randomBytes(12).toString('hex')}`;
 
 function bodyPart(contentType: string, content: string) {
   return `Content-Type: ${contentType}; charset="UTF-8"\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(Buffer.from(content, 'utf8').toString('base64'))}`;
@@ -192,7 +192,7 @@ const composeProps = (ops: string[]): INodeProperties[] =>
 
 export const Gmail: INodeType = {
   description: {
-    name: '8n8.gmail',
+    name: 'flowmator.gmail',
     displayName: 'Gmail',
     description: 'Send, read and organize Gmail messages',
     group: ['transform'],
@@ -327,7 +327,7 @@ export const Gmail: INodeType = {
 
 export const GmailTrigger: INodeType = {
   description: {
-    name: '8n8.gmailTrigger',
+    name: 'flowmator.gmailTrigger',
     displayName: 'Gmail Trigger',
     description: 'Starts the workflow when new emails arrive (checks on a schedule)',
     group: ['trigger'],

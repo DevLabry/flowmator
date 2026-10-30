@@ -10,7 +10,7 @@ import type {
   ISupplyDataFunctions,
   IWebhookFunctions,
   IWebhookResult,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { toToolName, type ToolSpec } from './llm';
 import { subNode } from './subnodes';
 
@@ -60,7 +60,7 @@ interface McpTool {
 
 async function connect(endpoint: string, transport: string, headers: Record<string, string>, timeoutMs: number) {
   if (!/^https?:\/\//.test(endpoint)) throw new Error('The SSE / HTTP endpoint must be an http(s) URL');
-  const client = new Client({ name: '8n8-mcp-client', version: '1.0.0' });
+  const client = new Client({ name: 'flowmator-mcp-client', version: '1.0.0' });
   const url = new URL(endpoint);
   const requestInit = { headers };
   const t =
@@ -183,7 +183,7 @@ const rpcError = (id: JsonRpcRequest['id'], code: number, message: string) => ({
  */
 export const McpServerTrigger: INodeType = {
   description: {
-    name: '8n8-ai.mcpTrigger',
+    name: 'flowmator-ai.mcpTrigger',
     displayName: 'MCP Server Trigger',
     description: 'Lets MCP clients (Claude, IDEs, other agents) call the tools connected to this node',
     group: ['trigger'],
@@ -230,7 +230,7 @@ export const McpServerTrigger: INodeType = {
           return rpcResult(m.id, {
             protocolVersion: SUPPORTED_PROTOCOL_VERSIONS.includes(asked) ? asked : LATEST_PROTOCOL_VERSION,
             capabilities: { tools: { listChanged: false } },
-            serverInfo: { name: `8n8 · ${this.getWorkflow().name}`, version: '1.0.0' },
+            serverInfo: { name: `flowmator · ${this.getWorkflow().name}`, version: '1.0.0' },
           });
         }
         case 'ping':

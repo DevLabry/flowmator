@@ -1,6 +1,6 @@
 import { createVerify, generateKeyPairSync } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
-import type { IConnections, INode } from '@8n8/workflow';
+import type { IConnections, INode } from '@flowmator/workflow';
 import { items, makeWorkflow, node, out as rawOut, run } from './helpers';
 import { calls, creds, credentialsHelper, route, withCred } from './integration-harness';
 
@@ -71,7 +71,7 @@ creds.weaviateApi = { connection_type: 'weaviate_cloud', weaviate_cloud_endpoint
 creds.milvusApi = { baseUrl: 'https://milvus.test', username: 'root', password: 'Milvus' };
 creds.redis = { host: 'localhost', port: 6379 };
 
-const sub = (name: string, type: string, params: Record<string, unknown> = {}, cred?: string) => node(name, `8n8-ai.${type}`, params, cred ? withCred(cred) : {});
+const sub = (name: string, type: string, params: Record<string, unknown> = {}, cred?: string) => node(name, `flowmator-ai.${type}`, params, cred ? withCred(cred) : {});
 
 function wire(main: Array<[string, string]>, ai: Array<[string, string, string]>): IConnections {
   const c: IConnections = {};
@@ -88,7 +88,7 @@ const exec = async (wf: ReturnType<typeof makeWorkflow>, input = items({})) => {
 
 const extractWith = (m: INode) =>
   makeWorkflow(
-    [node('Trigger', 'manualTrigger'), node('Extract', '8n8-ai.informationExtractor', { text: 'Bob is 30', schemaType: 'fromAttributes', attributes: { attributes: [{ name: 'age', type: 'number' }] } }), m],
+    [node('Trigger', 'manualTrigger'), node('Extract', 'flowmator-ai.informationExtractor', { text: 'Bob is 30', schemaType: 'fromAttributes', attributes: { attributes: [{ name: 'age', type: 'number' }] } }), m],
     wire([['Trigger', 'Extract']], [[m.name, 'Extract', 'ai_languageModel']]),
   );
 const openAiReply = (content: string) => ({ choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop' }], usage: { prompt_tokens: 3, completion_tokens: 2 } });

@@ -39,7 +39,7 @@ export function syslogMessage(d: Pick<SyslogDestination, 'facility' | 'app_name'
   const severity = /failed|crashed|error/.test(e.eventName) ? 3 : 6;
   const pri = (Number(d.facility ?? 16) || 0) * 8 + severity;
   const data = JSON.stringify({ ...e.payload, eventName: e.eventName, id: e.id });
-  return `<${pri}>1 ${e.ts} ${os.hostname()} ${d.app_name || '8n8'} ${process.pid} ${e.eventName} - ${data}`;
+  return `<${pri}>1 ${e.ts} ${os.hostname()} ${d.app_name || 'flowmator'} ${process.pid} ${e.eventName} - ${data}`;
 }
 
 /** Sentry DSN → envelope endpoint and auth header. */
@@ -49,7 +49,7 @@ export function sentryEndpoint(dsn: string) {
   const prefix = u.pathname.replace(/\/[^/]*$/, '');
   return {
     url: `${u.protocol}//${u.host}${prefix}/api/${projectId}/envelope/`,
-    auth: `Sentry sentry_version=7, sentry_client=8n8/0.1, sentry_key=${u.username}`,
+    auth: `Sentry sentry_version=7, sentry_client=flowmator/0.1, sentry_key=${u.username}`,
     dsn,
   };
 }
@@ -89,7 +89,7 @@ async function sendTo(d: Destination, e: BusEvent) {
   const s = sentryEndpoint(d.dsn);
   const eventId = randomUUID().replace(/-/g, '');
   const level = /failed|crashed|error/.test(e.eventName) ? 'error' : 'info';
-  const event = { event_id: eventId, timestamp: e.ts, platform: 'node', level, logger: '8n8', message: { formatted: e.eventName }, tags: { eventName: e.eventName }, extra: e.payload, server_name: os.hostname() };
+  const event = { event_id: eventId, timestamp: e.ts, platform: 'node', level, logger: 'flowmator', message: { formatted: e.eventName }, tags: { eventName: e.eventName }, extra: e.payload, server_name: os.hostname() };
   const body = [JSON.stringify({ event_id: eventId, sent_at: new Date().toISOString(), dsn: s.dsn }), JSON.stringify({ type: 'event' }), JSON.stringify(event)].join('\n');
   const res = await fetch(s.url, { method: 'POST', headers: { 'content-type': 'application/x-sentry-envelope', 'x-sentry-auth': s.auth }, body, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`Sentry HTTP ${res.status}`);
@@ -120,7 +120,7 @@ export class LogStreamingService {
       d.type === '$$MessageEventBusDestinationWebhook'
         ? { url: '', method: 'POST', headers: [] }
         : d.type === '$$MessageEventBusDestinationSyslog'
-          ? { host: '127.0.0.1', port: 514, protocol: 'udp', facility: 16, app_name: '8n8' }
+          ? { host: '127.0.0.1', port: 514, protocol: 'udp', facility: 16, app_name: 'flowmator' }
           : { dsn: '' };
     const existing = d.id ? all.find((x) => x.id === d.id) : undefined;
     const merged = { ...defaults, ...typeDefaults, ...existing, ...d } as Destination;
@@ -145,7 +145,7 @@ export class LogStreamingService {
     const d = this.list().find((x) => x.id === id);
     if (!d) return false;
     try {
-      await sendTo(d, { __type: '$$EventMessageAudit', id: randomUUID(), ts: new Date().toISOString(), eventName: 'n8n.destination.test', message: 'n8n.destination.test', payload: { msg: 'Test message from 8n8' } });
+      await sendTo(d, { __type: '$$EventMessageAudit', id: randomUUID(), ts: new Date().toISOString(), eventName: 'n8n.destination.test', message: 'n8n.destination.test', payload: { msg: 'Test message from Flowmator' } });
       this.errors.delete(id);
       return true;
     } catch (e) {

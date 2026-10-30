@@ -14,7 +14,7 @@ import {
   type IWebhookFunctions,
   type IWebhookRequest,
   type ConnectionType,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { BaseNodeContext, ExecuteContext, type BaseContextParams } from './node-context';
 
 /** Parameter resolution outside of an item context (triggers, pollers, webhooks): expressions see no input data. */

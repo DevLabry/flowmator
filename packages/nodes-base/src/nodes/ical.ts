@@ -1,4 +1,4 @@
-import type { IDataObject } from '@8n8/workflow';
+import type { IDataObject } from '@flowmator/workflow';
 
 /* ---------------- iCalendar (RFC 5545) ---------------- */
 
@@ -64,7 +64,7 @@ const mailto = (who: string) => {
 };
 
 export function buildIcs(events: IcsEvent[], calName?: string) {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//8n8//8n8//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//flowmator//flowmator//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
   if (calName) lines.push(`X-WR-CALNAME:${escapeText(calName)}`);
   const now = utcStamp(new Date());
   for (const e of events) {

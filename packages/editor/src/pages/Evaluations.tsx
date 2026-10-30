@@ -6,8 +6,8 @@ import { Api, type TestCaseExecution, type TestRun } from '../lib/api';
 import { errorToast } from '../store/app';
 import { useWorkflow } from '../store/workflow';
 
-const EVALUATION_TRIGGER = '8n8.evaluationTrigger';
-const EVALUATION_NODE = '8n8.evaluation';
+const EVALUATION_TRIGGER = 'flowmator.evaluationTrigger';
+const EVALUATION_NODE = 'flowmator.evaluation';
 
 const RUN_STATUS: Record<string, [string, string]> = {
   new: ['', 'Queued'],

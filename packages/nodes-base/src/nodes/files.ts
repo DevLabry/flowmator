@@ -5,7 +5,7 @@ import { load } from 'cheerio';
 import ExcelJS from 'exceljs';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@flowmator/workflow';
 import { deepCopy, getValue, setValue } from '../utils/object';
 import { buildIcs, parseIcs, type IcsEvent } from './ical';
 import { perItem } from './markup';
@@ -14,7 +14,7 @@ import { perItem } from './markup';
 
 /**
  * N8N_RESTRICT_FILE_ACCESS_TO (";"-separated dirs) limits where file nodes may read/write.
- * The 8n8 data folder (database, encryption key) is always off limits unless
+ * The Flowmator data folder (database, encryption key) is always off limits unless
  * N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES=false.
  */
 export function assertFileAccess(filePath: string) {
@@ -24,8 +24,11 @@ export function assertFileAccess(filePath: string) {
     throw new Error(`Access to "${resolved}" is not allowed. Allowed folders: ${allowed.join(', ')}`);
   }
   if (process.env.N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES !== 'false') {
-    const dataDir = path.resolve(process.env.N8N_USER_FOLDER ?? path.join(os.homedir(), '.8n8'));
-    if (resolved === dataDir || resolved.startsWith(dataDir + path.sep)) throw new Error(`Access to the 8n8 data folder is not allowed: ${resolved}`);
+    // ~/.8n8 is where installs from before the rename keep their data
+    const dataDirs = process.env.N8N_USER_FOLDER ? [process.env.N8N_USER_FOLDER] : [path.join(os.homedir(), '.flowmator'), path.join(os.homedir(), '.8n8')];
+    for (const dir of dataDirs.map((d) => path.resolve(d))) {
+      if (resolved === dir || resolved.startsWith(dir + path.sep)) throw new Error(`Access to the Flowmator data folder is not allowed: ${resolved}`);
+    }
   }
   return resolved;
 }
@@ -34,9 +37,9 @@ export function assertFileAccess(filePath: string) {
 
 export const ReadWriteFile: INodeType = {
   description: {
-    name: '8n8.readWriteFile',
+    name: 'flowmator.readWriteFile',
     displayName: 'Read/Write Files from Disk',
-    description: 'Reads files from or writes files to the computer running 8n8',
+    description: 'Reads files from or writes files to the computer running Flowmator',
     group: ['input'],
     version: 1,
     defaults: { name: 'Read/Write Files from Disk', color: '#2244FF' },
@@ -161,7 +164,7 @@ const SHEET_MIME = { ods: 'application/vnd.oasis.opendocument.spreadsheet', rtf:
 
 export const ExtractFromFile: INodeType = {
   description: {
-    name: '8n8.extractFromFile',
+    name: 'flowmator.extractFromFile',
     displayName: 'Extract from File',
     description: 'Turns a binary file (CSV, XLSX, ODS, PDF, JSON, HTML, iCal, text) into item data',
     group: ['input'],
@@ -282,7 +285,7 @@ export const ExtractFromFile: INodeType = {
 
 export const ConvertToFile: INodeType = {
   description: {
-    name: '8n8.convertToFile',
+    name: 'flowmator.convertToFile',
     displayName: 'Convert to File',
     description: 'Turns item data into a binary file (CSV, XLSX, ODS, JSON, HTML, iCal, text)',
     group: ['input'],

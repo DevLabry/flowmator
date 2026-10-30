@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createSign, randomBytes } from 'node:crypto';
-import type { CredentialTypesRegistry, ICredentialsHelper } from '@8n8/core';
-import { httpRequest } from '@8n8/core';
+import type { CredentialTypesRegistry, ICredentialsHelper } from '@flowmator/core';
+import { httpRequest } from '@flowmator/core';
 import {
   evaluateExpression,
   isExpression,
@@ -9,7 +9,7 @@ import {
   type IDataObject,
   type IHttpRequestOptions,
   type INode,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { CredentialEntity, Database } from './db';
 
 /** AES-256-GCM; output is base64(iv | tag | ciphertext). */
@@ -32,7 +32,7 @@ export class Cipher {
   }
 }
 
-export const REDACTED = '__8N8_REDACTED__';
+export const REDACTED = '__FLOWMATOR_REDACTED__';
 
 export class CredentialsService {
   constructor(

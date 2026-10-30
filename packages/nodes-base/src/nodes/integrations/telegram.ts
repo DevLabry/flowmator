@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { IDataObject, IExecuteFunctions, IHookFunctions, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHookFunctions, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 import { forEachItem, forOp, jsonParam, operationProp } from '../../utils/api';
 
 interface TelegramCreds {
@@ -28,7 +28,7 @@ const chatIdProp = { displayName: 'Chat ID', name: 'chatId', type: 'string' as c
 
 export const Telegram: INodeType = {
   description: {
-    name: '8n8.telegram',
+    name: 'flowmator.telegram',
     displayName: 'Telegram',
     description: 'Send and manage messages with a Telegram bot',
     group: ['output'],
@@ -145,7 +145,7 @@ const secretFor = (ctx: IHookFunctions | IWebhookFunctions) => createHash('sha25
 
 export const TelegramTrigger: INodeType = {
   description: {
-    name: '8n8.telegramTrigger',
+    name: 'flowmator.telegramTrigger',
     displayName: 'Telegram Trigger',
     description: 'Starts the workflow when your bot receives an update (needs a public HTTPS URL)',
     group: ['trigger'],

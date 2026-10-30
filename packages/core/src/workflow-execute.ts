@@ -13,7 +13,7 @@ import {
   type ITaskData,
   type NodeErrorJson,
   type Workflow,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { IWorkflowExecuteAdditionalData } from './additional-data';
 import { ExecuteContext } from './node-context';
 import { PollContext, TriggerContext } from './trigger-context';

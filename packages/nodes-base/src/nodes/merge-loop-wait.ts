@@ -5,7 +5,7 @@ import {
   type INodeExecutionData,
   type INodeType,
   type IWebhookFunctions,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { DateTime } from 'luxon';
 import { getValue, isEqual } from '../utils/object';
 
@@ -13,7 +13,7 @@ const pair = (item: INodeExecutionData, i: number, input = 0): INodeExecutionDat
 
 export const Merge: INodeType = {
   description: {
-    name: '8n8.merge',
+    name: 'flowmator.merge',
     displayName: 'Merge',
     description: 'Combines data from several inputs once data from all of them is available',
     group: ['transform'],
@@ -300,7 +300,7 @@ interface LoopContext extends IDataObject {
 
 export const LoopOverItems: INodeType = {
   description: {
-    name: '8n8.splitInBatches',
+    name: 'flowmator.splitInBatches',
     displayName: 'Loop Over Items (Split in Batches)',
     description: 'Splits data into batches and iterates over each batch',
     group: ['organization'],
@@ -357,7 +357,7 @@ const IN_PROCESS_WAIT_LIMIT_MS = 65_000;
 
 export const Wait: INodeType = {
   description: {
-    name: '8n8.wait',
+    name: 'flowmator.wait',
     displayName: 'Wait',
     description: 'Pauses the workflow for a time, until a date, or until a webhook or form is received',
     group: ['organization'],

@@ -9,7 +9,7 @@ import {
   type INodeType,
   type ISupplyDataFunctions,
   type ConnectionType,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { errorItem } from '../utils/object';
 import { pgPool, type PgCreds } from '../nodes/integrations/postgres';
 import { toToolName, type ChatModel, type ToolSpec } from './llm';
@@ -515,7 +515,7 @@ export function vectorStoreNode(spec: VectorStoreSpec): INodeType {
 
   return {
     description: {
-      name: `8n8-ai.${spec.name}`,
+      name: `flowmator-ai.${spec.name}`,
       displayName: spec.displayName,
       description: spec.description,
       group: ['transform'],
@@ -920,7 +920,7 @@ Context: {context}`;
 
 export const RetrievalQaChain: INodeType = {
   description: {
-    name: '8n8-ai.chainRetrievalQa',
+    name: 'flowmator-ai.chainRetrievalQa',
     displayName: 'Question and Answer Chain',
     description: 'Answers a question with documents found by a retriever',
     group: ['transform'],
@@ -960,7 +960,7 @@ export const RetrievalQaChain: INodeType = {
 
 export const BasicLlmChain: INodeType = {
   description: {
-    name: '8n8-ai.chainLlm',
+    name: 'flowmator-ai.chainLlm',
     displayName: 'Basic LLM Chain',
     description: 'Sends a prompt to a chat model and returns its answer',
     group: ['transform'],

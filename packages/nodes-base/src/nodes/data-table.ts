@@ -12,8 +12,8 @@ import type {
   INodeProperties,
   INodeType,
   ResourceMapperValue,
-} from '@8n8/workflow';
-import { NodeOperationError } from '@8n8/workflow';
+} from '@flowmator/workflow';
+import { NodeOperationError } from '@flowmator/workflow';
 import { forEachItem, forOp, operationProp } from '../utils/api';
 import { errorItem } from '../utils/object';
 
@@ -129,9 +129,9 @@ async function tableForLoadOptions(ctx: ILoadOptionsFunctions): Promise<IDataTab
 
 export const DataTable: INodeType = {
   description: {
-    name: '8n8.dataTable',
+    name: 'flowmator.dataTable',
     displayName: 'Data Table',
-    description: 'Store and read rows in a data table kept by 8n8',
+    description: 'Store and read rows in a data table kept by Flowmator',
     group: ['input', 'transform'],
     version: 1,
     defaults: { name: 'Data Table', color: '#7C4DFF' },

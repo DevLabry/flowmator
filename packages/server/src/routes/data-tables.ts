@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { DataTableColumnType, DataTableRow, IDataTableFilter } from '@8n8/workflow';
+import type { DataTableColumnType, DataTableRow, IDataTableFilter } from '@flowmator/workflow';
 import type { AppContext } from '../context';
 import type { DataTableService } from '../data-tables';
 

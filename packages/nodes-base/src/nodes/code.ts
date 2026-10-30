@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { errorItem } from '../utils/object';
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@flowmator/workflow';
 
 const nodeRequire = createRequire(import.meta.url);
 
@@ -101,7 +101,7 @@ ${code.split('\n').map((l) => `    ${l}`).join('\n')}
 _scope = {"_input": _input, "_json": _json}
 globals().update(_scope)
 __r = __user()
-print("__8n8_RESULT__" + json.dumps(__r, default=str))
+print("__flowmator_RESULT__" + json.dumps(__r, default=str))
 `;
   return new Promise((resolve, reject) => {
     const proc = spawn(process.env.N8N_PYTHON_BIN ?? 'python3', ['-c', runner], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -111,9 +111,9 @@ print("__8n8_RESULT__" + json.dumps(__r, default=str))
     proc.stderr.on('data', (d) => (err += d));
     proc.on('error', reject);
     proc.on('close', (code) => {
-      const marker = out.lastIndexOf('__8n8_RESULT__');
+      const marker = out.lastIndexOf('__flowmator_RESULT__');
       if (code !== 0 || marker === -1) return reject(new Error(err.trim() || `Python exited with code ${code}`));
-      resolve(JSON.parse(out.slice(marker + '__8n8_RESULT__'.length)));
+      resolve(JSON.parse(out.slice(marker + '__flowmator_RESULT__'.length)));
     });
     proc.stdin.end(JSON.stringify(input));
   });
@@ -121,7 +121,7 @@ print("__8n8_RESULT__" + json.dumps(__r, default=str))
 
 export const Code: INodeType = {
   description: {
-    name: '8n8.code',
+    name: 'flowmator.code',
     displayName: 'Code',
     description: 'Run custom JavaScript or Python code',
     group: ['transform'],

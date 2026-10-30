@@ -1,15 +1,15 @@
 import path from 'node:path';
 import { watch } from 'chokidar';
-import type { IDataObject, INodeType, ITriggerFunctions } from '@8n8/workflow';
+import type { IDataObject, INodeType, ITriggerFunctions } from '@flowmator/workflow';
 import { assertFileAccess } from './files';
 
 /* ---------------- Local File Trigger ---------------- */
 
 export const LocalFileTrigger: INodeType = {
   description: {
-    name: '8n8.localFileTrigger',
+    name: 'flowmator.localFileTrigger',
     displayName: 'Local File Trigger',
-    description: 'Starts the workflow when files or folders change on the computer running 8n8',
+    description: 'Starts the workflow when files or folders change on the computer running Flowmator',
     group: ['trigger'],
     version: 1,
     defaults: { name: 'Local File Trigger', color: '#404040' },

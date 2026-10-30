@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { airtableId, buildDriveQuery, buildEvent, dateOnly, driveId, eventTime, matchFormula, mysqlConnector, verifySlackSignature, type MySqlSession } from '@8n8/nodes-base';
-import type { IDataObject, INodeExecutionData, IWebhookRequest } from '@8n8/workflow';
+import { airtableId, buildDriveQuery, buildEvent, dateOnly, driveId, eventTime, matchFormula, mysqlConnector, verifySlackSignature, type MySqlSession } from '@flowmator/nodes-base';
+import type { IDataObject, INodeExecutionData, IWebhookRequest } from '@flowmator/workflow';
 import { PollContext, WebhookContext } from '../src';
 import { additionalData, connections, items, makeWorkflow, node, run } from './helpers';
 import { calls, creds, credentialsHelper, route, runNode, withCred } from './integration-harness';
@@ -48,7 +48,7 @@ function poller(type: string, params: Record<string, unknown>, cred: string) {
   const wf = makeWorkflow([node('T', type, params, withCred(cred))], {});
   const poll = () => {
     const ctx = new PollContext({ workflow: wf, node: wf.getNode('T')!, additionalData: additionalData({ mode: 'trigger', credentialsHelper }) }, () => {});
-    return wf.nodeTypes.getByNameAndVersion(`8n8.${type}`).poll!.call(ctx);
+    return wf.nodeTypes.getByNameAndVersion(`flowmator.${type}`).poll!.call(ctx);
   };
   return Object.assign(poll, { state: () => wf.staticData['node:T'] as IDataObject });
 }
@@ -68,7 +68,7 @@ describe('Slack Trigger', () => {
     const wf = makeWorkflow([node('Slack', 'slackTrigger', params, withCred('slackApi'))], {});
     const request: IWebhookRequest = { method: 'POST', path: 'x', headers: headers ?? sign(raw), query: {}, params: {}, body, rawBody: Buffer.from(raw) };
     const ctx = new WebhookContext({ workflow: wf, node: wf.getNode('Slack')!, additionalData: additionalData({ mode: 'webhook', credentialsHelper }) }, request, 'default', () => '');
-    return wf.nodeTypes.getByNameAndVersion('8n8.slackTrigger').webhook!.call(ctx);
+    return wf.nodeTypes.getByNameAndVersion('flowmator.slackTrigger').webhook!.call(ctx);
   }
   const message = (event: IDataObject) => ({ type: 'event_callback', team_id: 'T1', event_id: 'Ev1', event: { type: 'message', channel: 'C1', user: 'U1', text: 'hi', ts: '1.1', ...event } });
 
@@ -410,7 +410,7 @@ describe('OpenAI', () => {
   it('messages a model and parses JSON replies', async () => {
     route(/POST https:\/\/api.openai.com\/v1\/chat\/completions/, () => ({ choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: '{"sentiment":"positive"}' } }] }));
     const [res] = await runNode(
-      '8n8-ai.openAi',
+      'flowmator-ai.openAi',
       { resource: 'text', operation: 'message', modelId: 'gpt-x', messages: { values: [{ role: 'system', content: 'Reply in JSON' }, { role: 'user', content: '={{ $json.review }}' }] }, jsonOutput: true, options: { maxTokens: 50 } },
       'openAiApi',
       items({ review: 'Great!' }),
@@ -423,31 +423,31 @@ describe('OpenAI', () => {
 
   it('generates images and speech as binary data', async () => {
     route(/images\/generations/, () => ({ data: [{ b64_json: Buffer.from('png-bytes').toString('base64') }] }));
-    const [img] = await runItems('8n8-ai.openAi', { resource: 'image', operation: 'generate', imageModel: 'dall-e-3', prompt: 'a fox', options: { size: '1024x1024' } }, 'openAiApi');
+    const [img] = await runItems('flowmator-ai.openAi', { resource: 'image', operation: 'generate', imageModel: 'dall-e-3', prompt: 'a fox', options: { size: '1024x1024' } }, 'openAiApi');
     expect(binaryText(img)).toBe('png-bytes');
     expect(calls[0].body).toEqual({ model: 'dall-e-3', prompt: 'a fox', n: 1, size: '1024x1024', response_format: 'b64_json' });
 
     route(/audio\/speech/, () => new Response('mp3-bytes', { headers: { 'content-type': 'audio/mpeg' } }));
-    const [speech] = await runItems('8n8-ai.openAi', { resource: 'audio', operation: 'generate', input: 'Hello', voice: 'nova' }, 'openAiApi');
+    const [speech] = await runItems('flowmator-ai.openAi', { resource: 'audio', operation: 'generate', input: 'Hello', voice: 'nova' }, 'openAiApi');
     expect(binaryText(speech)).toBe('mp3-bytes');
     expect(speech.binary!.data.mimeType).toBe('audio/mpeg');
   });
 
   it('transcribes audio and analyzes images from binary input', async () => {
     route(/audio\/transcriptions/, () => ({ text: 'hello world' }));
-    const [t] = await runWithFile('8n8-ai.openAi', { resource: 'audio', operation: 'transcribe', binaryPropertyName: 'data', options: { language: 'en' } }, 'openAiApi', { text: 'wav', name: 'a.wav', mime: 'audio/wav' });
+    const [t] = await runWithFile('flowmator-ai.openAi', { resource: 'audio', operation: 'transcribe', binaryPropertyName: 'data', options: { language: 'en' } }, 'openAiApi', { text: 'wav', name: 'a.wav', mime: 'audio/wav' });
     expect(t.json).toEqual({ text: 'hello world' });
     expect(calls[0].form!.get('model')).toBe('whisper-1');
     expect(calls[0].form!.get('language')).toBe('en');
 
     route(/chat\/completions/, () => ({ choices: [{ index: 0, message: { role: 'assistant', content: 'A cat' } }] }));
-    const [a] = await runWithFile('8n8-ai.openAi', { resource: 'image', operation: 'analyze', modelId: 'gpt-x', inputType: 'base64', binaryPropertyName: 'data' }, 'openAiApi', { text: 'img', name: 'c.png', mime: 'image/png' });
+    const [a] = await runWithFile('flowmator-ai.openAi', { resource: 'image', operation: 'analyze', modelId: 'gpt-x', inputType: 'base64', binaryPropertyName: 'data' }, 'openAiApi', { text: 'img', name: 'c.png', mime: 'image/png' });
     expect(a.json).toEqual({ content: 'A cat' });
     expect(calls[1].body.messages[0].content[1].image_url.url).toBe(`data:image/png;base64,${Buffer.from('img').toString('base64')}`);
   });
 
   it('reports API errors', async () => {
     route(/openai/, () => json({ error: { message: 'Incorrect API key provided' } }, 401));
-    await expect(runNode('8n8-ai.openAi', { resource: 'text', operation: 'classify', input: 'x' }, 'openAiApi')).rejects.toThrow('OpenAI error: Incorrect API key provided');
+    await expect(runNode('flowmator-ai.openAi', { resource: 'text', operation: 'classify', input: 'x' }, 'openAiApi')).rejects.toThrow('OpenAI error: Incorrect API key provided');
   });
 });

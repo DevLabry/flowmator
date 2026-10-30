@@ -17,7 +17,7 @@ function onShutdown(label: string, stop: () => Promise<void>) {
   }
 }
 
-/** `8n8 start`: editor, REST/public API, webhooks and triggers. */
+/** `flowmator start`: editor, REST/public API, webhooks and triggers. */
 export async function startMain(overrides: ConfigOverrides = {}) {
   const { start, stop, ctx } = await createApp(overrides);
   const url = await start();
@@ -25,15 +25,15 @@ export async function startMain(overrides: ConfigOverrides = {}) {
   const activeCount = ctx.db.listWorkflows({ active: true }).filter((w) => active.isActive(w.id)).length;
   const { redis } = ctx.config.queue;
 
-  console.log(`8n8 ready on ${url}`);
+  console.log(`Flowmator ready on ${url}`);
   console.log(`  data folder:  ${ctx.config.userFolder}`);
   console.log(`  webhook base: ${ctx.config.webhookUrl}${ctx.config.endpoints.webhook}/`);
   console.log(`  active workflows: ${activeCount}`);
   if (ctx.scaling) console.log(`  queue mode: executions run on workers (redis ${redis.host}:${redis.port})`);
-  onShutdown('8n8', stop);
+  onShutdown('flowmator', stop);
 }
 
-/** `8n8 worker`: runs queued executions. Start as many as you like, on any machine sharing the data folder. */
+/** `flowmator worker`: runs queued executions. Start as many as you like, on any machine sharing the data folder. */
 export async function startWorker(opts: { concurrency: number }, overrides: ConfigOverrides = {}) {
   const ctx = createContext(overrides, 'worker');
   if (!ctx.scaling) throw new Error('Workers need queue mode: set EXECUTIONS_MODE=queue');
@@ -63,7 +63,7 @@ export async function startWorker(opts: { concurrency: number }, overrides: Conf
   }
 
   const { redis } = ctx.config.queue;
-  console.log(`8n8 worker ready (concurrency ${opts.concurrency}, redis ${redis.host}:${redis.port})`);
+  console.log(`Flowmator worker ready (concurrency ${opts.concurrency}, redis ${redis.host}:${redis.port})`);
   console.log(`  data folder: ${ctx.config.userFolder}`);
   if (health) console.log(`  health check: http://localhost:${hc.port}/healthz`);
 
@@ -77,16 +77,16 @@ export async function startWorker(opts: { concurrency: number }, overrides: Conf
     health?.close();
     ctx.db.close();
   };
-  onShutdown('8n8 worker', stop);
+  onShutdown('flowmator worker', stop);
   return { ctx, stop };
 }
 
-/** `8n8 webhook`: production webhooks only, handing executions to the workers. */
+/** `flowmator webhook`: production webhooks only, handing executions to the workers. */
 export async function startWebhookProcess(overrides: ConfigOverrides = {}) {
   const { start, stop, ctx } = await createWebhookApp(overrides);
   const url = await start();
-  console.log(`8n8 webhook process ready on ${url}`);
+  console.log(`Flowmator webhook process ready on ${url}`);
   console.log(`  webhook base: ${ctx.config.webhookUrl}${ctx.config.endpoints.webhook}/`);
   console.log(`  production webhooks: ${ctx.webhooks.listProduction().length}`);
-  onShutdown('8n8 webhook process', stop);
+  onShutdown('flowmator webhook process', stop);
 }

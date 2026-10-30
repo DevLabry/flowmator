@@ -2,7 +2,7 @@ import path from 'node:path/posix';
 import { PassThrough, Readable } from 'node:stream';
 import { Client as FtpClient, FileType, type FileInfo } from 'basic-ftp';
 import ssh2, { type ConnectConfig, type SFTPWrapper, type Stats } from 'ssh2';
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@flowmator/workflow';
 import { deepCopy } from '../utils/object';
 import { perItem } from './markup';
 
@@ -149,7 +149,7 @@ const sshCredentialName = (ctx: IExecuteFunctions) => (ctx.getNodeParameter('aut
 
 export const Ssh: INodeType = {
   description: {
-    name: '8n8.ssh',
+    name: 'flowmator.ssh',
     displayName: 'SSH',
     description: 'Runs commands and moves files on a remote server over SSH',
     group: ['input'],
@@ -314,7 +314,7 @@ async function sftpFs(creds: SshCredentials, signal?: AbortSignal): Promise<Remo
 
 export const Ftp: INodeType = {
   description: {
-    name: '8n8.ftp',
+    name: 'flowmator.ftp',
     displayName: 'FTP',
     description: 'Transfers files over FTP or SFTP',
     group: ['input'],

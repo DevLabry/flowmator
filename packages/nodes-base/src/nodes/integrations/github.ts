@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import type { IDataObject, IExecuteFunctions, IHookFunctions, INodeType, IWebhookFunctions, IWebhookResult } from '@8n8/workflow';
+import type { IDataObject, IExecuteFunctions, IHookFunctions, INodeType, IWebhookFunctions, IWebhookResult } from '@flowmator/workflow';
 import { apiRequest, collectPages, forEachItem, forOp, listLimit, operationProp, returnAllProps } from '../../utils/api';
 
 type Ctx = IExecuteFunctions | IHookFunctions;
@@ -29,7 +29,7 @@ const ownerRepo = [
 
 export const GitHub: INodeType = {
   description: {
-    name: '8n8.github',
+    name: 'flowmator.github',
     displayName: 'GitHub',
     description: 'Work with issues, files, repositories and releases on GitHub',
     group: ['input'],
@@ -238,7 +238,7 @@ const EVENTS = ['*', 'push', 'pull_request', 'pull_request_review', 'pull_reques
 
 export const GitHubTrigger: INodeType = {
   description: {
-    name: '8n8.githubTrigger',
+    name: 'flowmator.githubTrigger',
     displayName: 'GitHub Trigger',
     description: 'Starts the workflow on GitHub events (creates a repository webhook; needs a public URL)',
     group: ['trigger'],
