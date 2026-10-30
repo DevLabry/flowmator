@@ -64,7 +64,11 @@ interface WorkflowState {
   checkpoint(): void;
   undo(): void;
   redo(): void;
-  addNode(type: string, position: [number, number], opts?: { connectFrom?: { node: string; output: number; type?: ConnectionType }; name?: string; parameters?: INodeParameters }): INode | null;
+  addNode(
+    type: string,
+    position: [number, number],
+    opts?: { connectFrom?: { node: string; output: number; type?: ConnectionType }; name?: string; parameters?: INodeParameters; initialParameters?: INodeParameters },
+  ): INode | null;
   addNodes(nodes: INode[], connections: IConnections): string[];
   updateNode(name: string, patch: Partial<INode>): void;
   setParameters(name: string, parameters: INodeParameters): void;
@@ -206,7 +210,7 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
       type,
       typeVersion: version,
       position,
-      parameters: opts.parameters ?? getNodeParametersWithDefaults(d.properties.filter((p) => p.type !== 'notice'), {}, version),
+      parameters: opts.parameters ?? getNodeParametersWithDefaults(d.properties.filter((p) => p.type !== 'notice'), opts.initialParameters ?? {}, version),
       ...(d.hasWebhook ? { webhookId: uid() } : {}),
     };
     set({ workflow: { ...workflow, nodes: [...workflow.nodes, node] }, dirty: true });

@@ -344,7 +344,12 @@ export class WorkflowExecute {
         runIndex,
         contextData: (this.state.contextData ??= {}),
       });
-      const result = await nodeType.execute.call(context);
+      let result;
+      try {
+        result = await nodeType.execute.call(context);
+      } finally {
+        await context.closeSubNodes();
+      }
       if (context.waitTill) {
         this.waitTill = context.waitTill;
         return { output: null, waiting: true };

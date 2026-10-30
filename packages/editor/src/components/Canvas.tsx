@@ -20,7 +20,7 @@ import type { ConnectionType, IConnections, INode } from '@8n8/workflow';
 import { Play, Plus, Trash2, Square, Copy, MessageCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getNodeType, useApp } from '../store/app';
-import { useWorkflow } from '../store/workflow';
+import { staticIO, useWorkflow } from '../store/workflow';
 import { CanvasNode, StickyNode, type CanvasNodeData } from './CanvasNode';
 import { ChatPanel } from './ChatPanel';
 import { NodeCreator } from './NodeCreator';
@@ -34,9 +34,9 @@ function parseHandle(id: string | null | undefined) {
 }
 
 function WorkflowEdge(props: EdgeProps) {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd, style } = props;
-  // loops back to an earlier node: route below instead of through the nodes
-  const backwards = targetX < sourceX - 20;
+  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, sourceHandleId, data, markerEnd, style } = props;
+  // a main connection back to an earlier node: route below instead of through the nodes (sub-node connections run vertically)
+  const backwards = parseHandle(sourceHandleId).type === 'main' && targetX < sourceX - 20;
   let path: string;
   let labelX: number;
   let labelY: number;
@@ -208,10 +208,13 @@ function CanvasInner() {
       const root = s.workflow.nodes.find((n) => n.name === creator.to!.node);
       if (root) {
         const siblings = Object.values(s.workflow.connections).filter((byType) => byType[creator.to!.type as ConnectionType]?.some((t) => t?.some((c) => c.node === root.name))).length;
-        const order = ['ai_languageModel', 'ai_memory', 'ai_tool', 'ai_outputParser'].indexOf(creator.to.type);
-        pos = [root.position[0] - 120 + Math.max(0, order) * 110 + siblings * 100, root.position[1] + 200];
+        // under the input's handle (spread a little so neighbours don't overlap), then right of earlier siblings
+        const aiInputs = (s.nodeIO[root.name] ?? staticIO(root)).inputs.map((i) => (typeof i === 'string' ? i : i.type)).filter((t) => t !== 'main');
+        const n = aiInputs.length;
+        const idx = Math.max(0, aiInputs.indexOf(creator.to.type as ConnectionType));
+        pos = [Math.round(root.position[0] + (280 * (idx + 1)) / (n + 1) - 35 + (idx - (n - 1) / 2) * 60 + siblings * 100), root.position[1] + 200];
       }
-      const sub = s.addNode(type, pos ?? [0, 0]);
+      const sub = s.addNode(type, pos ?? [0, 0], { initialParameters: getNodeType(type)?.subNodeParameters?.[creator.to.type as ConnectionType] });
       if (sub && root) s.connect(sub.name, 0, root.name, 0, creator.to.type as ConnectionType);
       setCreator(null);
       if (sub) s.setOpenNode(sub.name);

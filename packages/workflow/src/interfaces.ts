@@ -201,6 +201,8 @@ export interface IWebhookFunctions extends IBaseFunctions {
   getNodeParameter(name: string, fallback?: unknown, options?: IGetNodeParameterOptions): any;
   getWebhookName(): string;
   getNodeWebhookUrl(name: string): string;
+  /** What sub-nodes connected through `type` supply (e.g. the tools of an MCP Server Trigger). */
+  getInputConnectionData(type: ConnectionType, itemIndex: number): Promise<unknown>;
 }
 
 export interface IWebhookResult {

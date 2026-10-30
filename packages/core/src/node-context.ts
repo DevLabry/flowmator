@@ -198,6 +198,8 @@ export interface ExecuteContextParams extends BaseContextParams {
   executeData: IExecuteData;
   runIndex: number;
   contextData: Record<string, IDataObject>;
+  /** Shared with the sub-node contexts so connections they open are closed with the root node. */
+  closeFunctions?: Array<() => Promise<void>>;
 }
 
 export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions {
@@ -206,6 +208,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
   private readonly executeData: IExecuteData;
   private readonly runIndex: number;
   private readonly contextData: Record<string, IDataObject>;
+  private readonly closeFunctions: Array<() => Promise<void>>;
 
   constructor(p: ExecuteContextParams) {
     super(p);
@@ -213,6 +216,13 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
     this.executeData = p.executeData;
     this.runIndex = p.runIndex;
     this.contextData = p.contextData;
+    this.closeFunctions = p.closeFunctions ?? [];
+  }
+
+  /** Closes what sub-nodes opened (database pools, MCP connections...). Errors are logged, not thrown. */
+  async closeSubNodes() {
+    const fns = this.closeFunctions.splice(0);
+    await Promise.all(fns.map((fn) => fn().catch((e: Error) => this.logger.warn(`Closing a sub-node of "${this.node.name}" failed: ${e.message}`))));
   }
 
   getInputData(inputIndex = 0, type: ConnectionType = 'main'): INodeExecutionData[] {
@@ -347,7 +357,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
   async getInputConnectionData(type: ConnectionType, itemIndex: number): Promise<unknown> {
     const parents = this.workflow.getDirectParents(this.node.name, type);
     const nodeType = this.workflow.nodeTypes.getByNameAndVersion(this.node.type, this.node.typeVersion);
-    const inputConfig = nodeType.description.inputs.find((i) => typeof i !== 'string' && i.type === type);
+    const inputConfig = (nodeType.description.dynamicInputs?.(this.node.parameters) ?? nodeType.description.inputs).find((i) => typeof i !== 'string' && i.type === type);
     const results: unknown[] = [];
     for (const parent of parents) {
       const subNode = this.workflow.getNode(parent.node);
@@ -362,6 +372,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
         executeData: { node: subNode, data: this.executeData.data, source: this.executeData.source },
         runIndex: this.runIndex,
         contextData: this.contextData,
+        closeFunctions: this.closeFunctions,
       }) as unknown as ISupplyDataFunctions;
       let supplied;
       try {
@@ -371,6 +382,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
         const err = e as Error & { description?: string };
         throw new NodeOperationError(this.node, `${subNode.name}: ${err.message}`, { description: err.description, itemIndex });
       }
+      if (supplied.closeFunction) this.closeFunctions.push(supplied.closeFunction);
       results.push(supplied.response);
     }
     if (typeof inputConfig === 'object' && inputConfig.required && results.length === 0) {

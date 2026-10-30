@@ -1,6 +1,6 @@
-import { Handle, NodeResizer, Position, type NodeProps } from '@xyflow/react';
+import { Handle, NodeResizer, Position, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
 import { CircleAlert, Check, Pin, Play, Power, Trash2, Zap, Plus } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { getNodeType } from '../store/app';
 import { staticIO, useWorkflow } from '../store/workflow';
 import { NodeIcon } from './ui';
@@ -22,8 +22,9 @@ function countSubInputs(connections: Record<string, Record<string, Array<Array<{
 }
 const ioLabel = (io: string | { type: string; displayName?: string }) => (typeof io === 'string' ? '' : (io.displayName ?? ''));
 
-export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps) {
+export const CanvasNode = memo(function CanvasNode({ id, data, selected }: NodeProps) {
   const { name, onAddFrom, onAddSubNode } = data as CanvasNodeData;
+  const updateNodeInternals = useUpdateNodeInternals();
   const node = useWorkflow((s) => s.workflow.nodes.find((n) => n.name === name));
   const subInputs = useWorkflow((s) => s.workflow.connections);
   const dynamicIO = useWorkflow((s) => s.nodeIO[name]);
@@ -32,6 +33,9 @@ export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps
   const pinned = useWorkflow((s) => !!s.workflow.pinData?.[name]);
   const connections = useWorkflow((s) => s.workflow.connections[name]);
   const readOnly = useWorkflow((s) => s.readOnly);
+  // handles move when the inputs/outputs change (Switch rules, vector store mode): re-measure them
+  const ioKey = dynamicIO ? JSON.stringify([dynamicIO.inputs, dynamicIO.outputs]) : '';
+  useEffect(() => updateNodeInternals(id), [ioKey, id, updateNodeInternals]);
   if (!node) return null;
 
   const type = getNodeType(node.type);
@@ -41,7 +45,7 @@ export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps
   const mainInputs = io.inputs.filter((i) => ioType(i) === 'main');
   const aiInputs = io.inputs.filter((i) => ioType(i) !== 'main');
   const aiOutputs = outputs.filter((o) => ioType(o) !== 'main');
-  const isSub = !!type?.supplyData;
+  const isSub = !!type?.supplyData && mainOutputs.length === 0;
   const lastRun = runs?.at(-1);
   const itemCount = lastRun?.data?.main?.reduce((sum, o) => sum + (o?.length ?? 0), 0) ?? 0;
   const status = running ? 'running' : lastRun?.error ? 'error' : lastRun ? 'success' : '';

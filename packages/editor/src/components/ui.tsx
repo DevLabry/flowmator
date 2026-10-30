@@ -118,6 +118,12 @@ const ICON_MAP: Record<string, keyof typeof Icons> = {
   'google-sheets': 'Sheet',
   discord: 'Gamepad2',
   airtable: 'TableProperties',
+  gem: 'Gem',
+  'vector-square': 'Waypoints',
+  'grip-lines-vertical': 'SquareSplitVertical',
+  'box-open': 'PackageOpen',
+  link: 'Link',
+  plug: 'Plug',
   'google-drive': 'HardDrive',
   'data-table': 'Table2',
 };

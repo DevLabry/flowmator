@@ -46,9 +46,21 @@ const CATEGORY: Record<string, string> = {
   '8n8.googleSheets': 'Apps',
   '8n8.postgres': 'Apps',
 };
-const ORDER = ['Triggers', 'AI', 'Apps', 'Chat Models', 'Memory', 'Tools', 'Output Parsers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
-const SUB_CATEGORY: Record<string, string> = { ai_languageModel: 'Chat Models', ai_memory: 'Memory', ai_tool: 'Tools', ai_outputParser: 'Output Parsers' };
+const ORDER = ['Triggers', 'AI', 'Apps', 'Chat Models', 'Memory', 'Tools', 'Output Parsers', 'Vector Stores', 'Embeddings', 'Document Loaders', 'Text Splitters', 'Retrievers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
+const SUB_CATEGORY: Record<string, string> = {
+  ai_languageModel: 'Chat Models',
+  ai_memory: 'Memory',
+  ai_tool: 'Tools',
+  ai_outputParser: 'Output Parsers',
+  ai_vectorStore: 'Vector Stores',
+  ai_embedding: 'Embeddings',
+  ai_document: 'Document Loaders',
+  ai_textSplitter: 'Text Splitters',
+  ai_retriever: 'Retrievers',
+};
 const outputTypes = (t: NodeTypeDescription): string[] => t.outputs.map((o) => (typeof o === 'string' ? o : o.type));
+/** Sub-node only: supplies data and has no main output in its default mode. */
+const isSubOnly = (t: NodeTypeDescription) => t.supplyData && !outputTypes(t).includes('main');
 
 interface Props {
   onPick: (type: string) => void;
@@ -76,11 +88,12 @@ export function NodeCreator({ onPick, onClose, triggersFirst, subNodeType }: Pro
     const byCat = new Map<string, NodeTypeDescription[]>();
     for (const t of Object.values(nodeTypes)) {
       if (!matches(t)) continue;
-      if (subNodeType && !outputTypes(t).includes(subNodeType)) continue;
+      // vector stores switch to a sub-node mode when attached (subNodeParameters)
+      if (subNodeType && !outputTypes(t).includes(subNodeType) && !t.subNodeParameters?.[subNodeType as 'ai_tool']) continue;
       // sub-nodes only make sense attached to a root node: list them when searching or attaching
-      if (!subNodeType && t.supplyData && !needle) continue;
-      const sub = t.supplyData ? SUB_CATEGORY[outputTypes(t)[0]] : undefined;
-      const cat = t.isTrigger ? 'Triggers' : (sub ?? CATEGORY[t.name] ?? 'Other');
+      if (!subNodeType && isSubOnly(t) && !needle) continue;
+      const sub = isSubOnly(t) ? SUB_CATEGORY[outputTypes(t)[0]] : t.subNodeParameters ? 'Vector Stores' : undefined;
+      const cat = t.isTrigger ? 'Triggers' : (sub ?? CATEGORY[t.name] ?? (t.codex?.categories?.includes('AI') ? 'AI' : 'Other'));
       byCat.set(cat, [...(byCat.get(cat) ?? []), t]);
     }
     const order = triggersFirst ? ORDER : [...ORDER.slice(1, -1), 'Other', 'Triggers'];
