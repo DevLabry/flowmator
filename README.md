@@ -27,6 +27,29 @@ docker compose up -d
 
 Open http://localhost:5678 and create the owner account. The first visit asks for it, so do it before exposing the instance to anyone else.
 
+### Quick start with `docker run`
+
+Without Compose, build the image once and run it:
+
+```bash
+docker build -t flowmator .
+
+docker volume create flowmator_data
+
+docker run -it --rm --name flowmator \
+  -p 5678:5678 \
+  -e GENERIC_TIMEZONE="America/Los_Angeles" \
+  -e TZ="America/Los_Angeles" \
+  -v flowmator_data:/home/node/.flowmator \
+  flowmator
+```
+
+Open http://localhost:5678 and create the owner account.
+
+- `-v flowmator_data:/home/node/.flowmator` keeps your workflows, credentials and executions. Without it they are lost when the container is removed.
+- `GENERIC_TIMEZONE` sets the time zone of schedules and dates, and `TZ` the time zone of the container. Give both the same value. Use `UTC` for UTC, or another [tz name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) such as `Europe/Madrid`.
+- `-it --rm` runs it in the foreground and removes the container when you press Ctrl+C, which is handy to try it out. The data stays in the volume. To keep it running in the background, use `-d` instead of `-it --rm`, and add `--restart unless-stopped`.
+
 ## Documentation
 
 | Guide | Read it to |
