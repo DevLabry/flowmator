@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#94a3b8" opacity="0.18"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#dots)"/>
+
+  <!-- workflow graph -->
+  <g transform="translate(820,64) scale(0.8) translate(-620,0)">
+    <g fill="none" stroke="url(#accent)" stroke-width="4" stroke-linecap="round">
+      <path d="M770 200 C850 200 850 320 930 320"/>
+      <path d="M770 440 C850 440 850 320 930 320"/>
+    </g>
+    <rect x="620" y="150" width="150" height="100" rx="18" fill="#1e293b" stroke="#38bdf8" stroke-width="3"/>
+    <circle cx="660" cy="200" r="16" fill="#38bdf8"/>
+    <rect x="690" y="188" width="62" height="10" rx="5" fill="#94a3b8"/>
+    <rect x="690" y="206" width="40" height="8" rx="4" fill="#475569"/>
+
+    <rect x="620" y="390" width="150" height="100" rx="18" fill="#1e293b" stroke="#818cf8" stroke-width="3"/>
+    <circle cx="660" cy="440" r="16" fill="#818cf8"/>
+    <rect x="690" y="428" width="62" height="10" rx="5" fill="#94a3b8"/>
+    <rect x="690" y="446" width="40" height="8" rx="4" fill="#475569"/>
+
+    <rect x="930" y="270" width="170" height="100" rx="18" fill="#1e293b" stroke="#a78bfa" stroke-width="3"/>
+    <circle cx="972" cy="320" r="16" fill="#a78bfa"/>
+    <rect x="1002" y="308" width="70" height="10" rx="5" fill="#94a3b8"/>
+    <rect x="1002" y="326" width="44" height="8" rx="4" fill="#475569"/>
+    <circle cx="770" cy="200" r="7" fill="#0f172a" stroke="#38bdf8" stroke-width="3"/>
+    <circle cx="770" cy="440" r="7" fill="#0f172a" stroke="#818cf8" stroke-width="3"/>
+    <circle cx="930" cy="320" r="7" fill="#0f172a" stroke="#a78bfa" stroke-width="3"/>
+  </g>
+
+  <!-- text -->
+  <g font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif">
+    <text x="80" y="300" font-size="104" font-weight="800" fill="#f8fafc" letter-spacing="-3">Flowmator</text>
+    <rect x="84" y="326" width="140" height="6" rx="3" fill="url(#accent)"/>
+    <text x="84" y="396" font-size="36" font-weight="500" fill="#cbd5e1">Self-hosted workflow automation</text>
+    <text x="84" y="444" font-size="36" font-weight="500" fill="#cbd5e1">Visual canvas · Webhooks · AI agents</text>
+    <text x="84" y="570" font-size="26" font-weight="600" fill="#64748b">github.com/DevLabry/flowmator</text>
+  </g>
+</svg>
