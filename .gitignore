@@ -4,3 +4,4 @@ dist
 *.sqlite
 .flowmator
 .8n8
+.serena
