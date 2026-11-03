@@ -1,12 +1,14 @@
-import { ChevronRight, Copy, GitBranch, KeySquare, Package, Plus, Radio, Trash2 } from 'lucide-react';
+import { ChevronRight, Copy, GitBranch, KeySquare, Package, Plus, Radio, Trash2, UserCog, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { timeAgo } from '../components/ui';
 import { Api } from '../lib/api';
 import { errorToast, useApp } from '../store/app';
+import { useIsAdmin } from '../store/auth';
 
 export function SettingsPage() {
   const settings = useApp((s) => s.settings);
+  const admin = useIsAdmin();
   const [keys, setKeys] = useState<Array<{ id: string; label: string; apiKey: string; createdAt: string }>>([]);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [theme, setTheme] = useState(() => localStorageGet('flowmator-theme') ?? 'system');
@@ -28,10 +30,16 @@ export function SettingsPage() {
 
       <section className="card col" style={{ padding: 6, marginBottom: 18, gap: 0 }}>
         {[
-          ['/settings/environments', GitBranch, 'Environments', 'Push and pull workflows with a Git repository'],
-          ['/settings/external-secrets', KeySquare, 'External secrets', 'Vault, AWS, Azure and GCP secrets in credentials'],
-          ['/settings/log-streaming', Radio, 'Log streaming', 'Send events to a webhook, syslog or Sentry'],
-          ['/settings/community-nodes', Package, 'Community nodes', 'Install n8n-nodes-* packages from npm'],
+          ['/settings/personal', UserCog, 'Personal', 'Your name, email and password'],
+          ...(admin
+            ? [
+                ['/settings/users', Users, 'Users', 'Invite people, set roles and reset passwords'],
+                ['/settings/environments', GitBranch, 'Environments', 'Push and pull workflows with a Git repository'],
+                ['/settings/external-secrets', KeySquare, 'External secrets', 'Vault, AWS, Azure and GCP secrets in credentials'],
+                ['/settings/log-streaming', Radio, 'Log streaming', 'Send events to a webhook, syslog or Sentry'],
+                ['/settings/community-nodes', Package, 'Community nodes', 'Install n8n-nodes-* packages from npm'],
+              ]
+            : []),
         ].map(([to, Icon, title, desc]) => {
           const I = Icon as typeof GitBranch;
           return (
@@ -69,7 +77,7 @@ export function SettingsPage() {
             }
           }}><Plus size={14} /> Create key</button>
         </div>
-        <div className="muted">Use the public API at <code>/api/v1</code> with the header <code>X-N8N-API-KEY</code>.</div>
+        <div className="muted">Use the public API at <code>/api/v1</code> with the header <code>X-N8N-API-KEY</code>. It acts as you, with your permissions.</div>
         {newKey && (
           <div className="card row" style={{ padding: 10, borderColor: 'var(--success)' }}>
             <code className="grow ellipsis">{newKey}</code>
@@ -87,12 +95,14 @@ export function SettingsPage() {
         ))}
       </section>
 
-      <section className="card col" style={{ padding: 18 }}>
-        <h2>Instance</h2>
-        {Object.entries(settings).map(([k, v]) => (
-          <div key={k} className="row"><span className="grow muted">{k}</span><code>{String(v)}</code></div>
-        ))}
-      </section>
+      {admin && (
+        <section className="card col" style={{ padding: 18 }}>
+          <h2>Instance</h2>
+          {Object.entries(settings).map(([k, v]) => (
+            <div key={k} className="row"><span className="grow muted">{k}</span><code>{typeof v === 'object' && v ? JSON.stringify(v) : String(v)}</code></div>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

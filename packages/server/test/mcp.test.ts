@@ -7,6 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src';
+import { signIn } from './auth-helper';
 
 /**
  * The MCP Server Trigger serves the tools connected to it; the MCP Client Tool gives an agent the tools
@@ -36,6 +37,7 @@ beforeAll(async () => {
 
   dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-mcp-'));
   app = await createApp({ userFolder: dir, port: 0, host: '127.0.0.1', webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
+  await signIn(app);
   base = (await app.start()).replace(/\/$/, '');
 });
 

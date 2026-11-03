@@ -127,7 +127,10 @@ export class CredentialsHelper implements ICredentialsHelper {
     }
   }
 
-  async getDecrypted(node: INode, type: string): Promise<IDataObject> {
+  /** Whether a workflow may use a credential (set when user management is on) */
+  canUse: (workflowId: string | undefined, credentialId: string) => boolean = () => true;
+
+  async getDecrypted(node: INode, type: string, workflowId?: string): Promise<IDataObject> {
     const ref = node.credentials?.[type];
     if (!ref) throw new NodeOperationError(node, `Node "${node.name}" does not have any credentials of type "${type}" set`);
     let id = ref.id;
@@ -136,6 +139,7 @@ export class CredentialsHelper implements ICredentialsHelper {
       if (!match) throw new NodeOperationError(node, `Credential "${ref.name}" (${type}) not found`);
       id = match.id;
     }
+    if (!this.canUse(workflowId, id)) throw new NodeOperationError(node, `This workflow's project has no access to the credential "${ref.name}". Share the credential with the project first.`);
     const { __type, __name, ...data } = this.service.getDecrypted(id);
     if (__type !== type) throw new NodeOperationError(node, `Credential "${__name}" is of type ${__type}, expected ${type}`);
     const credType = this.service.types.get(type);

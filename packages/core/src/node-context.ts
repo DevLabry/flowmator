@@ -108,7 +108,7 @@ export class BaseNodeContext {
       throw new NodeOperationError(this.node, `Node does not have credentials of type "${type}" set`);
     }
     if (!this.additionalData.credentialsHelper) throw new NodeOperationError(this.node, 'No credentials helper configured');
-    return (await this.additionalData.credentialsHelper.getDecrypted(this.node, type)) as T;
+    return (await this.additionalData.credentialsHelper.getDecrypted(this.node, type, this.workflow.id)) as T;
   }
 
   /** Raw parameter value (dotted paths allowed), falling back to description defaults. */

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src';
+import { signIn } from './auth-helper';
 import type { IDataTableFilter } from '@flowmator/workflow';
 import type { DataTableService } from '../src/data-tables';
 
@@ -13,6 +14,7 @@ let tables: DataTableService;
 beforeAll(async () => {
   dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-dt-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
+  await signIn(app);
   await app.ctx.executions.start();
   tables = app.ctx.dataTables;
 });

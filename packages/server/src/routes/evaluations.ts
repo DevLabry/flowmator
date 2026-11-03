@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context';
 import { HttpError } from './errors';
 
@@ -6,8 +6,15 @@ type Params = { id: string; runId: string };
 
 /** Evaluations (test runs) of a workflow, as the editor's Evaluations tab uses them. */
 export function evaluationRoutes(app: FastifyInstance, ctx: AppContext) {
-  const { evaluations } = ctx;
+  const { evaluations, access } = ctx;
   const base = '/rest/workflows/:id/test-runs';
+
+  // every route needs the workflow: reading for listing, executing for anything else
+  app.addHook('preHandler', async (req: FastifyRequest) => {
+    const url = req.routeOptions.url ?? '';
+    if (!url.startsWith(base)) return;
+    access.requireWorkflow(req.user!, (req.params as Params).id, req.method === 'GET' ? 'read' : 'execute');
+  });
 
   const runOf = (p: Params) => {
     const run = evaluations.getRun(p.id, p.runId);

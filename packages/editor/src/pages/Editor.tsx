@@ -1,9 +1,10 @@
 import type { IWorkflowSettings } from '@flowmator/workflow';
-import { ArrowLeft, Download, Ellipsis, History, Redo2, RotateCcw, Save, Settings2, Undo2, Upload, Copy, Trash2, Bug } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Download, Ellipsis, History, Redo2, RotateCcw, Save, Settings2, Share2, Undo2, Upload, Copy, Trash2, Bug } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Canvas } from '../components/Canvas';
 import { NDV } from '../components/NDV';
+import { MoveModal, ProjectBadge, ShareModal } from '../components/Sharing';
 import { Modal, Popover, StatusBadge, Switch, duration, timeAgo } from '../components/ui';
 import { Api, ApiError, type ExecutionFull, type ExecutionSummary, type WorkflowData } from '../lib/api';
 import { onPush } from '../lib/push';
@@ -183,6 +184,8 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' |
   const [settings, setSettings] = useState(false);
   const [history, setHistory] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [sharing, setSharing] = useState<'share' | 'move' | null>(null);
+  const can = (scope: string) => !wf.id || !!wf.scopes?.includes(scope);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // load the workflow when entering the editor tab (evaluations reads its nodes too)
@@ -190,12 +193,13 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' |
     if (tab === 'executions') return;
     if (tab === 'evaluations' && useWorkflow.getState().workflow.id === id) return;
     if (!id) {
-      useWorkflow.getState().newWorkflow();
+      useWorkflow.getState().newWorkflow(new URLSearchParams(location.search).get('projectId') ?? undefined);
       return;
     }
     // already open (e.g. we just saved a new workflow and only the URL changed): keep run data
     if (useWorkflow.getState().workflow.id === id && !useWorkflow.getState().readOnly) return;
-    Api.workflow(id).then((w) => useWorkflow.getState().load(w), (e) => {
+    // viewers get the canvas read-only
+    Api.workflow(id).then((w) => useWorkflow.getState().load(w, { readOnly: !w.scopes?.includes('update') }), (e) => {
       errorToast('Could not open workflow')(e);
       navigate('/home/workflows');
     });
@@ -282,7 +286,7 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' |
           {wf.tags.map((t) => (
             <span key={t} className="badge" style={{ cursor: 'pointer' }} title="Remove tag" onClick={() => tab === 'editor' && useWorkflow.getState().setTags(wf.tags.filter((x) => x !== t))}>{t}</span>
           ))}
-          {tab === 'editor' && (
+          {tab === 'editor' && can('update') && (
             <input
               value={tagInput}
               placeholder="+ tag"
@@ -297,6 +301,8 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' |
             />
           )}
         </div>
+        {wf.id && <ProjectBadge project={wf.homeProject} shared={wf.sharedWithProjects?.length} />}
+        {wf.id && !can('update') && <span className="badge warning">Read only</span>}
         <span className="grow" />
         <div className="seg">
           <button className={tab === 'editor' ? 'active' : ''} onClick={() => goTab('editor')}>Editor</button>
@@ -307,13 +313,14 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' |
         {wf.activationError && <span className="badge error" title={wf.activationError}>Activation failed</span>}
         <span className="row" style={{ gap: 6 }}>
           <span className="muted">{wf.active ? 'Active' : 'Inactive'}</span>
-          <Switch checked={wf.active} onChange={toggleActive} />
+          <Switch checked={wf.active} disabled={!can('update')} onChange={toggleActive} />
         </span>
+        <button disabled={!wf.id} onClick={() => setSharing('share')} title="Share with users and projects"><Share2 size={14} /> Share</button>
         {tab === 'editor' && (
           <>
             <button className="ghost icon" disabled={!canUndo} title="Undo (Ctrl+Z)" onClick={() => useWorkflow.getState().undo()}><Undo2 size={15} /></button>
             <button className="ghost icon" disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" onClick={() => useWorkflow.getState().redo()}><Redo2 size={15} /></button>
-            <button className={dirty || !wf.id ? 'primary' : ''} onClick={save} title="Save (Ctrl+S)"><Save size={14} /> {dirty || !wf.id ? 'Save' : 'Saved'}</button>
+            <button className={dirty || !wf.id ? 'primary' : ''} disabled={!can('update')} onClick={save} title="Save (Ctrl+S)"><Save size={14} /> {dirty || !wf.id ? 'Save' : 'Saved'}</button>
           </>
         )}
         <div style={{ position: 'relative' }}>
@@ -335,9 +342,10 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' |
             <hr />
             <button disabled={!wf.id} onClick={async () => { setMenu(false); const c = await Api.copyWorkflow(wf.id!); navigate(`/workflow/${c.id}`); }}><Copy size={14} /> Duplicate</button>
             <button disabled={!wf.id} onClick={() => { setMenu(false); setHistory(true); }}><History size={14} /> Version history</button>
-            <button onClick={() => { setMenu(false); setSettings(true); }}><Settings2 size={14} /> Settings</button>
+            <button disabled={!can('update')} onClick={() => { setMenu(false); setSettings(true); }}><Settings2 size={14} /> Settings</button>
+            <button disabled={!wf.id || !can('move')} onClick={() => { setMenu(false); setSharing('move'); }}><ArrowRightLeft size={14} /> Move to project</button>
             <hr />
-            <button disabled={!wf.id} className="danger" onClick={async () => {
+            <button disabled={!wf.id || !can('delete')} className="danger" onClick={async () => {
               setMenu(false);
               if (!confirm(`Delete “${wf.name}”?`)) return;
               await Api.deleteWorkflow(wf.id!);
@@ -359,6 +367,10 @@ export function EditorPage({ tab = 'editor' }: { tab?: 'editor' | 'executions' |
         </div>
       )}
       {settings && <SettingsModal onClose={() => setSettings(false)} />}
+      {sharing && wf.id && (() => {
+        const Cmp = sharing === 'share' ? ShareModal : MoveModal;
+        return <Cmp kind="workflows" item={wf} onClose={() => setSharing(null)} onChange={(s) => useWorkflow.setState({ workflow: { ...useWorkflow.getState().workflow, ...s } })} />;
+      })()}
     </div>
   );
 }

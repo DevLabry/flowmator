@@ -7,6 +7,7 @@ import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 import type { ConfigOverrides } from './config';
 import { createContext, type AppContext } from './context';
+import { authRoutes } from './routes/auth';
 import { credentialRoutes } from './routes/credentials';
 import { dataTableRoutes } from './routes/data-tables';
 import { evaluationRoutes } from './routes/evaluations';
@@ -103,9 +104,14 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
 
   app.setErrorHandler(errorHandler);
 
+  // first: its hook signs in every /rest request
+  authRoutes(app, ctx);
+
   app.get('/rest/push', { websocket: true }, (socket, req) => {
+    const user = ctx.sessionUser(req);
+    if (!user) return socket.close(4001, 'Unauthorized');
     const pushRef = String((req.query as { pushRef?: string }).pushRef ?? Math.random().toString(36).slice(2));
-    ctx.push.add(pushRef, socket);
+    ctx.push.add(pushRef, socket, user.id);
   });
 
   workflowRoutes(app, ctx);
@@ -138,6 +144,8 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
     ctx,
     async start() {
       // secrets first: active workflows' credentials may reference them
+      // items added while no one could own them (CLI imports, source control pulls) go to the owner
+      if (ctx.users.isSetUp()) ctx.access.claimOrphans();
       await ctx.externalSecrets.start();
       await ctx.executions.start();
       await ctx.activeWorkflows.init();

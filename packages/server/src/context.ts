@@ -17,6 +17,9 @@ import { ExecutionService, type ProcessRole } from './execution-service';
 import { Push, type PushSender } from './push';
 import { ScalingService } from './scaling';
 import { WebhookService } from './webhooks';
+import { AccessService } from './access';
+import { UserService, type User } from './users';
+import type { FastifyRequest } from 'fastify';
 
 export interface AppContext {
   role: ProcessRole;
@@ -38,6 +41,12 @@ export interface AppContext {
   externalSecrets: ExternalSecretsService;
   sourceControl: SourceControlService;
   communityPackages: CommunityPackagesService;
+  users: UserService;
+  access: AccessService;
+  /** The signed-in user of a request (set up by the auth routes) */
+  sessionUser: (req: FastifyRequest) => User | null;
+  /** Deactivates and deletes a workflow with its shares */
+  deleteWorkflow: (id: string) => Promise<void>;
   /** Queue mode only */
   scaling?: ScalingService;
 }
@@ -77,11 +86,46 @@ export function createContext(overrides: ConfigOverrides = {}, role: ProcessRole
   executions.events = bus;
   const dataTables = new DataTableService(db);
   executions.dataTables = dataTables;
+  // after the data tables: user management adds project columns to their table
+  const users = new UserService(db);
+  const access = new AccessService(db, users);
+  credentialsHelper.canUse = (workflowId, credentialId) => access.canUseCredential(workflowId, credentialId);
+  push.canSee = (userId, workflowId) => access.canSeeWorkflow(userId, workflowId);
   const evaluations = new EvaluationService(db, executions, dataTables, role === 'main', credentialsHelper);
   const webhooks = new WebhookService(config, nodeTypes, executions, events, (id) => db.getWorkflow(id));
   const activeWorkflows = new ActiveWorkflows(config, db, nodeTypes, executions, webhooks, events);
   // webhook processes serve production webhooks too, so they must hear about (de)activations
   if (scaling && role === 'main') activeWorkflows.onChange = (workflowId, active) => void scaling.publish({ type: 'workflowChanged', workflowId, active });
   const sourceControl = new SourceControlService(db, cipher, credentials, config.userFolder, activeWorkflows, bus);
-  return { role, config, db, push, nodeTypes, credentialTypes, credentials, credentialsHelper, executions, webhooks, activeWorkflows, dataTables, evaluations, events: bus, insights, logStreaming, externalSecrets, sourceControl, communityPackages, scaling };
+  return {
+    role,
+    config,
+    db,
+    push,
+    nodeTypes,
+    credentialTypes,
+    credentials,
+    credentialsHelper,
+    executions,
+    webhooks,
+    activeWorkflows,
+    dataTables,
+    evaluations,
+    events: bus,
+    insights,
+    logStreaming,
+    externalSecrets,
+    sourceControl,
+    communityPackages,
+    users,
+    access,
+    scaling,
+    sessionUser: () => null,
+    async deleteWorkflow(id) {
+      await activeWorkflows.remove(id);
+      webhooks.cancelTest(id);
+      db.deleteWorkflow(id);
+      access.forget('workflow', id);
+    },
+  };
 }

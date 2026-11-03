@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src';
+import { signIn } from './auth-helper';
 
 let app: App;
 let dir: string;
@@ -40,6 +41,7 @@ function startEcho() {
 beforeAll(async () => {
   dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-test-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
+  await signIn(app);
   app.ctx.executions.start();
   await startEcho();
 });
