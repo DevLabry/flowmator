@@ -1,5 +1,6 @@
 {
-  "name": "8n8",
+  "name": "flowmator",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.9",
@@ -10,10 +11,10 @@
     "test": "vitest run",
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev --parallel",
-    "start": "pnpm --filter @8n8/server start",
-    "dev:server": "pnpm --filter @8n8/server dev",
-    "dev:editor": "pnpm --filter @8n8/editor dev",
-    "build": "pnpm --filter @8n8/editor build"
+    "start": "pnpm --filter @flowmator/server start",
+    "dev:server": "pnpm --filter @flowmator/server dev",
+    "dev:editor": "pnpm --filter @flowmator/editor dev",
+    "build": "pnpm --filter @flowmator/editor build"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

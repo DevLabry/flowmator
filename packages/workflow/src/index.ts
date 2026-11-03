@@ -8,3 +8,4 @@ export type { IExpressionContextParams } from './expression/data-proxy';
 export { extend, setHashImplementation, EXTENSION_METHOD_NAMES } from './expression/extensions';
 export { splitTemplate } from './expression/template';
 export { getParameterDisplayed, getNodeParametersWithDefaults } from './node-parameters';
+export { parseCurl, shellWords } from './curl';

@@ -5,36 +5,73 @@ import { useApp } from '../store/app';
 import { NodeIcon } from './ui';
 
 const CATEGORY: Record<string, string> = {
-  '8n8.if': 'Flow',
-  '8n8.switch': 'Flow',
-  '8n8.merge': 'Flow',
-  '8n8.filter': 'Flow',
-  '8n8.splitInBatches': 'Flow',
-  '8n8.wait': 'Flow',
-  '8n8.executeWorkflow': 'Flow',
-  '8n8.stopAndError': 'Flow',
-  '8n8.noOp': 'Flow',
-  '8n8.set': 'Data transformation',
-  '8n8.code': 'Data transformation',
-  '8n8.aggregate': 'Data transformation',
-  '8n8.splitOut': 'Data transformation',
-  '8n8.sort': 'Data transformation',
-  '8n8.limit': 'Data transformation',
-  '8n8.removeDuplicates': 'Data transformation',
-  '8n8.httpRequest': 'Network',
-  '8n8.respondToWebhook': 'Network',
-  '8n8.stickyNote': 'Canvas',
+  'flowmator.if': 'Flow',
+  'flowmator.switch': 'Flow',
+  'flowmator.merge': 'Flow',
+  'flowmator.filter': 'Flow',
+  'flowmator.splitInBatches': 'Flow',
+  'flowmator.wait': 'Flow',
+  'flowmator.executeWorkflow': 'Flow',
+  'flowmator.stopAndError': 'Flow',
+  'flowmator.noOp': 'Flow',
+  'flowmator.set': 'Data transformation',
+  'flowmator.code': 'Data transformation',
+  'flowmator.aggregate': 'Data transformation',
+  'flowmator.splitOut': 'Data transformation',
+  'flowmator.sort': 'Data transformation',
+  'flowmator.limit': 'Data transformation',
+  'flowmator.removeDuplicates': 'Data transformation',
+  'flowmator.httpRequest': 'Network',
+  'flowmator.respondToWebhook': 'Network',
+  'flowmator.dateTime': 'Data transformation',
+  'flowmator.crypto': 'Data transformation',
+  'flowmator.renameKeys': 'Data transformation',
+  'flowmator.summarize': 'Data transformation',
+  'flowmator.compareDatasets': 'Data transformation',
+  'flowmator.xml': 'Data transformation',
+  'flowmator.html': 'Data transformation',
+  'flowmator.markdown': 'Data transformation',
+  'flowmator.extractFromFile': 'Files',
+  'flowmator.convertToFile': 'Files',
+  'flowmator.readWriteFile': 'Files',
+  'flowmator.emailSend': 'Network',
+  'flowmator.executeCommand': 'Core',
+  'flowmator.stickyNote': 'Canvas',
+  'flowmator-ai.agent': 'AI',
+  'flowmator.slack': 'Apps',
+  'flowmator.telegram': 'Apps',
+  'flowmator.github': 'Apps',
+  'flowmator.notion': 'Apps',
+  'flowmator.gmail': 'Apps',
+  'flowmator.googleSheets': 'Apps',
+  'flowmator.postgres': 'Apps',
 };
-const ORDER = ['Triggers', 'Flow', 'Data transformation', 'Network', 'Canvas', 'Other'];
+const ORDER = ['Triggers', 'AI', 'Apps', 'Chat Models', 'Memory', 'Tools', 'Output Parsers', 'Vector Stores', 'Embeddings', 'Document Loaders', 'Text Splitters', 'Retrievers', 'Flow', 'Data transformation', 'Files', 'Network', 'Core', 'Canvas', 'Other'];
+const SUB_CATEGORY: Record<string, string> = {
+  ai_languageModel: 'Chat Models',
+  ai_memory: 'Memory',
+  ai_tool: 'Tools',
+  ai_outputParser: 'Output Parsers',
+  ai_vectorStore: 'Vector Stores',
+  ai_embedding: 'Embeddings',
+  ai_document: 'Document Loaders',
+  ai_textSplitter: 'Text Splitters',
+  ai_retriever: 'Retrievers',
+};
+const outputTypes = (t: NodeTypeDescription): string[] => t.outputs.map((o) => (typeof o === 'string' ? o : o.type));
+/** Sub-node only: supplies data and has no main output in its default mode. */
+const isSubOnly = (t: NodeTypeDescription) => t.supplyData && !outputTypes(t).includes('main');
 
 interface Props {
   onPick: (type: string) => void;
   onClose: () => void;
   /** Only show triggers (empty workflow) */
   triggersFirst: boolean;
+  /** Only sub-nodes that output this connection type (adding to an agent's input) */
+  subNodeType?: string;
 }
 
-export function NodeCreator({ onPick, onClose, triggersFirst }: Props) {
+export function NodeCreator({ onPick, onClose, triggersFirst, subNodeType }: Props) {
   const nodeTypes = useApp((s) => s.nodeTypes);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
@@ -51,12 +88,17 @@ export function NodeCreator({ onPick, onClose, triggersFirst }: Props) {
     const byCat = new Map<string, NodeTypeDescription[]>();
     for (const t of Object.values(nodeTypes)) {
       if (!matches(t)) continue;
-      const cat = t.isTrigger ? 'Triggers' : (CATEGORY[t.name] ?? 'Other');
+      // vector stores switch to a sub-node mode when attached (subNodeParameters)
+      if (subNodeType && !outputTypes(t).includes(subNodeType) && !t.subNodeParameters?.[subNodeType as 'ai_tool']) continue;
+      // sub-nodes only make sense attached to a root node: list them when searching or attaching
+      if (!subNodeType && isSubOnly(t) && !needle) continue;
+      const sub = isSubOnly(t) ? SUB_CATEGORY[outputTypes(t)[0]] : t.subNodeParameters ? 'Vector Stores' : undefined;
+      const cat = t.isTrigger ? 'Triggers' : (sub ?? CATEGORY[t.name] ?? (t.codex?.categories?.includes('AI') ? 'AI' : 'Other'));
       byCat.set(cat, [...(byCat.get(cat) ?? []), t]);
     }
     const order = triggersFirst ? ORDER : [...ORDER.slice(1, -1), 'Other', 'Triggers'];
     return order.filter((c) => byCat.has(c)).map((c) => ({ cat: c, items: byCat.get(c)!.sort((a, b) => a.displayName.localeCompare(b.displayName)) }));
-  }, [nodeTypes, q, triggersFirst]);
+  }, [nodeTypes, q, triggersFirst, subNodeType]);
 
   const flat = groups.flatMap((g) => g.items);
 
@@ -69,7 +111,7 @@ export function NodeCreator({ onPick, onClose, triggersFirst }: Props) {
     }}>
       <div className="creator-head">
         <div className="row">
-          <h3 className="grow">{triggersFirst ? 'What triggers this workflow?' : 'What happens next?'}</h3>
+          <h3 className="grow">{subNodeType ? `Add ${SUB_CATEGORY[subNodeType] ?? 'sub-node'}` : triggersFirst ? 'What triggers this workflow?' : 'What happens next?'}</h3>
           <button className="ghost icon sm" onClick={onClose}><X size={15} /></button>
         </div>
         <div className="row" style={{ position: 'relative' }}>
@@ -90,7 +132,7 @@ export function NodeCreator({ onPick, onClose, triggersFirst }: Props) {
                   onClick={() => onPick(t.name)}
                   onMouseEnter={() => setActive(idx)}
                   draggable
-                  onDragStart={(e) => e.dataTransfer.setData('application/8n8-node', t.name)}
+                  onDragStart={(e) => e.dataTransfer.setData('application/flowmator-node', t.name)}
                 >
                   <span className="ic"><NodeIcon icon={t.icon} color={t.defaults.color} label={t.displayName} /></span>
                   <span className="grow">

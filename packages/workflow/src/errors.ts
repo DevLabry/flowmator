@@ -33,9 +33,14 @@ export class NodeOperationError extends WorkflowError {
 
 export class NodeApiError extends NodeOperationError {
   httpCode?: string;
+  statusCode?: number;
+  /** The response body, for nodes that turn API error payloads into readable messages */
+  body?: unknown;
   constructor(node: INode, error: Error & { statusCode?: number; body?: unknown }, options?: { description?: string; itemIndex?: number }) {
     super(node, error, options);
     this.name = 'NodeApiError';
+    this.statusCode = error.statusCode;
+    this.body = error.body;
     if (error.statusCode) this.httpCode = String(error.statusCode);
     if (!this.description && error.body !== undefined) {
       this.description = typeof error.body === 'string' ? error.body : JSON.stringify(error.body);

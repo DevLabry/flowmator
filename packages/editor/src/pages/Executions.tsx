@@ -65,7 +65,7 @@ export function ExecutionsPage() {
         </select>
         <select style={{ width: 160 }} value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Any status</option>
-          {['success', 'error', 'running', 'waiting', 'canceled', 'crashed'].map((s) => <option key={s} value={s}>{s}</option>)}
+          {['success', 'error', 'running', 'new', 'waiting', 'canceled', 'crashed'].map((s) => <option key={s} value={s}>{s === 'new' ? 'queued' : s}</option>)}
         </select>
         <span className="grow" />
         {selected.size > 0 && <button className="danger" onClick={del}><Trash2 size={14} /> Delete {selected.size}</button>}

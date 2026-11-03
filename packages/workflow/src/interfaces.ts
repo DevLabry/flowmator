@@ -14,6 +14,7 @@ import type {
   IPairedItem,
   IRunData,
   IWorkflowBase,
+  ResourceMapperField,
 } from './types';
 
 export interface IWorkflowMeta {
@@ -41,6 +42,9 @@ export interface IHelpers {
   getBinaryDataBuffer(itemIndex: number, propertyName: string, inputIndex?: number): Promise<Buffer>;
   assertBinaryData(itemIndex: number, propertyName: string): IBinaryData;
   binaryToString(body: Buffer, encoding?: BufferEncoding): string;
+  /** n8n's legacy request-promise style helpers, used by many community nodes */
+  request(uriOrOptions: string | IDataObject, options?: IDataObject): Promise<any>;
+  requestWithAuthentication(credentialType: string, options: IDataObject, additionalCredentialOptions?: IDataObject, itemIndex?: number): Promise<any>;
 }
 
 export interface ILogger {
@@ -50,8 +54,62 @@ export interface ILogger {
   error(message: string, meta?: object): void;
 }
 
+export type DataTableColumnType = 'string' | 'number' | 'boolean' | 'date';
+
+export interface IDataTableColumn {
+  id: string;
+  name: string;
+  type: DataTableColumnType;
+  index: number;
+}
+
+export interface IDataTable {
+  id: string;
+  name: string;
+  columns: IDataTableColumn[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DataTableCondition = 'eq' | 'neq' | 'like' | 'ilike' | 'gt' | 'gte' | 'lt' | 'lte' | 'isEmpty' | 'isNotEmpty' | 'isTrue' | 'isFalse';
+
+export interface IDataTableFilter {
+  type: 'and' | 'or';
+  filters: Array<{ columnName: string; condition: DataTableCondition; value?: unknown }>;
+}
+
+/** Rows always carry `id`, `createdAt` and `updatedAt` next to the user columns. */
+export type DataTableRow = Record<string, unknown>;
+
+export interface IDataTableRowsQuery {
+  filter?: IDataTableFilter;
+  sortBy?: { column: string; direction: 'ASC' | 'DESC' };
+  skip?: number;
+  take?: number;
+}
+
+/** Data tables: small tables stored by Flowmator itself, shared by every workflow. */
+export interface IDataTableService {
+  listTables(filter?: { name?: string }): Promise<IDataTable[]>;
+  /** Finds a table by id, or by name when no id matches. */
+  getTable(idOrName: string): Promise<IDataTable | null>;
+  createTable(name: string, columns: Array<{ name: string; type: DataTableColumnType }>): Promise<IDataTable>;
+  renameTable(id: string, name: string): Promise<IDataTable>;
+  deleteTable(id: string): Promise<void>;
+  addColumn(tableId: string, column: { name: string; type: DataTableColumnType }): Promise<IDataTableColumn>;
+  getRows(tableId: string, query?: IDataTableRowsQuery): Promise<{ count: number; data: DataTableRow[] }>;
+  insertRows(tableId: string, rows: DataTableRow[]): Promise<DataTableRow[]>;
+  /** Updates every row matching the filter; returns the rows after (or, with dryRun, before and after) the change. */
+  updateRows(tableId: string, filter: IDataTableFilter, data: DataTableRow, options?: { dryRun?: boolean }): Promise<DataTableRow[]>;
+  /** Updates the rows matching the filter, or inserts one when none match. */
+  upsertRow(tableId: string, filter: IDataTableFilter, data: DataTableRow): Promise<DataTableRow[]>;
+  deleteRows(tableId: string, filter: IDataTableFilter, options?: { dryRun?: boolean }): Promise<DataTableRow[]>;
+}
+
 interface IBaseFunctions {
   getNode(): INode;
+  /** Throws when the host has no data table storage (e.g. running the engine without a server). */
+  getDataTables(): IDataTableService;
   getWorkflow(): IWorkflowMeta;
   getMode(): ExecutionMode;
   getTimezone(): string;
@@ -146,6 +204,8 @@ export interface IWebhookFunctions extends IBaseFunctions {
   getNodeParameter(name: string, fallback?: unknown, options?: IGetNodeParameterOptions): any;
   getWebhookName(): string;
   getNodeWebhookUrl(name: string): string;
+  /** What sub-nodes connected through `type` supply (e.g. the tools of an MCP Server Trigger). */
+  getInputConnectionData(type: ConnectionType, itemIndex: number): Promise<unknown>;
 }
 
 export interface IWebhookResult {
@@ -161,7 +221,7 @@ export interface IHookFunctions extends IBaseFunctions {
 }
 
 export interface ILoadOptionsFunctions extends IBaseFunctions {
-  getNodeParameter(name: string, fallback?: unknown): any;
+  getNodeParameter(name: string, fallback?: unknown, options?: IGetNodeParameterOptions): any;
   getCurrentNodeParameters(): INodeParameters;
 }
 
@@ -197,6 +257,7 @@ export interface INodeType {
       string,
       (this: ILoadOptionsFunctions, filter?: string, paginationToken?: string) => Promise<{ results: INodePropertyOption[]; paginationToken?: string }>
     >;
+    resourceMapping?: Record<string, (this: ILoadOptionsFunctions) => Promise<{ fields: ResourceMapperField[]; emptyFieldsNotice?: string }>>;
   };
 }
 

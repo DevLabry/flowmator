@@ -7,3 +7,4 @@ export * from './webhooks';
 export * from './active-workflows';
 export * from './context';
 export * from './app';
+export * from './scaling';

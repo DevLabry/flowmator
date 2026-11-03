@@ -1,0 +1,55 @@
+# Queue mode: the main process takes webhooks and triggers, workers run the executions.
+#   docker compose -f docker-compose.queue.yml up -d --scale flowmator-worker=2
+# Every process shares the same data volume (SQLite database and encryption key) and Redis.
+
+x-shared: &shared
+  image: flowmator:latest
+  restart: unless-stopped
+  environment:
+    - EXECUTIONS_MODE=queue
+    - QUEUE_BULL_REDIS_HOST=redis
+    - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+    - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Madrid}
+    - TZ=${GENERIC_TIMEZONE:-Europe/Madrid}
+    - N8N_EMAIL_MODE=${N8N_EMAIL_MODE:-}
+    - N8N_SMTP_HOST=${N8N_SMTP_HOST:-}
+    - N8N_SMTP_PORT=${N8N_SMTP_PORT:-465}
+    - N8N_SMTP_USER=${N8N_SMTP_USER:-}
+    - N8N_SMTP_PASS=${N8N_SMTP_PASS:-}
+    - N8N_SMTP_SENDER=${N8N_SMTP_SENDER:-}
+    - N8N_SMTP_SSL=${N8N_SMTP_SSL:-true}
+    - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-}
+  volumes:
+    - flowmator_data:/home/node/.flowmator
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  flowmator:
+    <<: *shared
+    build: .
+    ports:
+      - "${FLOWMATOR_PORT:-5678}:5678"
+
+  flowmator-worker:
+    <<: *shared
+    command: worker
+    # the worker's own health check endpoint is off; check that it runs instead
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+
+volumes:
+  flowmator_data:
+  redis_data:

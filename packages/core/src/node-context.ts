@@ -9,6 +9,7 @@ import {
   type ConnectionType,
   type IBinaryData,
   type IDataObject,
+  type IDataTableService,
   type IExecuteData,
   type IExecuteFunctions,
   type IExecuteWorkflowInfo,
@@ -25,7 +26,7 @@ import {
   type IWebhookResponse,
   type IWorkflowMeta,
   type Workflow,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { IWorkflowExecuteAdditionalData } from './additional-data';
 import { consoleLogger } from './additional-data';
 import { MemoryBinaryDataStore, mimeFromFileName, extensionFromMime } from './binary-data';
@@ -35,6 +36,13 @@ const memoryStore = new MemoryBinaryDataStore();
 
 function getPath(obj: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((acc, key) => (acc && typeof acc === 'object' ? (acc as IDataObject)[key] : undefined), obj);
+}
+
+
+/** Copy for credentials to sign; the body is shared because FormData and streams can't be cloned. */
+function cloneRequest(options: IHttpRequestOptions): IHttpRequestOptions {
+  const { body, ...rest } = options;
+  return { ...structuredClone(rest), ...(body !== undefined ? { body } : {}) };
 }
 
 export interface BaseContextParams {
@@ -62,6 +70,11 @@ export class BaseNodeContext {
 
   getNode(): INode {
     return this.node;
+  }
+
+  getDataTables(): IDataTableService {
+    if (!this.additionalData.dataTables) throw new NodeOperationError(this.node, 'Data tables are not available here');
+    return this.additionalData.dataTables;
   }
 
   getWorkflow(): IWorkflowMeta {
@@ -95,7 +108,7 @@ export class BaseNodeContext {
       throw new NodeOperationError(this.node, `Node does not have credentials of type "${type}" set`);
     }
     if (!this.additionalData.credentialsHelper) throw new NodeOperationError(this.node, 'No credentials helper configured');
-    return (await this.additionalData.credentialsHelper.getDecrypted(this.node, type)) as T;
+    return (await this.additionalData.credentialsHelper.getDecrypted(this.node, type, this.workflow.id)) as T;
   }
 
   /** Raw parameter value (dotted paths allowed), falling back to description defaults. */
@@ -128,7 +141,7 @@ export class BaseNodeContext {
         const helper = self.additionalData.credentialsHelper;
         if (!helper) throw new NodeOperationError(self.node, 'No credentials helper configured');
         let credentials = await helper.getDecrypted(self.node, credentialType);
-        const authed = await helper.authenticate(credentialType, credentials, structuredClone(options), self.node);
+        const authed = await helper.authenticate(credentialType, credentials, cloneRequest(options), self.node);
         try {
           return await httpRequest(authed, signal);
         } catch (e) {
@@ -136,7 +149,7 @@ export class BaseNodeContext {
             const refreshed = await helper.refresh(self.node, credentialType, credentials);
             if (refreshed) {
               credentials = refreshed;
-              const retry = await helper.authenticate(credentialType, credentials, structuredClone(options), self.node);
+              const retry = await helper.authenticate(credentialType, credentials, cloneRequest(options), self.node);
               return httpRequest(retry, signal).catch((err) => self.wrapHttpError(err));
             }
           }
@@ -170,6 +183,13 @@ export class BaseNodeContext {
         return bin;
       },
       binaryToString: (body: Buffer, encoding: BufferEncoding = 'utf8') => body.toString(encoding),
+      request(uriOrOptions: string | IDataObject, options?: IDataObject) {
+        const o = typeof uriOrOptions === 'string' ? { ...options, uri: uriOrOptions } : uriOrOptions;
+        return this.httpRequest(fromLegacyRequest(o)).then((r: unknown) => toLegacyResponse(o, r));
+      },
+      requestWithAuthentication(credentialType: string, options: IDataObject) {
+        return this.httpRequestWithAuthentication(credentialType, fromLegacyRequest(options)).then((r: unknown) => toLegacyResponse(options, r));
+      },
     };
   }
 
@@ -185,6 +205,8 @@ export interface ExecuteContextParams extends BaseContextParams {
   executeData: IExecuteData;
   runIndex: number;
   contextData: Record<string, IDataObject>;
+  /** Shared with the sub-node contexts so connections they open are closed with the root node. */
+  closeFunctions?: Array<() => Promise<void>>;
 }
 
 export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions {
@@ -193,6 +215,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
   private readonly executeData: IExecuteData;
   private readonly runIndex: number;
   private readonly contextData: Record<string, IDataObject>;
+  private readonly closeFunctions: Array<() => Promise<void>>;
 
   constructor(p: ExecuteContextParams) {
     super(p);
@@ -200,6 +223,13 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
     this.executeData = p.executeData;
     this.runIndex = p.runIndex;
     this.contextData = p.contextData;
+    this.closeFunctions = p.closeFunctions ?? [];
+  }
+
+  /** Closes what sub-nodes opened (database pools, MCP connections...). Errors are logged, not thrown. */
+  async closeSubNodes() {
+    const fns = this.closeFunctions.splice(0);
+    await Promise.all(fns.map((fn) => fn().catch((e: Error) => this.logger.warn(`Closing a sub-node of "${this.node.name}" failed: ${e.message}`))));
   }
 
   getInputData(inputIndex = 0, type: ConnectionType = 'main'): INodeExecutionData[] {
@@ -309,7 +339,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
     }
     if (!info.code) throw new NodeOperationError(this.node, 'Executing workflows by id requires the server runtime');
     // In-process fallback (used by tests and the CLI)
-    const { Workflow } = await import('@8n8/workflow');
+    const { Workflow } = await import('@flowmator/workflow');
     const { WorkflowExecute } = await import('./workflow-execute');
     const sub = new Workflow({ ...info.code, nodeTypes: this.workflow.nodeTypes });
     const run = await new WorkflowExecute({ ...this.additionalData, executionId: `${this.additionalData.executionId}-sub`, mode: 'integrated' }).run({
@@ -334,7 +364,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
   async getInputConnectionData(type: ConnectionType, itemIndex: number): Promise<unknown> {
     const parents = this.workflow.getDirectParents(this.node.name, type);
     const nodeType = this.workflow.nodeTypes.getByNameAndVersion(this.node.type, this.node.typeVersion);
-    const inputConfig = nodeType.description.inputs.find((i) => typeof i !== 'string' && i.type === type);
+    const inputConfig = (nodeType.description.dynamicInputs?.(this.node.parameters) ?? nodeType.description.inputs).find((i) => typeof i !== 'string' && i.type === type);
     const results: unknown[] = [];
     for (const parent of parents) {
       const subNode = this.workflow.getNode(parent.node);
@@ -349,8 +379,17 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
         executeData: { node: subNode, data: this.executeData.data, source: this.executeData.source },
         runIndex: this.runIndex,
         contextData: this.contextData,
+        closeFunctions: this.closeFunctions,
       }) as unknown as ISupplyDataFunctions;
-      const supplied = await subType.supplyData.call(subContext, itemIndex);
+      let supplied;
+      try {
+        supplied = await subType.supplyData.call(subContext, itemIndex);
+      } catch (e) {
+        // the error surfaces on the root node, so say which sub-node it came from
+        const err = e as Error & { description?: string };
+        throw new NodeOperationError(this.node, `${subNode.name}: ${err.message}`, { description: err.description, itemIndex });
+      }
+      if (supplied.closeFunction) this.closeFunctions.push(supplied.closeFunction);
       results.push(supplied.response);
     }
     if (typeof inputConfig === 'object' && inputConfig.required && results.length === 0) {
@@ -359,4 +398,34 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
     if (typeof inputConfig === 'object' && inputConfig.maxConnections === 1) return results[0];
     return results;
   }
+}
+
+/** request-promise options (uri, qs, body, form, json, resolveWithFullResponse, encoding: null) → httpRequest options. */
+export function fromLegacyRequest(o: IDataObject): IHttpRequestOptions {
+  const headers = { ...((o.headers as Record<string, string>) ?? {}) };
+  let body = o.body;
+  if (o.form) {
+    body = new URLSearchParams(o.form as Record<string, string>).toString();
+    headers['content-type'] ??= 'application/x-www-form-urlencoded';
+  }
+  return {
+    url: String(o.uri ?? o.url),
+    baseURL: o.baseURL as string | undefined,
+    method: (String(o.method ?? 'GET').toUpperCase() as IHttpRequestOptions['method']),
+    headers,
+    qs: o.qs as IDataObject | undefined,
+    body,
+    json: o.json !== false,
+    timeout: o.timeout as number | undefined,
+    returnFullResponse: !!o.resolveWithFullResponse,
+    ignoreHttpStatusErrors: o.simple === false,
+    encoding: o.encoding === null ? 'arraybuffer' : undefined,
+    auth: o.auth ? { username: String((o.auth as IDataObject).user ?? (o.auth as IDataObject).username), password: String((o.auth as IDataObject).pass ?? (o.auth as IDataObject).password ?? '') } : undefined,
+  };
+}
+
+function toLegacyResponse(o: IDataObject, r: unknown) {
+  const toBuffer = (v: unknown) => (o.encoding === null && v instanceof ArrayBuffer ? Buffer.from(v) : v);
+  if (o.resolveWithFullResponse && r && typeof r === 'object') return { ...(r as IDataObject), body: toBuffer((r as IDataObject).body) };
+  return toBuffer(r);
 }

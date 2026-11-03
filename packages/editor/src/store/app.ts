@@ -1,4 +1,4 @@
-import type { ICredentialTypeDescription, IDataObject } from '@8n8/workflow';
+import type { ICredentialTypeDescription, IDataObject } from '@flowmator/workflow';
 import { create } from 'zustand';
 import { Api, type CredentialSummary, type NodeTypeDescription } from '../lib/api';
 
@@ -54,10 +54,14 @@ export const useApp = create<AppState>((set, get) => ({
   },
 }));
 
-/** Accepts both 8n8 names and n8n export names. */
+/** n8n export names (and Flowmator's names from when it was called 8n8) → Flowmator names. */
+export const localNodeType = (type: string) =>
+  type.replace(/^(n8n-nodes-base|8n8)\./, 'flowmator.').replace(/^(@n8n\/n8n-nodes-langchain|8n8-ai)\./, 'flowmator-ai.');
+
+/** Accepts both Flowmator names and n8n export names. */
 export function getNodeType(type: string): NodeTypeDescription | undefined {
   const types = useApp.getState().nodeTypes;
-  return types[type] ?? types[type.replace(/^n8n-nodes-base\./, '8n8.')];
+  return types[type] ?? types[localNodeType(type)];
 }
 
 export const errorToast = (title: string) => (e: unknown) => useApp.getState().toast('error', title, (e as Error).message);

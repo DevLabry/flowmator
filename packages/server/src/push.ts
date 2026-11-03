@@ -14,23 +14,37 @@ export type PushEvent =
   | { type: 'workflowDeactivated'; data: { workflowId: string } }
   | { type: 'workflowFailedToActivate'; data: { workflowId: string; errorMessage: string } };
 
-/** Fan-out of live events to connected editors over WebSocket. Clients identify with ?pushRef=. */
-export class Push {
-  private readonly clients = new Map<string, WebSocket>();
+/** Anything that can deliver editor events: the WebSocket fan-out, or (on workers) the Redis relay to main. */
+export interface PushSender {
+  send(event: PushEvent, pushRef?: string): void;
+}
 
-  add(pushRef: string, ws: WebSocket) {
-    this.clients.get(pushRef)?.close();
-    this.clients.set(pushRef, ws);
+/** Fan-out of live events to connected editors over WebSocket. Clients identify with ?pushRef=. */
+export class Push implements PushSender {
+  private readonly clients = new Map<string, { ws: WebSocket; userId?: string }>();
+
+  /** Whether a user may see events about a workflow (set when user management is on) */
+  canSee: (userId: string, workflowId: string) => boolean = () => true;
+
+  add(pushRef: string, ws: WebSocket, userId?: string) {
+    this.clients.get(pushRef)?.ws.close();
+    this.clients.set(pushRef, { ws, userId });
     ws.on('close', () => {
-      if (this.clients.get(pushRef) === ws) this.clients.delete(pushRef);
+      if (this.clients.get(pushRef)?.ws === ws) this.clients.delete(pushRef);
     });
   }
 
-  /** Sends to one client when `pushRef` is given (e.g. the editor that started a manual run), otherwise to all. */
+  /**
+   * Sends to one client when `pushRef` is given (e.g. the editor that started a manual run), otherwise to
+   * every client whose user can see the event's workflow.
+   */
   send(event: PushEvent, pushRef?: string) {
     const msg = JSON.stringify(event);
-    const targets = pushRef ? [this.clients.get(pushRef)].filter(Boolean) : [...this.clients.values()];
-    for (const ws of targets) if (ws!.readyState === 1) ws!.send(msg);
+    const workflowId = (event.data as { workflowId?: string }).workflowId;
+    const targets = pushRef
+      ? [this.clients.get(pushRef)].filter((c) => !!c)
+      : [...this.clients.values()].filter((c) => !workflowId || !c.userId || this.canSee(c.userId, workflowId));
+    for (const { ws } of targets) if (ws.readyState === 1) ws.send(msg);
   }
 
   get size() {
@@ -38,7 +52,7 @@ export class Push {
   }
 
   closeAll() {
-    for (const ws of this.clients.values()) ws.close();
+    for (const { ws } of this.clients.values()) ws.close();
     this.clients.clear();
   }
 }

@@ -9,7 +9,7 @@ import {
   type INodeProperties,
   type INodeType,
   type NodeParameterValue,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 
 type KeyValue = { name: string; value: unknown; parameterType?: string; inputDataFieldName?: string };
 
@@ -55,7 +55,7 @@ const keyValueCollection = (name: string, displayName: string, show: Record<stri
 
 export const HttpRequest: INodeType = {
   description: {
-    name: '8n8.httpRequest',
+    name: 'flowmator.httpRequest',
     displayName: 'HTTP Request',
     description: 'Makes an HTTP request and returns the response data',
     group: ['output'],

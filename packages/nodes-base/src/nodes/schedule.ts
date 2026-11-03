@@ -1,6 +1,6 @@
 import { Cron } from 'croner';
 import { DateTime } from 'luxon';
-import { NodeOperationError, type IDataObject, type INodeType, type ITriggerFunctions } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type INodeType, type ITriggerFunctions } from '@flowmator/workflow';
 
 export interface ScheduleRule {
   field: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'cronExpression';
@@ -71,7 +71,7 @@ const intervalField = (name: string, field: string, def: number) => ({
 
 export const ScheduleTrigger: INodeType = {
   description: {
-    name: '8n8.scheduleTrigger',
+    name: 'flowmator.scheduleTrigger',
     displayName: 'Schedule Trigger',
     description: 'Triggers the workflow on a schedule',
     group: ['trigger', 'schedule'],

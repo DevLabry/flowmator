@@ -15,17 +15,42 @@ export interface ServerConfig {
   webhookUrl: string;
   timezone: string;
   endpoints: { rest: string; webhook: string; webhookTest: string; webhookWaiting: string; form: string; formTest: string; formWaiting: string };
-  executions: { pruneAfterHours: number; pruneMaxCount: number; timeoutSeconds: number; saveManual: boolean };
+  executions: { mode: 'regular' | 'queue'; pruneAfterHours: number; pruneMaxCount: number; timeoutSeconds: number; saveManual: boolean };
+  /** Queue mode: executions run on worker processes, coordinated through Redis (BullMQ). */
+  queue: {
+    redis: { host: string; port: number; db: number; username?: string; password?: string; tls: boolean };
+    prefix: string;
+    /** Manual (editor) runs also go to workers instead of the main process */
+    offloadManual: boolean;
+    healthCheck: { active: boolean; port: number };
+    gracefulShutdownSeconds: number;
+  };
   editorDistDir?: string;
+}
+
+export type ConfigOverrides = Partial<Omit<ServerConfig, 'executions' | 'queue' | 'endpoints'>> & {
+  endpoints?: Partial<ServerConfig['endpoints']>;
+  executions?: Partial<ServerConfig['executions']>;
+  queue?: Partial<Omit<ServerConfig['queue'], 'redis' | 'healthCheck'>> & {
+    redis?: Partial<ServerConfig['queue']['redis']>;
+    healthCheck?: Partial<ServerConfig['queue']['healthCheck']>;
+  };
+};
+
+/** ~/.flowmator, or ~/.8n8 when that is where an older install keeps its data. */
+export function defaultUserFolder() {
+  const current = path.join(os.homedir(), '.flowmator');
+  const legacy = path.join(os.homedir(), '.8n8');
+  return !existsSync(current) && existsSync(legacy) ? legacy : current;
 }
 
 /**
  * Settings come from N8N_* environment variables (same names n8n uses, so existing setups carry over).
  * The encryption key is generated once and stored in <userFolder>/config.json.
  */
-export function loadConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
+export function loadConfig(overrides: ConfigOverrides = {}): ServerConfig {
   const env = process.env;
-  const userFolder = overrides.userFolder ?? env.N8N_USER_FOLDER ?? path.join(os.homedir(), '.8n8');
+  const userFolder = overrides.userFolder ?? env.N8N_USER_FOLDER ?? defaultUserFolder();
   mkdirSync(userFolder, { recursive: true });
 
   const configFile = path.join(userFolder, 'config.json');
@@ -62,11 +87,30 @@ export function loadConfig(overrides: Partial<ServerConfig> = {}): ServerConfig 
       ...overrides.endpoints,
     },
     executions: {
+      mode: (env.EXECUTIONS_MODE === 'queue' ? 'queue' : 'regular') as 'regular' | 'queue',
       pruneAfterHours: Number(env.EXECUTIONS_DATA_MAX_AGE ?? 336),
       pruneMaxCount: Number(env.EXECUTIONS_DATA_PRUNE_MAX_COUNT ?? 10000),
       timeoutSeconds: Number(env.EXECUTIONS_TIMEOUT ?? -1),
       saveManual: (env.EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS ?? 'true') === 'true',
       ...overrides.executions,
+    },
+    queue: {
+      redis: {
+        host: env.QUEUE_BULL_REDIS_HOST ?? 'localhost',
+        port: Number(env.QUEUE_BULL_REDIS_PORT ?? 6379),
+        db: Number(env.QUEUE_BULL_REDIS_DB ?? 0),
+        username: env.QUEUE_BULL_REDIS_USERNAME || undefined,
+        password: env.QUEUE_BULL_REDIS_PASSWORD || undefined,
+        tls: env.QUEUE_BULL_REDIS_TLS === 'true',
+        ...overrides.queue?.redis,
+      },
+      prefix: overrides.queue?.prefix ?? env.QUEUE_BULL_PREFIX ?? 'bull',
+      offloadManual: overrides.queue?.offloadManual ?? env.OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS === 'true',
+      healthCheck: {
+        active: overrides.queue?.healthCheck?.active ?? env.QUEUE_HEALTH_CHECK_ACTIVE === 'true',
+        port: overrides.queue?.healthCheck?.port ?? Number(env.QUEUE_HEALTH_CHECK_PORT ?? 5678),
+      },
+      gracefulShutdownSeconds: overrides.queue?.gracefulShutdownSeconds ?? Number(env.N8N_GRACEFUL_SHUTDOWN_TIMEOUT ?? 30),
     },
     editorDistDir: overrides.editorDistDir,
   };

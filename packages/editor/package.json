@@ -1,6 +1,7 @@
 {
-  "name": "@8n8/editor",
+  "name": "@flowmator/editor",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "private": true,
   "scripts": {
@@ -9,7 +10,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@8n8/workflow": "workspace:*",
+    "@flowmator/workflow": "workspace:*",
     "@codemirror/autocomplete": "6.18.3",
     "@codemirror/lang-javascript": "6.2.2",
     "@codemirror/lang-json": "6.0.1",

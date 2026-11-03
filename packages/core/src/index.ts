@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { setHashImplementation } from '@8n8/workflow';
+import { setHashImplementation } from '@flowmator/workflow';
 
 setHashImplementation((value, algorithm) => {
   const algo = algorithm === 'sha3' ? 'sha3-512' : algorithm;

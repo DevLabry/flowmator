@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { IDataObject, IWebhookRequest, IWebhookResponse } from '@8n8/workflow';
+import type { IDataObject, IWebhookRequest, IWebhookResponse } from '@flowmator/workflow';
 import type { AppContext } from '../context';
 import { WebhookError } from '../webhooks';
 
@@ -31,7 +31,8 @@ async function toWebhookRequest(req: FastifyRequest, path: string): Promise<IWeb
       const fields: IDataObject = {};
       files = [];
       for (const [key, value] of form.entries()) {
-        if (typeof value === 'string') fields[key] = value;
+        // repeated keys (checkboxes, multi-selects) become arrays
+        if (typeof value === 'string') fields[key] = fields[key] === undefined ? value : ([] as unknown[]).concat(fields[key], value) as never;
         else files.push({ fieldName: key, fileName: value.name, mimeType: value.type || 'application/octet-stream', data: Buffer.from(await value.arrayBuffer()) });
       }
       body = fields;
@@ -99,5 +100,9 @@ export async function webhookRoutes(app: FastifyInstance, ctx: AppContext) {
     scope.route({ method: [...METHODS], url: `/${config.endpoints.webhookTest}/*`, handler: handle('test') });
     scope.route({ method: [...METHODS], url: `/${config.endpoints.webhookWaiting}/:executionId`, handler: handle('waiting') });
     scope.route({ method: [...METHODS], url: `/${config.endpoints.webhookWaiting}/:executionId/*`, handler: handle('waiting') });
+    // forms share the webhook registry; only the URL prefix differs
+    scope.route({ method: [...METHODS], url: `/${config.endpoints.form}/*`, handler: handle('production') });
+    scope.route({ method: [...METHODS], url: `/${config.endpoints.formTest}/*`, handler: handle('test') });
+    scope.route({ method: [...METHODS], url: `/${config.endpoints.formWaiting}/:executionId`, handler: handle('waiting') });
   });
 }

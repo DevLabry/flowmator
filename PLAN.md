@@ -1,8 +1,9 @@
-# 8n8 — build plan
+# Flowmator — build plan
 
 Personal-use workflow automation platform with n8n-equivalent functionality.
 All code is written from scratch (n8n's source is under the Sustainable Use License, so nothing is copied).
-Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are aliased to `8n8.*`.
+Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are aliased to `flowmator.*`.
+Flowmator was called 8n8 until 2026-10: `8n8.*` / `8n8-ai.*` node types and the `~/.8n8` data folder still work.
 
 ## Stack
 
@@ -15,11 +16,11 @@ Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are a
 
 | Package | Role |
 |---|---|
-| `@8n8/workflow` | Types, workflow graph helpers, expression engine, data helpers (shared with the editor) |
-| `@8n8/core` | Execution engine, node execution context, credentials crypto, binary data |
-| `@8n8/nodes-base` | Built-in nodes and credential types |
-| `@8n8/server` | REST API, webhooks, triggers/pollers, scheduler, push, persistence, CLI |
-| `@8n8/editor` | React UI |
+| `@flowmator/workflow` | Types, workflow graph helpers, expression engine, data helpers (shared with the editor) |
+| `@flowmator/core` | Execution engine, node execution context, credentials crypto, binary data |
+| `@flowmator/nodes-base` | Built-in nodes and credential types |
+| `@flowmator/server` | REST API, webhooks, triggers/pollers, scheduler, push, persistence, CLI |
+| `@flowmator/editor` | React UI |
 
 ## Feature checklist
 
@@ -42,39 +43,72 @@ Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are a
 - [x] Code node (JS in node:vm; Python via python3 subprocess, untested)
 
 ### Core nodes
-Done: Manual Trigger, Webhook, Schedule Trigger, Error Trigger, HTTP Request (auth, pagination, batching, files), Respond to Webhook, Execute Workflow Trigger, If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Sticky Note.
+Done: Manual Trigger, Form Trigger (+ Wait on form), Form (multi-page forms: next pages and an ending with text, redirect or custom HTML), Email Trigger (IMAP: IDLE, custom search rules, simple/resolved/raw, attachments), Local File Trigger, SSH (commands, upload/download), FTP/SFTP (list, upload, download, rename, delete), Date & Time, Crypto, Rename Keys, Summarize, Compare Datasets, XML, HTML, Markdown, Extract from File (CSV/XLSX/XLS/ODS/RTF/PDF/JSON/HTML/iCal/text), Convert to File (CSV/XLSX/XLS/ODS/RTF/JSON/HTML/iCal/text/base64), Read/Write Files from Disk, Send Email (SMTP), Execute Command, Webhook, Schedule Trigger, Error Trigger, HTTP Request (auth, pagination, batching, files), Respond to Webhook, Execute Workflow Trigger, If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Sticky Note.
 
-- [ ] Triggers: Manual, Webhook, Schedule, Form, Chat, Execute Workflow Trigger, Error Trigger, Local File Trigger, Email (IMAP)
-- [ ] Flow: If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Respond to Webhook
-- [ ] Data: Edit Fields (Set), Code, Aggregate, Split Out, Sort, Limit, Remove Duplicates, Summarize, Compare Datasets, Rename Keys, Date & Time, Crypto, XML, HTML, Markdown, Extract from File, Convert to File, Item Lists, Read/Write Files
-- [ ] Network: HTTP Request (auth, pagination, cURL import), Send Email (SMTP), SSH, FTP, Execute Command
+- [x] Triggers: Email (IMAP), Local File Trigger, Chat (in AI)
+- [x] Flow: If, Switch, Merge, Loop Over Items, Wait, Filter, Stop and Error, No Op, Execute Workflow, Respond to Webhook
+- [x] Data: ODS/XLS/RTF (SheetJS) and iCal file formats, multi-page Form node
+- [x] Network: SSH, FTP/SFTP, cURL import in the HTTP Request node
+
+### App integrations
+- [x] Slack (messages, channels, users, reactions; token or OAuth2)
+- [x] Telegram + Telegram Trigger (webhook registered with Telegram, secret token checked)
+- [x] GitHub + GitHub Trigger (repo webhook created on activation, HMAC signature checked)
+- [x] Notion (database pages, pages, databases, blocks)
+- [x] Gmail + Gmail Trigger (polling); Google Sheets (OAuth2 or service account)
+- [x] Postgres (SQL with parameters, insert/upsert/update/select/delete, transactions)
+- [x] Slack Trigger (Events API: signing secret, URL challenge, retries skipped, event/channel/bot filters)
+- [x] Discord (bot: messages with embeds/files, channels, member roles; webhook posting)
+- [x] Airtable (records: create, upsert on fields, update by id or field, search with formulas; bases and schemas)
+- [x] Google Drive + Drive Trigger (upload, download with Docs export, copy, move, share, delete, search; polling for new/changed files)
+- [x] Google Calendar + Calendar Trigger (events with Meet links, all-day, recurrence; availability; created/updated/cancelled/started/ended)
+- [x] MySQL / MariaDB (same operations as Postgres; ON DUPLICATE KEY upsert, INSERT IGNORE)
+- [x] OpenAI (message a model with JSON output, moderation, image generation and analysis, speech, transcription and translation)
+- [x] MongoDB (find, aggregate, insert, update, find and update/replace, delete), Redis + Redis Trigger (pub/sub, patterns)
+- [x] AWS S3 and S3-compatible storage (MinIO, R2…): buckets, files, folders; SigV4 signing, region redirects
+- [x] Stripe + Stripe Trigger (signed webhook endpoints), HubSpot (CRM v3 objects, search, engagements, lists), Jira Software + Jira Trigger (Cloud ADF and Server), Trello + Trello Trigger
+- [x] Microsoft Outlook + Outlook Trigger (polling), Microsoft Teams (channels, messages, Planner tasks), Microsoft OneDrive (Graph; upload sessions for big files)
+- [ ] Still missing: Microsoft tenant-specific sign-in (uses "common"), Teams/OneDrive triggers, long tail of n8n nodes
 
 ### Platform
-- [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys (data tables pending)
+- [x] REST API: workflows, executions, credentials, tags, variables, folders, API keys, data tables
 - [x] Activation: webhook registration, pollers, cron
 - [x] Test vs production webhook URLs
 - [x] Executions list, retry, stop, delete, pruning (debug-in-editor is an editor feature)
 - [x] Credentials: AES-256-GCM, OAuth2 (code, PKCE, client credentials, refresh), test (OAuth1 pending)
 - [x] Workflow version history and restore
-- [x] Variables, tags, folders (data tables pending)
-- [x] Public API with API keys (CLI pending)
-- [ ] Queue mode with workers
-- [ ] Source control (git), external secrets, log streaming, insights
-- [ ] Community nodes from npm, node SDK
-- [ ] Templates
+- [x] Variables, tags, folders
+- [x] Data tables: typed columns (string, number, boolean, date) stored in SQLite; Data Table node (insert, get, update, upsert, delete, if row exists / does not exist, dry run; create, list, rename, delete tables); editor page with inline editing, sorting, search, CSV import and export; public API `/api/v1/data-tables`
+- [x] Public API with API keys
+- [x] Queue mode (EXECUTIONS_MODE=queue): BullMQ/Redis, `flowmator worker` (concurrency, health check, graceful shutdown), `flowmator webhook` processes; editor events, Respond to Webhook, waits, stop and retry relayed through Redis; manual runs stay on main unless OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
+- [x] Docker image (`Dockerfile`, `docker-compose.yml`, `docker-compose.queue.yml` with Redis and workers): data in a `/home/node/.flowmator` volume, same `start`/`worker`/`webhook` commands as n8n's image
+- [x] CLI (`bin/flowmator.mjs`): start, worker, webhook, execute, import/export workflows and credentials (n8n exports work, --decrypted, --backup), list/update workflows
+- [x] Source control (git push/pull of workflows, credential and variable stubs, tags, folders; SSH deploy key or HTTPS; conflicts, read-only branch), external secrets (Vault, AWS, Azure, GCP → `$secrets`), log streaming (webhook, syslog, Sentry; workflow/node/audit events), insights (production executions, time saved, failure rate)
+- [x] Community nodes from npm (`n8n-nodes-*`, loaded through an `n8n-workflow` shim; legacy `request` helpers)
+- [x] Templates (n8n template library proxied at /rest/templates, import as workflow)
 
 ### Editor
 - [x] Canvas: add/connect/move/delete, sticky notes, minimap, undo/redo, copy/paste JSON
 - [x] Node creator panel with search
 - [x] Node detail view with generated parameter forms, input/output (table/JSON/schema/binary), drag-to-map
+- [x] Resource locator "From list" search and resource mapper (column mapping loaded from the node)
 - [x] Expression editor with autocomplete and live preview
 - [x] Live execution, run data per node, pin data
 - [x] Executions view, workflow settings, version history, debug in editor
 - [x] Credentials (incl. OAuth2 connect), variables, settings pages
 
 ### AI
-- [ ] AI Agent with sub-node slots (Model, Memory, Tools, Output Parser)
-- [ ] Chat models: Anthropic, OpenAI, Ollama, Gemini
-- [ ] Memory, vector stores, embeddings, document loaders, text splitters
-- [ ] Workflow as tool, MCP server trigger, MCP client tool
-- [ ] Chat UI, evaluations
+- [x] AI Agent with sub-node slots (Model, Memory, Tools, Output Parser), tool loop, iteration limit
+- [x] Chat models: Anthropic (official SDK, refusal fallback, effort), OpenAI-compatible, Ollama, Google Gemini (function calling, thought signatures kept), Mistral, Groq, DeepSeek, OpenRouter, xAI Grok, Azure OpenAI (deployments, api-key), AWS Bedrock (Converse API with SigV4 signing, tool use, on-demand models or inference profiles)
+- [x] Memory: Simple, Postgres Chat Memory, Redis Chat Memory (LangChain/n8n storage layout, so existing tables and keys work)
+- [x] RAG: embeddings (OpenAI, Ollama, Gemini, Cohere, Hugging Face, Vertex AI), Default Data Loader (JSON, text, CSV, JSON files, PDF per page, metadata), text splitters (recursive with code modes, character, token)
+- [x] Vector stores with n8n's modes (get many, insert, retrieve for chains, retrieve as agent tool) and metadata filters: Simple (in memory), Postgres PGVector, Qdrant, Pinecone, Supabase (PostgREST + match function), MongoDB Atlas ($vectorSearch), Weaviate (nearVector GraphQL), Milvus/Zilliz (REST v2, LangChain fields), Redis (Query Engine KNN, LangChain hash layout)
+- [x] Vector Store Retriever, Question and Answer Chain, Basic LLM Chain, Answer Questions with a Vector Store tool
+- [x] Information Extractor (attributes, JSON example or schema; retries on invalid output), Text Classifier (one output per category, multi-class, fallback), Sentiment Analysis (custom categories, strength/confidence), Summarization Chain (map-reduce, stuff, refine; node input or document loader; simple or connected splitter)
+- [x] Tools: Workflow, HTTP Request, Code, Calculator, Think, Wikipedia, SerpApi (Google Search), MCP Client Tool (Streamable HTTP and SSE, auth, include/exclude tools)
+- [x] MCP Server Trigger: serves its connected tools over stateless Streamable HTTP (JSON responses), bearer/header auth
+- [x] Sub-node connections (database pools, MCP clients) are closed when the root node finishes
+- [x] Chat trigger with hosted page and editor chat panel
+- [x] Evaluations: Evaluation Trigger (dataset from a data table, limit and filter rows), Evaluation node (set outputs back to the row, metrics: correctness and helpfulness judged by a model, string similarity, categorization, tools used, custom; check if evaluating), test runs that execute the workflow per row in "evaluation" mode and average the metrics, Evaluations tab in the editor (runs, metric trends, per-case results linked to executions, cancel/delete)
+- [x] Cohere (compatibility API), Hugging Face (Inference Providers router) and Google Vertex AI (Gemini with a service account) chat models
+- [x] Google Sheets as an evaluation dataset (lookup filters, row limit; outputs written back to the row, new columns added to the header)

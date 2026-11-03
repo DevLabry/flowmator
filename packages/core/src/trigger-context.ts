@@ -13,8 +13,9 @@ import {
   type ITriggerFunctions,
   type IWebhookFunctions,
   type IWebhookRequest,
-} from '@8n8/workflow';
-import { BaseNodeContext, type BaseContextParams } from './node-context';
+  type ConnectionType,
+} from '@flowmator/workflow';
+import { BaseNodeContext, ExecuteContext, type BaseContextParams } from './node-context';
 
 /** Parameter resolution outside of an item context (triggers, pollers, webhooks): expressions see no input data. */
 class NoItemContext extends BaseNodeContext {
@@ -119,6 +120,24 @@ export class WebhookContext extends NoItemContext implements IWebhookFunctions {
   }
   getNodeWebhookUrl(name: string) {
     return this.urlFor(name);
+  }
+
+  private subNodes?: ExecuteContext;
+  /** For triggers with sub-node inputs (MCP Server Trigger): what the connected sub-nodes supply. */
+  getInputConnectionData(type: ConnectionType, itemIndex: number): Promise<unknown> {
+    this.subNodes ??= new ExecuteContext({
+      workflow: this.workflow,
+      node: this.node,
+      additionalData: this.additionalData,
+      runData: {},
+      executeData: { node: this.node, data: { main: [this.inputForExpressions()] }, source: null },
+      runIndex: 0,
+      contextData: {},
+    });
+    return this.subNodes.getInputConnectionData(type, itemIndex);
+  }
+  async closeSubNodes() {
+    await this.subNodes?.closeSubNodes();
   }
 }
 

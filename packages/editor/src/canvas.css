@@ -42,7 +42,11 @@
 
 .wf-node .react-flow__handle { width: 12px; height: 12px; border-width: 2px; }
 .wf-node .react-flow__handle.main-in { border-radius: 3px; width: 8px; height: 18px; }
-.wf-node .react-flow__handle.ai { border-radius: 2px; transform: rotate(45deg) translate(-25%, -25%); background: var(--surface); }
+.wf-node .react-flow__handle.ai { border-radius: 2px; width: 10px; height: 10px; background: var(--surface); }
+.wf-node .react-flow__handle.ai .handle-label { font-size: 10px; }
+.wf-node.wide, .wf-node.wide .box { width: 280px; }
+.wf-node.wide .box { display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 0 18px; }
+.wf-node .inner-name { font-weight: 600; font-size: 14px; max-width: 200px; }
 .handle-label { position: absolute; font-size: 10px; color: var(--text-2); white-space: nowrap; pointer-events: none; }
 .handle-plus { position: absolute; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); display: grid; place-items: center; cursor: pointer; padding: 0; }
 .handle-plus:hover { color: var(--accent); border-color: var(--accent); }
@@ -113,7 +117,7 @@
 .notice { background: var(--warning-soft); color: var(--text); border-left: 3px solid var(--warning); padding: 8px 10px; border-radius: 4px; font-size: 12px; }
 .collection { border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 10px; background: var(--surface-2); }
 .collection-item { border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; position: relative; }
-.collection-item > .remove { position: absolute; right: 6px; top: 6px; }
+.collection-item > .remove { position: absolute; right: -10px; top: -10px; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 50%; }
 .expr-box { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
 .expr-box.focused { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .expr-box .cm-editor { font-size: 12px; }
@@ -138,3 +142,24 @@
 
 .drawer { position: absolute; right: 0; top: 0; bottom: 0; width: 340px; background: var(--surface); border-left: 1px solid var(--border); z-index: 25; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+
+/* chat panel */
+.chat-panel { position: absolute; right: 16px; bottom: 76px; width: 380px; height: min(560px, calc(100% - 100px)); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); z-index: 15; display: flex; flex-direction: column; }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.chat-log { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.chat-msg { max-width: 85%; padding: 8px 11px; border-radius: 10px; white-space: pre-wrap; word-break: break-word; }
+.chat-msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
+.chat-msg.bot { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 3px; }
+.chat-msg.error { align-self: flex-start; background: var(--danger-soft); color: var(--danger); }
+.chat-input { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+.chat-input textarea { min-height: 38px; height: 38px; font-family: inherit; font-size: 13px; }
+
+/* resource locator "from list" and resource mapper */
+.rl-list { position: relative; }
+.rl-trigger { width: 100%; justify-content: space-between; font-weight: 400; }
+.rl-dropdown { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+.rl-results { max-height: 220px; overflow: auto; display: flex; flex-direction: column; }
+.rl-results > div { padding: 6px 8px; font-size: 12px; }
+.rl-results button { border: none; background: none; justify-content: flex-start; font-weight: 400; height: 30px; border-radius: 4px; }
+.rl-results button:hover, .rl-results button.active { background: var(--accent-soft); color: var(--accent); }
+.mapper-field { padding-left: 10px; border-left: 2px solid var(--border); }

@@ -7,7 +7,7 @@ import { transformExtensions } from './transform';
 export const isExpression = (value: unknown): value is string => typeof value === 'string' && value.startsWith('=');
 
 /**
- * Globals hidden from expressions. This is not a security sandbox (8n8 is single-user),
+ * Globals hidden from expressions. This is not a security sandbox (Flowmator is single-user),
  * it just keeps expressions from accidentally touching the host process.
  */
 const SHADOWED_GLOBALS = ['process', 'require', 'module', 'exports', 'global', 'globalThis', 'window', 'document', 'eval', 'Function', 'setTimeout', 'setInterval', 'fetch'];

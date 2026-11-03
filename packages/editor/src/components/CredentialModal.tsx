@@ -1,4 +1,4 @@
-import { getParameterDisplayed, type IDataObject, type INodeParameters } from '@8n8/workflow';
+import { getParameterDisplayed, type IDataObject, type INodeParameters } from '@flowmator/workflow';
 import { useEffect, useState } from 'react';
 import { Api, type CredentialSummary } from '../lib/api';
 import { errorToast, useApp } from '../store/app';
@@ -8,12 +8,14 @@ import { Modal, Switch } from './ui';
 interface Props {
   type: string;
   credentialId?: string;
+  /** Project a new credential goes to (default: the personal project) */
+  projectId?: string;
   onClose: () => void;
   onSaved?: (c: CredentialSummary) => void;
 }
 
 /** Create or edit a credential. Secrets come back redacted; leaving them untouched keeps the stored value. */
-export function CredentialModal({ type, credentialId, onClose, onSaved }: Props) {
+export function CredentialModal({ type, credentialId, projectId, onClose, onSaved }: Props) {
   const credType = useApp((s) => s.credentialTypes[type]);
   const baseUrl = String(useApp((s) => s.settings.urlBaseWebhook) ?? `${location.origin}/`);
   const [name, setName] = useState(credType ? `${credType.displayName} account` : 'Credential');
@@ -21,6 +23,8 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
   const [id, setId] = useState(credentialId);
   const [testResult, setTestResult] = useState<{ status: string; message: string }>();
   const [busy, setBusy] = useState(false);
+  // people it is only shared with can use it but not see or change its secrets
+  const [readOnly, setReadOnly] = useState(false);
 
   useEffect(() => {
     if (!credentialId) {
@@ -30,6 +34,7 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
     Api.credential(credentialId).then((c) => {
       setName(c.name);
       setData(c.data ?? {});
+      setReadOnly(!c.scopes?.includes('update'));
     }, errorToast('Could not load credential'));
   }, [credentialId, credType]);
 
@@ -41,7 +46,7 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
   const save = async () => {
     setBusy(true);
     try {
-      const saved = id ? await Api.updateCredential(id, { name, data }) : await Api.createCredential({ name, type, data });
+      const saved = id ? await Api.updateCredential(id, { name, data }) : await Api.createCredential({ name, type, data, projectId });
       setId(saved.id);
       await useApp.getState().refreshCredentials();
       onSaved?.(saved);
@@ -63,9 +68,9 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
     if (!saved) return;
     const url = await Api.oauthUrl(saved.id).catch(errorToast('Could not start OAuth'));
     if (!url) return;
-    const popup = window.open(url, '8n8-oauth', 'width=600,height=700');
+    const popup = window.open(url, 'flowmator-oauth', 'width=600,height=700');
     const onMsg = (e: MessageEvent) => {
-      if (e.data !== '8n8-oauth-success') return;
+      if (e.data !== 'flowmator-oauth-success') return;
       window.removeEventListener('message', onMsg);
       popup?.close();
       Api.credential(saved.id).then((c) => setData(c.data ?? {}));
@@ -82,16 +87,17 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
       footer={
         <>
           {testResult && <span className={`badge ${testResult.status === 'OK' ? 'success' : 'error'}`} title={testResult.message} style={{ marginRight: 'auto', maxWidth: 260 }}><span className="ellipsis">{testResult.message}</span></span>}
-          <button onClick={test}>Test</button>
-          <button className="primary" disabled={busy} onClick={async () => { if (await save()) onClose(); }}>Save</button>
+          {readOnly ? <button onClick={onClose}>Close</button> : <button onClick={test}>Test</button>}
+          <button className="primary" disabled={busy || readOnly} onClick={async () => { if (await save()) onClose(); }}>Save</button>
         </>
       }
     >
       <div>
         <label className="field-label">Name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} />
+        <input value={name} disabled={readOnly} onChange={(e) => setName(e.target.value)} />
       </div>
-      {credType.properties.map((p) => {
+      {readOnly && <div className="muted">This credential is shared with you: your workflows can use it, but only its owner's project can see or change its details.</div>}
+      {!readOnly && credType.properties.map((p) => {
         if (p.type === 'hidden' || !getParameterDisplayed(p, data as INodeParameters)) return null;
         const v = data[p.name];
         const set = (nv: unknown) => setData({ ...data, [p.name]: nv as never });
@@ -111,7 +117,7 @@ export function CredentialModal({ type, credentialId, onClose, onSaved }: Props)
                 type={p.typeOptions?.password ? 'password' : p.type === 'number' ? 'number' : 'text'}
                 value={String(v ?? '')}
                 placeholder={p.placeholder}
-                onFocus={(e) => v === '__8N8_REDACTED__' && e.target.select()}
+                onFocus={(e) => v === '__FLOWMATOR_REDACTED__' && e.target.select()}
                 onChange={(e) => set(p.type === 'number' ? Number(e.target.value) : e.target.value)}
               />
             )}

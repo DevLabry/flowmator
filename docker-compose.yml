@@ -1,0 +1,31 @@
+# Flowmator with its data in a named volume.
+#   docker compose up -d        → http://localhost:5678
+# Settings use the same N8N_* variables as n8n; put overrides in a .env file next to this one.
+
+services:
+  flowmator:
+    image: flowmator:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${FLOWMATOR_PORT:-5678}:5678"
+    environment:
+      # the public address of this instance, used for webhook and OAuth callback URLs
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Madrid}
+      - TZ=${GENERIC_TIMEZONE:-Europe/Madrid}
+      # optional: email invitations and password resets (without it the editor gives you links to send)
+      - N8N_EMAIL_MODE=${N8N_EMAIL_MODE:-}
+      - N8N_SMTP_HOST=${N8N_SMTP_HOST:-}
+      - N8N_SMTP_PORT=${N8N_SMTP_PORT:-465}
+      - N8N_SMTP_USER=${N8N_SMTP_USER:-}
+      - N8N_SMTP_PASS=${N8N_SMTP_PASS:-}
+      - N8N_SMTP_SENDER=${N8N_SMTP_SENDER:-}
+      - N8N_SMTP_SSL=${N8N_SMTP_SSL:-true}
+      # optional: set it to keep credentials readable if the volume's config.json is lost
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-}
+    volumes:
+      - flowmator_data:/home/node/.flowmator
+
+volumes:
+  flowmator_data:

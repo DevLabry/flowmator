@@ -2,4 +2,6 @@ node_modules
 dist
 .turbo
 *.sqlite
+.flowmator
 .8n8
+.serena

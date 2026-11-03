@@ -1,9 +1,9 @@
 import { errorItem } from '../utils/object';
-import { NodeOperationError, type IExecuteFunctions, type INodeExecutionData, type INodeType, type IWorkflowBase } from '@8n8/workflow';
+import { NodeOperationError, type IExecuteFunctions, type INodeExecutionData, type INodeType, type IWorkflowBase } from '@flowmator/workflow';
 
 export const ExecuteWorkflowTrigger: INodeType = {
   description: {
-    name: '8n8.executeWorkflowTrigger',
+    name: 'flowmator.executeWorkflowTrigger',
     displayName: 'When Executed by Another Workflow',
     description: 'Starts the workflow when another workflow calls it with Execute Workflow',
     group: ['trigger'],
@@ -64,7 +64,7 @@ export const ExecuteWorkflowTrigger: INodeType = {
 
 export const ExecuteWorkflow: INodeType = {
   description: {
-    name: '8n8.executeWorkflow',
+    name: 'flowmator.executeWorkflow',
     displayName: 'Execute Workflow',
     description: 'Runs another workflow (sub-workflow) and returns its output',
     group: ['transform'],

@@ -2,6 +2,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Api } from '../lib/api';
 import { errorToast } from '../store/app';
+import { useIsAdmin } from '../store/auth';
 
 type Variable = { id: string; key: string; value: string };
 
@@ -9,10 +10,12 @@ type Variable = { id: string; key: string; value: string };
 export function VariablesPage() {
   const [list, setList] = useState<Variable[]>([]);
   const [draft, setDraft] = useState({ key: '', value: '' });
+  // everyone can use them; owners and admins change them
+  const readOnly = !useIsAdmin();
   const refresh = useCallback(() => {
     Api.variables().then((vars) => {
       setList(vars);
-      (window as unknown as { __8n8Vars: Record<string, string> }).__8n8Vars = Object.fromEntries(vars.map((v) => [v.key, v.value]));
+      (window as unknown as { __flowmatorVars: Record<string, string> }).__flowmatorVars = Object.fromEntries(vars.map((v) => [v.key, v.value]));
     }, errorToast('Could not load variables'));
   }, []);
   useEffect(refresh, [refresh]);
@@ -28,7 +31,7 @@ export function VariablesPage() {
       <div className="page-header">
         <div>
           <h1>Variables</h1>
-          <div className="muted" style={{ marginTop: 4 }}>Use them in expressions with <code>{'{{ $vars.KEY }}'}</code></div>
+          <div className="muted" style={{ marginTop: 4 }}>Use them in expressions with <code>{'{{ $vars.KEY }}'}</code>{readOnly && '. Only owners and admins can change them.'}</div>
         </div>
       </div>
       <div className="card">
@@ -37,16 +40,16 @@ export function VariablesPage() {
           <tbody>
             {list.map((v) => (
               <tr key={v.id}>
-                <td><input defaultValue={v.key} className="mono" onBlur={(e) => e.target.value !== v.key && Api.updateVariable(v.id, e.target.value, v.value).then(refresh, errorToast('Could not update'))} /></td>
-                <td><input defaultValue={v.value} onBlur={(e) => e.target.value !== v.value && Api.updateVariable(v.id, v.key, e.target.value).then(refresh, errorToast('Could not update'))} /></td>
-                <td><button className="ghost icon sm danger" onClick={() => Api.deleteVariable(v.id).then(refresh)}><Trash2 size={13} /></button></td>
+                <td><input defaultValue={v.key} className="mono" disabled={readOnly} onBlur={(e) => e.target.value !== v.key && Api.updateVariable(v.id, e.target.value, v.value).then(refresh, errorToast('Could not update'))} /></td>
+                <td><input defaultValue={v.value} disabled={readOnly} onBlur={(e) => e.target.value !== v.value && Api.updateVariable(v.id, v.key, e.target.value).then(refresh, errorToast('Could not update'))} /></td>
+                <td>{!readOnly && <button className="ghost icon sm danger" onClick={() => Api.deleteVariable(v.id).then(refresh)}><Trash2 size={13} /></button>}</td>
               </tr>
             ))}
-            <tr>
+            {!readOnly && <tr>
               <td><input className="mono" placeholder="NEW_KEY" value={draft.key} onChange={(e) => setDraft({ ...draft, key: e.target.value.replace(/[^A-Za-z0-9_]/g, '_') })} /></td>
               <td><input placeholder="value" value={draft.value} onChange={(e) => setDraft({ ...draft, value: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} /></td>
               <td><button className="icon sm" onClick={add} disabled={!draft.key}><Plus size={13} /></button></td>
-            </tr>
+            </tr>}
           </tbody>
         </table>
       </div>

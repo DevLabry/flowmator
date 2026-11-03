@@ -1,6 +1,6 @@
-import { Handle, NodeResizer, Position, type NodeProps } from '@xyflow/react';
+import { Handle, NodeResizer, Position, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
 import { CircleAlert, Check, Pin, Play, Power, Trash2, Zap, Plus } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { getNodeType } from '../store/app';
 import { staticIO, useWorkflow } from '../store/workflow';
 import { NodeIcon } from './ui';
@@ -8,20 +8,34 @@ import { NodeIcon } from './ui';
 export interface CanvasNodeData extends Record<string, unknown> {
   name: string;
   onAddFrom: (node: string, output: number, type: string) => void;
+  /** "+" under an AI input of a root node (agent): add a sub-node that feeds it */
+  onAddSubNode: (node: string, type: string) => void;
 }
 
 const ioType = (io: string | { type: string }) => (typeof io === 'string' ? io : io.type);
+
+/** How many sub-nodes already feed `target` through `type`. */
+function countSubInputs(connections: Record<string, Record<string, Array<Array<{ node: string }> | null> | undefined>>, target: string, type: string) {
+  let n = 0;
+  for (const byType of Object.values(connections)) for (const targets of byType[type] ?? []) for (const t of targets ?? []) if (t.node === target) n++;
+  return n;
+}
 const ioLabel = (io: string | { type: string; displayName?: string }) => (typeof io === 'string' ? '' : (io.displayName ?? ''));
 
-export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps) {
-  const { name, onAddFrom } = data as CanvasNodeData;
+export const CanvasNode = memo(function CanvasNode({ id, data, selected }: NodeProps) {
+  const { name, onAddFrom, onAddSubNode } = data as CanvasNodeData;
+  const updateNodeInternals = useUpdateNodeInternals();
   const node = useWorkflow((s) => s.workflow.nodes.find((n) => n.name === name));
+  const subInputs = useWorkflow((s) => s.workflow.connections);
   const dynamicIO = useWorkflow((s) => s.nodeIO[name]);
   const runs = useWorkflow((s) => s.runData[name]);
   const running = useWorkflow((s) => s.executingNodes.includes(name));
   const pinned = useWorkflow((s) => !!s.workflow.pinData?.[name]);
   const connections = useWorkflow((s) => s.workflow.connections[name]);
   const readOnly = useWorkflow((s) => s.readOnly);
+  // handles move when the inputs/outputs change (Switch rules, vector store mode): re-measure them
+  const ioKey = dynamicIO ? JSON.stringify([dynamicIO.inputs, dynamicIO.outputs]) : '';
+  useEffect(() => updateNodeInternals(id), [ioKey, id, updateNodeInternals]);
   if (!node) return null;
 
   const type = getNodeType(node.type);
@@ -31,14 +45,16 @@ export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps
   const mainInputs = io.inputs.filter((i) => ioType(i) === 'main');
   const aiInputs = io.inputs.filter((i) => ioType(i) !== 'main');
   const aiOutputs = outputs.filter((o) => ioType(o) !== 'main');
-  const isSub = !!type?.supplyData;
+  const isSub = !!type?.supplyData && mainOutputs.length === 0;
   const lastRun = runs?.at(-1);
   const itemCount = lastRun?.data?.main?.reduce((sum, o) => sum + (o?.length ?? 0), 0) ?? 0;
   const status = running ? 'running' : lastRun?.error ? 'error' : lastRun ? 'success' : '';
   const isTrigger = !!type?.isTrigger;
   const outputNames = io.outputNames ?? [];
 
-  const classes = ['wf-node', status, isTrigger && 'trigger', isSub && 'subnode', selected && 'selected', node.disabled && 'disabled', pinned && 'pinned']
+  // root nodes with sub-node inputs (AI Agent) are wide, with their name inside, so the inputs fit below
+  const wide = aiInputs.length > 0;
+  const classes = ['wf-node', status, isTrigger && 'trigger', isSub && 'subnode', wide && 'wide', selected && 'selected', node.disabled && 'disabled', pinned && 'pinned']
     .filter(Boolean)
     .join(' ');
 
@@ -46,7 +62,7 @@ export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps
     <div className={classes}>
       {!readOnly && (
         <div className="toolbar nodrag">
-          <button className="ghost" title="Execute step" onClick={() => useWorkflow.getState().run({ destinationNode: name })}><Play size={13} /></button>
+          {!isSub && <button className="ghost" title="Execute step" onClick={() => useWorkflow.getState().run({ destinationNode: name })}><Play size={13} /></button>}
           <button className="ghost" title={node.disabled ? 'Enable' : 'Disable'} onClick={() => useWorkflow.getState().updateNode(name, { disabled: !node.disabled })}><Power size={13} /></button>
           <button className="ghost" title="Delete" onClick={() => useWorkflow.getState().removeNodes([name])}><Trash2 size={13} /></button>
         </div>
@@ -74,12 +90,26 @@ export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps
           className="ai"
           style={{ left: `${((i + 1) / (aiInputs.length + 1)) * 100}%` }}
         >
-          <span className="handle-label" style={{ top: 14, left: '50%', transform: 'translateX(-50%)' }}>{ioLabel(input) || ioType(input).replace('ai_', '')}</span>
+          <span className="handle-label" style={{ top: 14, left: '50%', transform: 'translateX(-50%)' }}>{ioLabel(input) || ioType(input).replace('ai_', '')}{typeof input !== 'string' && input.required ? ' *' : ''}</span>
+          {!readOnly && (typeof input === 'string' || !input.maxConnections || countSubInputs(subInputs, name, ioType(input)) < input.maxConnections) && (
+            <button
+              className="handle-plus nodrag"
+              style={{ top: 34, left: '50%', transform: 'translateX(-50%)' }}
+              title={`Add ${ioLabel(input) || 'sub-node'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddSubNode(name, ioType(input));
+              }}
+            >
+              <Plus size={12} />
+            </button>
+          )}
         </Handle>
       ))}
 
       <div className="box">
         <NodeIcon icon={type?.icon} color={type?.defaults.color} size={isSub ? 26 : 32} label={type?.displayName ?? node.name} />
+        {wide && <span className="inner-name ellipsis">{node.name}</span>}
         {pinned && <Pin size={13} className="pin" />}
         {status === 'success' && (
           <span className="status ok">
@@ -123,8 +153,8 @@ export const CanvasNode = memo(function CanvasNode({ data, selected }: NodeProps
         <Handle key={`out-ai-${i}`} id={`out:${ioType(o)}:0`} type="source" position={Position.Top} className="ai" style={{ left: `${((i + 1) / (aiOutputs.length + 1)) * 100}%` }} />
       ))}
 
-      <div className="label">
-        <div className="ellipsis" style={node.disabled ? { textDecoration: 'line-through' } : undefined}>{node.name}</div>
+      <div className="label" style={wide ? { top: 'auto', bottom: 'calc(100% + 6px)' } : undefined}>
+        {!wide && <div className="ellipsis" style={node.disabled ? { textDecoration: 'line-through' } : undefined}>{node.name}</div>}
         {itemCount > 0 && <div className="sublabel">{itemCount} item{itemCount === 1 ? '' : 's'}</div>}
       </div>
     </div>

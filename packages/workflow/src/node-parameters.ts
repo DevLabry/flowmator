@@ -69,10 +69,18 @@ export function getNodeParametersWithDefaults(
   typeVersion?: number,
 ): INodeParameters {
   const result: INodeParameters = {};
-  // Two passes so that displayOptions depending on defaults of earlier params resolve correctly
+  // Several properties may share a name (e.g. "outputFieldName" per operation) with different defaults:
+  // only a property that is displayed may supply the default. Two passes, because whether a property is
+  // displayed can depend on the default of another one.
   const merged: INodeParameters = { ...values };
-  for (const prop of properties) {
-    if (merged[prop.name] === undefined && prop.type !== 'notice') merged[prop.name] = structuredClone(prop.default) as never;
+  const assigned = new Set<string>();
+  for (let pass = 0; pass < 2; pass++) {
+    for (const prop of properties) {
+      if (prop.type === 'notice' || values[prop.name] !== undefined || assigned.has(prop.name)) continue;
+      if (!getParameterDisplayed(prop, merged, merged, typeVersion)) continue;
+      merged[prop.name] = structuredClone(prop.default) as never;
+      assigned.add(prop.name);
+    }
   }
   for (const prop of properties) {
     if (prop.type === 'notice' || prop.type === 'button') continue;

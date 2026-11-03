@@ -13,7 +13,7 @@ import {
   type ITaskData,
   type NodeErrorJson,
   type Workflow,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { IWorkflowExecuteAdditionalData } from './additional-data';
 import { ExecuteContext } from './node-context';
 import { PollContext, TriggerContext } from './trigger-context';
@@ -344,7 +344,12 @@ export class WorkflowExecute {
         runIndex,
         contextData: (this.state.contextData ??= {}),
       });
-      const result = await nodeType.execute.call(context);
+      let result;
+      try {
+        result = await nodeType.execute.call(context);
+      } finally {
+        await context.closeSubNodes();
+      }
       if (context.waitTill) {
         this.waitTill = context.waitTill;
         return { output: null, waiting: true };

@@ -1,6 +1,6 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import type { CredentialTypesRegistry, ICredentialsHelper } from '@8n8/core';
-import { httpRequest } from '@8n8/core';
+import { createCipheriv, createDecipheriv, createHash, createSign, randomBytes } from 'node:crypto';
+import type { CredentialTypesRegistry, ICredentialsHelper } from '@flowmator/core';
+import { httpRequest } from '@flowmator/core';
 import {
   evaluateExpression,
   isExpression,
@@ -9,7 +9,7 @@ import {
   type IDataObject,
   type IHttpRequestOptions,
   type INode,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { CredentialEntity, Database } from './db';
 
 /** AES-256-GCM; output is base64(iv | tag | ciphertext). */
@@ -32,7 +32,7 @@ export class Cipher {
   }
 }
 
-export const REDACTED = '__8N8_REDACTED__';
+export const REDACTED = '__FLOWMATOR_REDACTED__';
 
 export class CredentialsService {
   constructor(
@@ -73,12 +73,17 @@ export class CredentialsService {
   getDecrypted(id: string): IDataObject & { __type: string; __name: string } {
     const c = this.db.getCredential(id);
     if (!c) throw new Error(`Credential with ID "${id}" does not exist`);
-    return { ...this.cipher.decrypt(c.data), __type: c.type, __name: c.name };
+    const data = this.cipher.decrypt(c.data);
+    // fixed settings (e.g. a provider's OAuth URLs) are hidden properties that only exist as defaults
+    for (const p of this.types.get(c.type).properties) {
+      if (data[p.name] === undefined && p.default !== undefined && p.default !== '') data[p.name] = structuredClone(p.default) as never;
+    }
+    return { ...data, __type: c.type, __name: c.name };
   }
 
-  create(name: string, type: string, data: IDataObject) {
+  create(name: string, type: string, data: IDataObject, id?: string) {
     this.types.get(type); // validates the type
-    return this.toPublic(this.db.createCredential(name, type, this.cipher.encrypt(data)));
+    return this.toPublic(this.db.createCredential(name, type, this.cipher.encrypt(data), id));
   }
 
   /** Redacted values in `data` keep their stored value, so the editor can save without re-entering secrets. */
@@ -108,6 +113,9 @@ export class CredentialsService {
 const OAUTH2 = 'oAuth2Api';
 
 export class CredentialsHelper implements ICredentialsHelper {
+  /** External secrets, readable in credential fields as {{ $secrets.provider.name }} */
+  secrets: () => Record<string, unknown> = () => ({});
+
   constructor(private readonly service: CredentialsService) {}
 
   private isOAuth2(type: string) {
@@ -119,7 +127,10 @@ export class CredentialsHelper implements ICredentialsHelper {
     }
   }
 
-  async getDecrypted(node: INode, type: string): Promise<IDataObject> {
+  /** Whether a workflow may use a credential (set when user management is on) */
+  canUse: (workflowId: string | undefined, credentialId: string) => boolean = () => true;
+
+  async getDecrypted(node: INode, type: string, workflowId?: string): Promise<IDataObject> {
     const ref = node.credentials?.[type];
     if (!ref) throw new NodeOperationError(node, `Node "${node.name}" does not have any credentials of type "${type}" set`);
     let id = ref.id;
@@ -128,17 +139,19 @@ export class CredentialsHelper implements ICredentialsHelper {
       if (!match) throw new NodeOperationError(node, `Credential "${ref.name}" (${type}) not found`);
       id = match.id;
     }
+    if (!this.canUse(workflowId, id)) throw new NodeOperationError(node, `This workflow's project has no access to the credential "${ref.name}". Share the credential with the project first.`);
     const { __type, __name, ...data } = this.service.getDecrypted(id);
     if (__type !== type) throw new NodeOperationError(node, `Credential "${__name}" is of type ${__type}, expected ${type}`);
     const credType = this.service.types.get(type);
     // fill defaults, and resolve expressions that reference other credential fields
     for (const p of credType.properties) if (data[p.name] === undefined && p.default !== undefined) data[p.name] = p.default as never;
-    for (const [k, v] of Object.entries(data)) if (isExpression(v)) data[k] = evaluateExpression(v, { $credentials: data }) as never;
+    for (const [k, v] of Object.entries(data)) if (isExpression(v)) data[k] = evaluateExpression(v, { $credentials: data, $secrets: this.secrets() }) as never;
     return { ...data, __credentialId: id };
   }
 
   async authenticate(type: string, credentials: IDataObject, request: IHttpRequestOptions): Promise<IHttpRequestOptions> {
     if (this.isOAuth2(type)) return this.authenticateOAuth2(credentials, request);
+    if (type === 'googleApi') return this.authenticateServiceAccount(credentials, request);
     if (type === 'httpCustomAuth') {
       const custom = typeof credentials.json === 'string' ? JSON.parse(credentials.json) : (credentials.json as IDataObject);
       request.headers = { ...(request.headers ?? {}), ...(custom.headers ?? {}) };
@@ -149,7 +162,7 @@ export class CredentialsHelper implements ICredentialsHelper {
     const credType: ICredentialType = this.service.types.get(type);
     const auth = credType.authenticate;
     if (!auth) return request;
-    const resolve = (v: string) => String(isExpression(v) ? evaluateExpression(v, { $credentials: credentials }) : v);
+    const resolve = (v: string) => String(isExpression(v) ? evaluateExpression(v, { $credentials: credentials, $secrets: this.secrets() }) : v);
     const mapRecord = (r?: Record<string, string>) => Object.fromEntries(Object.entries(r ?? {}).map(([k, v]) => [resolve(k), resolve(v)]));
     const p = auth.properties;
     if (p.headers) request.headers = { ...(request.headers ?? {}), ...mapRecord(p.headers) };
@@ -166,7 +179,37 @@ export class CredentialsHelper implements ICredentialsHelper {
       this.persistToken(credentials, token);
     }
     if (!token.access_token) throw new Error('OAuth2 credential is not connected. Open the credential and click "Connect".');
-    request.headers = { ...(request.headers ?? {}), Authorization: `${token.token_type && String(token.token_type).toLowerCase() !== 'bearer' ? token.token_type : 'Bearer'} ${token.access_token}` };
+    // always Bearer: some providers report other token_type values (Slack says "bot")
+    request.headers = { ...(request.headers ?? {}), Authorization: `Bearer ${token.access_token}` };
+    return request;
+  }
+
+  private serviceTokens = new Map<string, { token: string; expires: number }>();
+
+  /** Google service account: a signed JWT is exchanged for a short-lived access token (cached until expiry). */
+  private async authenticateServiceAccount(credentials: IDataObject, request: IHttpRequestOptions) {
+    const email = String(credentials.email ?? '');
+    const scopes = String(credentials.scopes ?? '').trim();
+    const sub = String(credentials.delegatedEmail ?? '');
+    const key = `${email}|${scopes}|${sub}`;
+    let cached = this.serviceTokens.get(key);
+    if (!cached || cached.expires < Date.now() + 60_000) {
+      const now = Math.floor(Date.now() / 1000);
+      const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({ iss: email, scope: scopes, aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600, ...(sub ? { sub } : {}) })}`;
+      const privateKey = String(credentials.privateKey ?? '').replace(/\\n/g, '\n');
+      const signature = createSign('RSA-SHA256').update(unsigned).sign(privateKey, 'base64url');
+      const res = (await httpRequest({
+        url: 'https://oauth2.googleapis.com/token',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${unsigned}.${signature}` },
+        json: true,
+      })) as { access_token: string; expires_in: number };
+      cached = { token: res.access_token, expires: Date.now() + res.expires_in * 1000 };
+      this.serviceTokens.set(key, cached);
+    }
+    request.headers = { ...(request.headers ?? {}), Authorization: `Bearer ${cached.token}` };
     return request;
   }
 
@@ -222,7 +265,13 @@ export async function testCredential(service: CredentialsService, helper: Creden
   const credType = service.types.get(type);
   if (!credType.test) return { status: 'OK', message: 'Credential saved (this type has no automatic test)' };
   try {
-    const req = await helper.authenticate(type, data, structuredClone(credType.test.request));
+    // test requests may use {{ $credentials.x }} in their URL and headers
+    const resolve = (v: unknown): unknown =>
+      isExpression(v) ? evaluateExpression(v, { $credentials: data, $secrets: helper.secrets() })
+      : Array.isArray(v) ? v.map(resolve)
+      : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)]))
+      : v;
+    const req = await helper.authenticate(type, data, resolve(structuredClone(credType.test.request)) as IHttpRequestOptions);
     await httpRequest(req);
     return { status: 'OK', message: 'Connection tested successfully' };
   } catch (e) {

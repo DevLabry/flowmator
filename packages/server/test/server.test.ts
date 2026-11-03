@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src';
+import { signIn } from './auth-helper';
 
 let app: App;
 let dir: string;
@@ -38,8 +39,9 @@ function startEcho() {
 }
 
 beforeAll(async () => {
-  dir = mkdtempSync(path.join(os.tmpdir(), '8n8-test-'));
+  dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-test-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
+  await signIn(app);
   app.ctx.executions.start();
   await startEcho();
 });
@@ -66,7 +68,7 @@ let n = 0;
 const node = (name: string, type: string, parameters: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({
   id: `n${++n}`,
   name,
-  type: `8n8.${type}`,
+  type: `flowmator.${type}`,
   typeVersion: 1,
   position: [0, 0],
   parameters,
@@ -123,7 +125,7 @@ describe('workflows', () => {
       connections: {},
       tags: [{ name: 'imported' }],
     });
-    expect(res.body.data[0].nodes[0].type).toBe('8n8.manualTrigger');
+    expect(res.body.data[0].nodes[0].type).toBe('flowmator.manualTrigger');
     expect(res.body.data[0].tags).toEqual(['imported']);
   });
 });
@@ -213,7 +215,7 @@ describe('production webhooks', () => {
   it('turns multipart uploads into binary data', async () => {
     const wf = await createWorkflow({ name: 'Upload', nodes: [node('Webhook', 'webhook', { httpMethod: 'POST', path: 'upload', responseMode: 'lastNode' })], connections: {} });
     await api('POST', `/rest/workflows/${wf.id}/activate`);
-    const boundary = '----8n8test';
+    const boundary = '----flowmatortest';
     const payload =
       `--${boundary}\r\nContent-Disposition: form-data; name="title"\r\n\r\nReport\r\n` +
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="a.txt"\r\nContent-Type: text/plain\r\n\r\nhello file\r\n--${boundary}--\r\n`;
@@ -277,8 +279,8 @@ describe('credentials and HTTP Request', () => {
   it('never returns secrets and keeps them when saving the redacted form', async () => {
     const created = (await api('POST', '/rest/credentials', { name: 'API', type: 'httpBearerAuth', data: { token: 'abc123' } })).body.data;
     const read = (await api('GET', `/rest/credentials/${created.id}?includeData=true`)).body.data;
-    expect(read.data.token).toBe('__8N8_REDACTED__');
-    await api('PATCH', `/rest/credentials/${created.id}`, { name: 'API 2', data: { token: '__8N8_REDACTED__' } });
+    expect(read.data.token).toBe('__FLOWMATOR_REDACTED__');
+    await api('PATCH', `/rest/credentials/${created.id}`, { name: 'API 2', data: { token: '__FLOWMATOR_REDACTED__' } });
     expect(app.ctx.credentials.getDecrypted(created.id).token).toBe('abc123');
   });
 
@@ -407,5 +409,265 @@ describe('variables', () => {
     const wf = await createWorkflow({ name: 'Vars', nodes: [node('Start', 'manualTrigger'), setNode('Set', [['url', '={{ $vars.BASE }}/x']])], connections: chain('Start', 'Set') });
     const r = await api('POST', `/rest/workflows/${wf.id}/run?wait=true`, {});
     expect(r.body.data.data.runData.Set[0].data.main[0][0].json.url).toBe('https://example.com/x');
+  });
+});
+
+describe('forms', () => {
+  const multipart = (fields: Array<[string, string]>) => {
+    const boundary = '----flowmatorform';
+    const body = fields.map(([k, v]) => `--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`).join('') + `--${boundary}--\r\n`;
+    return { body, headers: { 'content-type': `multipart/form-data; boundary=${boundary}` } };
+  };
+  const contactFields = {
+    values: [
+      { fieldLabel: 'Name', fieldType: 'text', requiredField: true },
+      { fieldLabel: 'Age', fieldType: 'number' },
+      { fieldLabel: 'Topics', fieldType: 'checkbox', fieldOptions: { values: [{ option: 'A' }, { option: 'B' }] } },
+    ],
+  };
+
+  it('serves the form and starts the workflow on submit', async () => {
+    const wf = await createWorkflow({
+      name: 'Contact form',
+      nodes: [node('Form', 'formTrigger', { path: 'contact', formTitle: 'Contact <us>', formFields: contactFields }), node('Noop', 'noOp')],
+      connections: chain('Form', 'Noop'),
+    });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    const page = await api('GET', '/form/contact');
+    expect(page.status).toBe(200);
+    expect(page.headers['content-type']).toContain('text/html');
+    expect(page.body).toContain('Contact &#60;us&#62;');
+    expect(page.body).toContain('name="field-2" value="B"');
+
+    const { body, headers } = multipart([['field-0', 'Ada'], ['field-1', '36'], ['field-2', 'A'], ['field-2', 'B']]);
+    const submitted = await api('POST', '/form/contact', body, headers);
+    expect(submitted.body).toContain('Your response has been recorded');
+    const exec = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success'));
+    const json = app.ctx.db.getExecution(exec.id)!.data!.resultData.runData.Noop![0]!.data!.main![0]![0]!.json;
+    expect(json).toMatchObject({ Name: 'Ada', Age: 36, Topics: ['A', 'B'], formMode: 'production' });
+  });
+
+  it('keeps the test form open until it is submitted', async () => {
+    const wf = await createWorkflow({ name: 'Test form', nodes: [node('Form', 'formTrigger', { path: 'try-form', formTitle: 'Try', formFields: contactFields })], connections: {} });
+    const run = await api('POST', `/rest/workflows/${wf.id}/run`, {});
+    expect(run.body.data.testUrls).toEqual(['http://localhost:5678/form-test/try-form']);
+    expect((await api('GET', '/form-test/try-form')).status).toBe(200);
+    expect((await api('GET', '/form-test/try-form')).status).toBe(200);
+    const { body, headers } = multipart([['field-0', 'Bob']]);
+    expect((await api('POST', '/form-test/try-form', body, headers)).status).toBe(200);
+    await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success' && e.mode === 'manual'));
+    expect((await api('GET', '/form-test/try-form')).status).toBe(404);
+  });
+
+  it('resumes a Wait node from a submitted form', async () => {
+    const wf = await createWorkflow({
+      name: 'Form approval',
+      nodes: [
+        node('Webhook', 'webhook', { path: 'needs-approval' }),
+        node('Wait', 'wait', { resume: 'form', formTitle: 'Approve?', formFields: { values: [{ fieldLabel: 'Decision', fieldType: 'text' }] } }),
+        node('After', 'noOp'),
+      ],
+      connections: chain('Webhook', 'Wait', 'After'),
+    });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    await api('GET', '/webhook/needs-approval');
+    const waiting = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'waiting'));
+    const page = await api('GET', `/form-waiting/${waiting.id}`);
+    expect(page.body).toContain('Approve?');
+    const { body, headers } = multipart([['field-0', 'yes']]);
+    expect((await api('POST', `/form-waiting/${waiting.id}`, body, headers)).body).toContain('Your response has been recorded');
+    const done = await waitFor(() => app.ctx.db.getExecution(waiting.id)?.status === 'success' && app.ctx.db.getExecution(waiting.id));
+    expect(done!.data!.resultData.runData.After![0]!.data!.main![0]![0]!.json).toMatchObject({ Decision: 'yes' });
+  });
+
+  it('walks through the pages of a multi-page form', async () => {
+    const wf = await createWorkflow({
+      name: 'Sign-up wizard',
+      nodes: [
+        node('Start', 'formTrigger', { path: 'sign-up', formTitle: 'Sign up', formFields: { values: [{ fieldLabel: 'Name', fieldType: 'text' }] } }),
+        node('Step 2', 'form', { operation: 'page', formFields: { values: [{ fieldLabel: 'Age', fieldType: 'number' }] }, options: { formTitle: 'About you', formDescription: '=Hi {{ $json.Name }}' } }),
+        node('End', 'form', { operation: 'completion', respondWith: 'text', completionTitle: 'All set', completionMessage: "={{ $('Start').item.json.Name }} is {{ $json.Age }}" }),
+      ],
+      connections: chain('Start', 'Step 2', 'End'),
+    });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+
+    // submitting the first page leads to the next one
+    const first = multipart([['field-0', 'Ana']]);
+    const started = await api('POST', '/form/sign-up', first.body, first.headers);
+    expect(started.status).toBe(303);
+    const next = new URL(String(started.headers.location)).pathname;
+    expect(next).toMatch(/^\/form-waiting\/\d+$/);
+    const page = await api('GET', next);
+    expect(page.body).toContain('About you');
+    expect(page.body).toContain('Hi Ana');
+
+    const second = multipart([['field-0', '30']]);
+    const submitted = await api('POST', next, second.body, second.headers);
+    expect(submitted.status).toBe(303);
+    expect(new URL(String(submitted.headers.location)).pathname).toBe(next);
+    const ending = await api('GET', next);
+    expect(ending.body).toContain('All set');
+    expect(ending.body).toContain('Ana is 30');
+
+    const id = next.split('/').pop()!;
+    const done = await waitFor(() => app.ctx.db.getExecution(id)?.status === 'success' && app.ctx.db.getExecution(id));
+    expect(done!.data!.resultData.runData['Step 2']![0]!.data!.main![0]![0]!.json).toMatchObject({ Age: 30 });
+    expect((await api('GET', next)).status).toBe(404);
+  });
+});
+
+describe('chat trigger', () => {
+  const chatWorkflow = (isPublic: boolean) => ({
+    nodes: [
+      node('Chat', 'chatTrigger', { public: isPublic, title: 'Help desk' }, { webhookId: `hook-${isPublic}` }),
+      node('Reply', 'code', { mode: 'runOnceForEachItem', jsCode: 'return { output: `echo: ${$json.chatInput} (${$json.sessionId})` };' }),
+    ],
+    connections: chain('Chat', 'Reply'),
+  });
+  // chat nodes live in the AI package (flowmator-ai.*)
+  const asAi = (wf: ReturnType<typeof chatWorkflow>) => ({ ...wf, nodes: wf.nodes.map((n) => (n.name === 'Chat' ? { ...n, type: 'flowmator-ai.chatTrigger' } : n)) });
+
+  it('serves a public chat page and answers messages', async () => {
+    const wf = await createWorkflow({ name: 'Public chat', ...asAi(chatWorkflow(true)) });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    const page = await api('GET', '/webhook/hook-true/chat');
+    expect(page.status).toBe(200);
+    expect(page.body).toContain('<title>Help desk</title>');
+    const reply = await api('POST', '/webhook/hook-true/chat', { action: 'sendMessage', sessionId: 'abc', chatInput: 'hello' });
+    expect(reply.body).toEqual({ output: 'echo: hello (abc)' });
+  });
+
+  it('keeps a private chat closed to the outside but usable from the editor', async () => {
+    const wf = await createWorkflow({ name: 'Private chat', ...asAi(chatWorkflow(false)) });
+    await api('POST', `/rest/workflows/${wf.id}/activate`);
+    expect((await api('GET', '/webhook/hook-false/chat')).status).toBe(404);
+    expect((await api('POST', '/webhook/hook-false/chat', { chatInput: 'hi' })).status).toBe(404);
+    // the editor's chat panel runs the workflow with the message as trigger data
+    const r = await api('POST', `/rest/workflows/${wf.id}/run?wait=true`, {
+      triggerToStartFrom: { name: 'Chat', data: { main: [[{ json: { sessionId: 'ed', action: 'sendMessage', chatInput: 'from editor' } }]] } },
+    });
+    expect(r.body.data.data.runData.Reply[0].data.main[0][0].json).toEqual({ output: 'echo: from editor (ed)' });
+  });
+});
+
+describe('integration triggers and credentials', () => {
+  type Fake = { method: string; url: URL; body: any; headers: Record<string, string> };
+  let external: Fake[] = [];
+  /** Fakes third-party hosts; local requests (echo server, the app) still go through. */
+  const fakeExternal = (respond: (c: Fake) => unknown) => {
+    external = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL, init: RequestInit = {}) => {
+      const url = new URL(String(input));
+      if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return real(input, init);
+      let body: any = init.body;
+      if (typeof body === 'string') body = body.startsWith('{') ? JSON.parse(body) : Object.fromEntries(new URLSearchParams(body));
+      else if (body instanceof URLSearchParams) body = Object.fromEntries(body);
+      const headers = Object.fromEntries(Object.entries((init.headers as Record<string, string>) ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+      const call = { method: init.method ?? 'GET', url, body, headers };
+      external.push(call);
+      return new Response(JSON.stringify(respond(call) ?? {}), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof fetch;
+    return () => (globalThis.fetch = real);
+  };
+
+  it('registers a Telegram test webhook with its secret and only accepts calls carrying it', async () => {
+    const restore = fakeExternal(() => ({ ok: true, result: true }));
+    try {
+      const cred = (await api('POST', '/rest/credentials', { name: 'Bot', type: 'telegramApi', data: { accessToken: '9:XYZ' } })).body.data;
+      const wf = await createWorkflow({
+        name: 'Telegram bot',
+        nodes: [node('Telegram Trigger', 'telegramTrigger', { updates: ['message'] }, { webhookId: 'tg-hook', credentials: { telegramApi: { id: cred.id, name: cred.name } } }), node('Noop', 'noOp')],
+        connections: chain('Telegram Trigger', 'Noop'),
+      });
+      const run = await api('POST', `/rest/workflows/${wf.id}/run`, {});
+      expect(run.body.data.testUrls).toEqual(['http://localhost:5678/webhook-test/tg-hook/webhook']);
+      const setWebhook = external.find((c) => c.url.pathname.endsWith('/setWebhook'))!;
+      expect(setWebhook.url.pathname).toBe('/bot9:XYZ/setWebhook');
+      expect(setWebhook.body).toMatchObject({ url: 'http://localhost:5678/webhook-test/tg-hook/webhook', allowed_updates: ['message'] });
+      const secret = setWebhook.body.secret_token;
+      expect(secret).toMatch(/^[a-f0-9]{48}$/);
+
+      const update = { update_id: 1, message: { message_id: 1, chat: { id: 7 }, from: { id: 3 }, text: 'hi' } };
+      expect((await api('POST', '/webhook-test/tg-hook/webhook', update)).status).toBe(403);
+      // the 403 did not consume the test registration: a call with the secret still works
+      const ok = await api('POST', '/webhook-test/tg-hook/webhook', update, { 'x-telegram-bot-api-secret-token': secret });
+      expect(ok.body).toEqual({ ok: true });
+      const exec = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success'));
+      expect(app.ctx.db.getExecution(exec.id)!.data!.resultData.runData.Noop![0]!.data!.main![0]![0]!.json).toMatchObject({ message: { text: 'hi' } });
+      await waitFor(() => external.some((c) => c.url.pathname.endsWith('/deleteWebhook')));
+    } finally {
+      restore();
+    }
+  });
+
+  it('creates the GitHub hook on activation and verifies delivery signatures', async () => {
+    const restore = fakeExternal((c) => (c.method === 'POST' && c.url.pathname.endsWith('/hooks') ? { id: 99 } : {}));
+    try {
+      const cred = (await api('POST', '/rest/credentials', { name: 'GH', type: 'githubApi', data: { accessToken: 'ghp_x' } })).body.data;
+      const wf = await createWorkflow({
+        name: 'On push',
+        nodes: [node('GitHub Trigger', 'githubTrigger', { owner: 'octo', repository: 'demo', events: ['push'] }, { webhookId: 'gh-hook', credentials: { githubApi: { id: cred.id, name: cred.name } } }), node('Noop', 'noOp')],
+        connections: chain('GitHub Trigger', 'Noop'),
+      });
+      await api('POST', `/rest/workflows/${wf.id}/activate`);
+      const create = external.find((c) => c.method === 'POST')!;
+      expect(create.url.href).toBe('https://api.github.com/repos/octo/demo/hooks');
+      expect(create.headers.authorization).toBe('Bearer ghp_x');
+      expect(create.body.config.url).toBe('http://localhost:5678/webhook/gh-hook/webhook');
+      const secret = create.body.config.secret;
+      expect(app.ctx.db.getWorkflow(wf.id)!.staticData).toMatchObject({ 'node:GitHub Trigger': { webhookId: 99, secret } });
+
+      const payload = JSON.stringify({ ref: 'refs/heads/main' });
+      const { createHmac } = await import('node:crypto');
+      const sign = (s: string) => `sha256=${createHmac('sha256', s).update(payload).digest('hex')}`;
+      const send = (sig: string) => app.app.inject({ method: 'POST', url: '/webhook/gh-hook/webhook', payload, headers: { 'content-type': 'application/json', 'x-github-event': 'push', 'x-hub-signature-256': sig } });
+      expect((await send(sign('wrong'))).statusCode).toBe(401);
+      expect((await send(sign(secret))).statusCode).toBe(200);
+      const exec = await waitFor(() => executionsOf(wf.id).find((e) => e.status === 'success'));
+      expect(app.ctx.db.getExecution(exec.id)!.data!.resultData.runData.Noop![0]!.data!.main![0]![0]!.json).toMatchObject({ event: 'push', body: { ref: 'refs/heads/main' } });
+
+      await api('POST', `/rest/workflows/${wf.id}/deactivate`);
+      expect(external.at(-1)).toMatchObject({ method: 'DELETE' });
+      expect(external.at(-1)!.url.pathname).toBe('/repos/octo/demo/hooks/99');
+    } finally {
+      restore();
+    }
+  });
+
+  it('signs in Google service accounts with a JWT and caches the token', async () => {
+    const { generateKeyPairSync, createVerify } = await import('node:crypto');
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+    const restore = fakeExternal((c) => (c.url.hostname === 'oauth2.googleapis.com' ? { access_token: 'ya29.sa', expires_in: 3600 } : { values: [['a'], ['1']] }));
+    try {
+      const cred = (await api('POST', '/rest/credentials', { name: 'SA', type: 'googleApi', data: { email: 'bot@p.iam.gserviceaccount.com', privateKey: privateKey.replace(/\n/g, '\\n') } })).body.data;
+      const wf = await createWorkflow({
+        name: 'Sheets SA',
+        nodes: [node('Start', 'manualTrigger'), node('Sheet', 'googleSheets', { authentication: 'serviceAccount', resource: 'sheet', operation: 'read', documentId: 'doc', sheetName: 'S' }, { credentials: { googleApi: { id: cred.id, name: cred.name } } })],
+        connections: chain('Start', 'Sheet'),
+      });
+      await api('POST', `/rest/workflows/${wf.id}/run?wait=true`, {});
+      await api('POST', `/rest/workflows/${wf.id}/run?wait=true`, {});
+      const tokenCalls = external.filter((c) => c.url.hostname === 'oauth2.googleapis.com');
+      expect(tokenCalls).toHaveLength(1);
+      const [h, claims, sig] = tokenCalls[0].body.assertion.split('.');
+      expect(JSON.parse(Buffer.from(claims, 'base64url').toString())).toMatchObject({ iss: 'bot@p.iam.gserviceaccount.com', aud: 'https://oauth2.googleapis.com/token' });
+      expect(createVerify('RSA-SHA256').update(`${h}.${claims}`).verify(publicKey, sig, 'base64url')).toBe(true);
+      const sheetCalls = external.filter((c) => c.url.hostname === 'sheets.googleapis.com');
+      expect(sheetCalls.map((c) => c.headers.authorization)).toEqual(['Bearer ya29.sa', 'Bearer ya29.sa']);
+    } finally {
+      restore();
+    }
+  });
+
+  it('builds the Gmail OAuth consent URL from the built-in Google settings', async () => {
+    const cred = (await api('POST', '/rest/credentials', { name: 'Mail', type: 'gmailOAuth2', data: { clientId: 'cid', clientSecret: 'cs' } })).body.data;
+    const url = new URL((await api('GET', `/rest/oauth2-credential/auth?id=${cred.id}`)).body.data);
+    expect(url.origin + url.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
+    expect(url.searchParams.get('client_id')).toBe('cid');
+    expect(url.searchParams.get('scope')).toContain('https://www.googleapis.com/auth/gmail.modify');
+    expect(url.searchParams.get('access_type')).toBe('offline');
+    expect(url.searchParams.get('redirect_uri')).toBe('http://localhost:5678/rest/oauth2-credential/callback');
   });
 });

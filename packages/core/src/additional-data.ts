@@ -1,6 +1,7 @@
 import type {
   ExecutionMode,
   IDataObject,
+  IDataTableService,
   IExecuteWorkflowInfo,
   IExecuteWorkflowResult,
   IExecutionState,
@@ -11,12 +12,12 @@ import type {
   IRun,
   ITaskData,
   IWebhookResponse,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import type { BinaryDataStore } from './binary-data';
 
 export interface ICredentialsHelper {
-  /** Returns decrypted credential data for the node's credential of `type`. */
-  getDecrypted(node: INode, type: string): Promise<IDataObject>;
+  /** Returns decrypted credential data for the node's credential of `type` (`workflowId`: the workflow using it, for access checks). */
+  getDecrypted(node: INode, type: string, workflowId?: string): Promise<IDataObject>;
   /** Applies the credential to a request (headers, query, auth, OAuth tokens...). */
   authenticate(type: string, credentials: IDataObject, request: IHttpRequestOptions, node: INode): Promise<IHttpRequestOptions>;
   /** Optional hook used to refresh OAuth2 tokens on 401 and persist them. */
@@ -47,6 +48,8 @@ export interface IWorkflowExecuteAdditionalData {
   logger?: ILogger;
   signal?: AbortSignal;
   binaryData?: BinaryDataStore;
+  /** Data tables stored by the server (Data Table node). */
+  dataTables?: IDataTableService;
   /** Runs another workflow (by id or inline code). The core falls back to in-process execution of inline code. */
   executeWorkflow?(
     info: IExecuteWorkflowInfo,

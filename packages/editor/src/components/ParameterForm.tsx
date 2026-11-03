@@ -1,6 +1,6 @@
-import { getParameterDisplayed, type INodeParameters, type INodeProperties, type INodePropertyCollection, type INodePropertyOption } from '@8n8/workflow';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { getParameterDisplayed, type INodeParameters, type INodeProperties, type INodePropertyCollection, type INodePropertyOption, type ResourceMapperField, type ResourceMapperValue } from '@flowmator/workflow';
+import { ChevronDown, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Api } from '../lib/api';
 import { useApp } from '../store/app';
 import { useWorkflow } from '../store/workflow';
@@ -17,9 +17,9 @@ const isCollectionGroup = (o: unknown): o is INodePropertyCollection => !!o && t
 
 /** Value dropped from the data panels: an expression string, plus the field path for assignments. */
 export function readDrop(e: React.DragEvent): { expression: string; path?: string } | null {
-  const expression = e.dataTransfer.getData('application/8n8-expr');
+  const expression = e.dataTransfer.getData('application/flowmator-expr');
   if (!expression) return null;
-  return { expression, path: e.dataTransfer.getData('application/8n8-path') || undefined };
+  return { expression, path: e.dataTransfer.getData('application/flowmator-path') || undefined };
 }
 
 /** An input that is plain text until it holds an expression; dropping a field turns it into one. */
@@ -215,7 +215,10 @@ function AssignmentsInput({ value, onChange, nodeName }: { value: Value; onChang
 
 function CollectionInput({ prop, value, onChange, nodeName, root, typeVersion }: ParamProps & { root: INodeParameters }) {
   const v = (value && typeof value === 'object' ? value : {}) as INodeParameters;
-  const options = (prop.options ?? []).filter((o): o is INodeProperties => !!o && typeof o === 'object' && 'type' in o);
+  // options can be conditional too (e.g. only for some operations, via "/operation")
+  const options = (prop.options ?? [])
+    .filter((o): o is INodeProperties => !!o && typeof o === 'object' && 'type' in o)
+    .filter((o) => getParameterDisplayed(o, v, root, typeVersion));
   const unused = options.filter((o) => v[o.name] === undefined);
   const present = options.filter((o) => v[o.name] !== undefined);
   return (
@@ -312,16 +315,156 @@ function FixedCollectionInput({ prop, value, onChange, nodeName, root, typeVersi
   );
 }
 
+type RLValue = { __rl: true; mode: string; value: Value; cachedResultName?: string };
+
+function currentNode(nodeName: string) {
+  return useWorkflow.getState().workflow.nodes.find((n) => n.name === nodeName)!;
+}
+
+/** "From list" picker for resourceLocator modes with a searchListMethod. */
+function ListSearchInput({ method, value, onChange, nodeName }: { method: string; value: RLValue; onChange: (v: RLValue) => void; nodeName: string }) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('');
+  const [results, setResults] = useState<INodePropertyOption[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const load = async (f: string) => {
+    setLoading(true);
+    const node = currentNode(nodeName);
+    try {
+      const res = await Api.loadOptions({ nodeTypeAndVersion: { name: node.type, version: node.typeVersion }, methodName: method, currentNodeParameters: node.parameters, credentials: node.credentials, filter: f });
+      setResults(Array.isArray(res) ? res : res.results);
+    } catch (e) {
+      useApp.getState().toast('error', 'Could not load the list', (e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => load(filter), 200);
+    return () => clearTimeout(t);
+  }, [open, filter]);
+  const label = value.cachedResultName ?? results?.find((r) => String(r.value) === String(value.value))?.name ?? (value.value ? String(value.value) : '');
+  return (
+    <div className="rl-list">
+      <button className="rl-trigger" onClick={() => setOpen(!open)}>
+        <span className={label ? '' : 'faint'}>{label || 'Choose…'}</span>
+        <ChevronDown size={13} />
+      </button>
+      {open && (
+        <div className="rl-dropdown" onMouseLeave={() => setOpen(false)}>
+          <input autoFocus placeholder="Search…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <div className="rl-results">
+            {loading && !results && <div className="faint">Loading…</div>}
+            {results?.length === 0 && <div className="faint">Nothing found</div>}
+            {results?.map((r) => (
+              <button key={String(r.value)} className={String(r.value) === String(value.value) ? 'active' : ''} onClick={() => {
+                onChange({ ...value, value: r.value, cachedResultName: r.name });
+                setOpen(false);
+              }}>{r.name}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ResourceLocatorInput({ prop, value, onChange, nodeName }: ParamProps) {
-  const v = (value && typeof value === 'object' ? value : { __rl: true, mode: prop.modes?.[0]?.name ?? 'id', value: value ?? '' }) as { __rl: true; mode: string; value: Value };
+  const v = (value && typeof value === 'object' ? value : { __rl: true, mode: prop.modes?.[0]?.name ?? 'id', value: value ?? '' }) as RLValue;
+  const mode = prop.modes?.find((m) => m.name === v.mode);
+  const method = mode?.type === 'list' ? mode.typeOptions?.searchListMethod : undefined;
   return (
     <div className="row" style={{ alignItems: 'flex-start' }}>
-      <select style={{ width: 110 }} value={v.mode} onChange={(e) => onChange({ ...v, mode: e.target.value })}>
+      <select style={{ width: 110 }} value={v.mode} onChange={(e) => onChange({ __rl: true, mode: e.target.value, value: v.value })}>
         {(prop.modes ?? [{ name: 'id', displayName: 'By ID' }]).map((m) => <option key={m.name} value={m.name}>{m.displayName}</option>)}
       </select>
       <div className="grow">
-        <SmartInput value={v.value} onChange={(nv) => onChange({ ...v, value: nv })} nodeName={nodeName} placeholder={prop.modes?.find((m) => m.name === v.mode)?.placeholder} />
+        {method && !isExpr(v.value) ? (
+          <ListSearchInput method={method} value={v} onChange={onChange} nodeName={nodeName} />
+        ) : (
+          <SmartInput value={v.value} onChange={(nv) => onChange({ __rl: true, mode: v.mode, value: nv })} nodeName={nodeName} placeholder={mode?.placeholder} />
+        )}
       </div>
+    </div>
+  );
+}
+
+/* ---------- resource mapper (columns of a table, sheet...) ---------- */
+
+function ResourceMapperInput({ prop, value, onChange, nodeName, root }: ParamProps & { root: INodeParameters }) {
+  const v = { mappingMode: 'defineBelow', value: null, matchingColumns: [], schema: [], ...(value && typeof value === 'object' ? value : {}) } as ResourceMapperValue;
+  const config = prop.typeOptions?.resourceMapper;
+  const words = config?.fieldWords ?? { singular: 'field', plural: 'fields' };
+  const [fields, setFields] = useState<ResourceMapperField[] | null>(null);
+  const [notice, setNotice] = useState<string>();
+  // reload when what the fields depend on changes (e.g. the selected table)
+  const deps = JSON.stringify((prop.typeOptions?.loadOptionsDependsOn ?? []).map((d) => d.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], root)));
+  useEffect(() => {
+    if (!config) return;
+    const node = currentNode(nodeName);
+    Api.resourceMapperFields({ nodeTypeAndVersion: { name: node.type, version: node.typeVersion }, methodName: config.resourceMapperMethod, currentNodeParameters: node.parameters, credentials: node.credentials })
+      .then((r) => {
+        setFields(r.fields);
+        setNotice(r.emptyFieldsNotice);
+      })
+      .catch((e) => useApp.getState().toast('error', `Could not load ${words.plural}`, (e as Error).message));
+  }, [deps]);
+
+  const set = (patch: Partial<ResourceMapperValue>) => {
+    const next = { ...v, ...patch };
+    onChange({ ...next, schema: (fields ?? v.schema).map((f) => ({ ...f, removed: next.value ? !(f.id in next.value) : false })) });
+  };
+  const values = v.value ?? {};
+  // a fresh mapping shows every field (addAllFields); removed ones can be added back
+  const shown = (fields ?? []).filter((f) => (v.value ? f.id in values : true));
+  const hidden = (fields ?? []).filter((f) => !shown.includes(f));
+  const setField = (id: string, fv: Value) => set({ value: { ...Object.fromEntries(shown.map((f) => [f.id, values[f.id] ?? null])), [id]: fv } });
+
+  return (
+    <div className="col">
+      <select value={v.mappingMode} onChange={(e) => set({ mappingMode: e.target.value as ResourceMapperValue['mappingMode'] })}>
+        <option value="defineBelow">Map Each {words.singular[0].toUpperCase() + words.singular.slice(1)} Manually</option>
+        <option value="autoMapInputData">Map Automatically</option>
+      </select>
+      {v.mappingMode === 'autoMapInputData' ? (
+        <div className="param-hint">Input fields whose names match {words.plural} are written; other fields are ignored.</div>
+      ) : fields === null ? (
+        <div className="faint">Loading {words.plural}…</div>
+      ) : fields.length === 0 ? (
+        <div className="notice">{notice ?? `No ${words.plural} found`}</div>
+      ) : (
+        <>
+          {shown.map((f) => (
+            <div key={f.id} className="mapper-field">
+              <div className="param-head">
+                <span className="label">{f.displayName}{f.required && <span className="req">*</span>} <span className="faint">({f.type ?? 'string'})</span></span>
+                {!f.required && (
+                  <button className="ghost sm icon" title={`Remove ${words.singular}`} onClick={() => {
+                    const { [f.id]: _drop, ...rest } = Object.fromEntries(shown.map((x) => [x.id, values[x.id] ?? null]));
+                    set({ value: rest });
+                  }}><Trash2 size={12} /></button>
+                )}
+              </div>
+              {f.type === 'boolean' && !isExpr(values[f.id]) ? (
+                <select value={values[f.id] === undefined || values[f.id] === null ? '' : String(values[f.id])} onChange={(e) => setField(f.id, e.target.value === '' ? null : e.target.value === 'true')}>
+                  <option value="">—</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              ) : (
+                <SmartInput value={values[f.id] ?? ''} onChange={(fv) => setField(f.id, fv === '' ? null : fv)} nodeName={nodeName} type={f.type === 'number' && !isExpr(values[f.id]) ? 'number' : 'text'} placeholder={f.type === 'dateTime' ? '2025-01-31T09:00:00' : undefined} />
+              )}
+            </div>
+          ))}
+          {hidden.length > 0 && (
+            <select value="" onChange={(e) => e.target.value && setField(e.target.value, null)}>
+              <option value="">Add {words.singular}…</option>
+              {hidden.map((f) => <option key={f.id} value={f.id}>{f.displayName}</option>)}
+            </select>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -336,7 +479,7 @@ interface ParamProps {
   typeVersion?: number;
 }
 
-const NO_EXPRESSION_TOGGLE = new Set(['collection', 'fixedCollection', 'notice', 'filter', 'assignmentCollection', 'button', 'hidden']);
+const NO_EXPRESSION_TOGGLE = new Set(['collection', 'fixedCollection', 'notice', 'filter', 'assignmentCollection', 'button', 'hidden', 'resourceMapper']);
 
 function ParameterInput({ prop, value, onChange, nodeName, root, typeVersion }: ParamProps & { root: INodeParameters }) {
   const credentialTypes = useApp((s) => s.credentialTypes);
@@ -388,6 +531,8 @@ function ParameterInput({ prop, value, onChange, nodeName, root, typeVersion }: 
       return <AssignmentsInput value={value} onChange={onChange} nodeName={nodeName} />;
     case 'resourceLocator':
       return <ResourceLocatorInput prop={prop} value={value} onChange={onChange} nodeName={nodeName} />;
+    case 'resourceMapper':
+      return <ResourceMapperInput prop={prop} value={value} onChange={onChange} nodeName={nodeName} root={root} />;
     case 'credentialsSelect': {
       const opts = (prop.options ?? []).filter(isPropertyOption);
       const list = opts.length ? opts : Object.values(credentialTypes).map((t) => ({ name: t.displayName, value: t.name }));

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
-import type { ExecutionMode, ExecutionStatus, IConnections, IDataObject, INode, IPinData, IRun, IWorkflowBase, IWorkflowSettings } from '@8n8/workflow';
+import type { ExecutionMode, ExecutionStatus, IConnections, IDataObject, INode, IPinData, IRun, IWorkflowBase, IWorkflowSettings } from '@flowmator/workflow';
 
 // Loaded via require: Vite (vitest) doesn't recognize node:sqlite as a built-in yet and fails to resolve the import.
 const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
@@ -113,13 +113,50 @@ export interface ExecutionSummary extends Omit<ExecutionEntity, 'data' | 'workfl
 
 type Row = Record<string, unknown>;
 
+function retryWhileLocked(fn: () => void, timeoutMs = 10_000) {
+  const until = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      return fn();
+    } catch (e) {
+      if (!/database is locked|SQLITE_BUSY/i.test((e as Error).message) || Date.now() > until) throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25 + Math.random() * 50);
+    }
+  }
+}
+
 export class Database {
   readonly db: DatabaseSyncType;
 
   constructor(file: string) {
     this.db = new DatabaseSync(file);
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
-    this.db.exec(SCHEMA);
+    this.db.exec('PRAGMA busy_timeout = 5000;');
+    // workers and webhook processes open the same file; switching a new database to WAL takes an
+    // exclusive lock that SQLite doesn't wait for, so concurrent first opens retry instead
+    retryWhileLocked(() => this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;'));
+    retryWhileLocked(() => this.db.exec(SCHEMA));
+    retryWhileLocked(() => this.renameLegacyNodeTypes());
+    retryWhileLocked(() => this.addOwnerColumns());
+  }
+
+  /** Since user management, folders belong to a project and API keys to a user. */
+  private addOwnerColumns() {
+    for (const [table, column] of [
+      ['folders', 'projectId'],
+      ['api_keys', 'userId'],
+    ]) {
+      const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+      if (!columns.some((c) => c.name === column)) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+    }
+  }
+
+  /** Flowmator was called 8n8: stored node types move from 8n8.x / 8n8-ai.x to flowmator.x / flowmator-ai.x. */
+  private renameLegacyNodeTypes() {
+    for (const table of ['workflows', 'workflow_history']) {
+      this.db
+        .prepare(`UPDATE ${table} SET nodes = REPLACE(REPLACE(nodes, '"type":"8n8-ai.', '"type":"flowmator-ai.'), '"type":"8n8.', '"type":"flowmator.') WHERE nodes LIKE '%"type":"8n8%'`)
+        .run();
+    }
   }
 
   close() {
@@ -381,12 +418,16 @@ export class Database {
     return r ? this.toExecution(r) : null;
   }
 
-  listExecutions(filter: { workflowId?: string; status?: ExecutionStatus[]; limit?: number; lastId?: string; startedAfter?: string; startedBefore?: string } = {}): { results: ExecutionSummary[]; count: number } {
+  listExecutions(filter: { workflowId?: string; workflowIds?: string[]; status?: ExecutionStatus[]; limit?: number; lastId?: string; startedAfter?: string; startedBefore?: string } = {}): { results: ExecutionSummary[]; count: number } {
     const where: string[] = [];
     const args: Array<string | number> = [];
     if (filter.workflowId) {
       where.push('e.workflowId = ?');
       args.push(filter.workflowId);
+    }
+    if (filter.workflowIds) {
+      where.push(filter.workflowIds.length ? `e.workflowId IN (${filter.workflowIds.map(() => '?').join(',')})` : '0');
+      args.push(...filter.workflowIds);
     }
     if (filter.status?.length) {
       where.push(`e.status IN (${filter.status.map(() => '?').join(',')})`);
@@ -435,9 +476,10 @@ export class Database {
     for (const id of ids) this.db.prepare('DELETE FROM executions WHERE id = ?').run(id);
   }
 
-  /** Marks executions left "running" by a crash. */
-  markCrashedExecutions(): number {
-    return Number(this.db.prepare("UPDATE executions SET status = 'crashed', stoppedAt = ? WHERE status IN ('running', 'new')").run(now()).changes);
+  /** Marks executions left "running" by a crash, except `keep` (still queued or on a worker). */
+  markCrashedExecutions(keep: string[] = []): number {
+    const exclude = keep.length ? ` AND id NOT IN (${keep.map(() => '?').join(',')})` : '';
+    return Number(this.db.prepare(`UPDATE executions SET status = 'crashed', stoppedAt = ? WHERE status IN ('running', 'new')${exclude}`).run(now(), ...keep).changes);
   }
 
   pruneExecutions(maxAgeHours: number, maxCount: number): string[] {
@@ -472,22 +514,25 @@ export class Database {
     this.db.prepare('DELETE FROM variables WHERE id = ?').run(id);
   }
 
-  listApiKeys() {
-    return this.db.prepare('SELECT id, label, substr(apiKey, 1, 6) || \'…\' AS apiKey, createdAt FROM api_keys').all();
+  listApiKeys(userId?: string) {
+    const sql = 'SELECT id, label, substr(apiKey, 1, 6) || \'…\' AS apiKey, createdAt FROM api_keys';
+    return userId ? this.db.prepare(`${sql} WHERE userId = ?`).all(userId) : this.db.prepare(sql).all();
   }
 
-  createApiKey(label: string, apiKey: string) {
+  createApiKey(label: string, apiKey: string, userId: string | null = null) {
     const id = newId();
-    this.db.prepare('INSERT INTO api_keys (id, label, apiKey, createdAt) VALUES (?,?,?,?)').run(id, label, apiKey, now());
+    this.db.prepare('INSERT INTO api_keys (id, label, apiKey, userId, createdAt) VALUES (?,?,?,?,?)').run(id, label, apiKey, userId, now());
     return { id, label, apiKey };
   }
 
   findApiKey(apiKey: string) {
-    return this.db.prepare('SELECT id FROM api_keys WHERE apiKey = ?').get(apiKey) ?? null;
+    return (this.db.prepare('SELECT id, userId FROM api_keys WHERE apiKey = ?').get(apiKey) as { id: string; userId: string | null } | undefined) ?? null;
   }
 
-  deleteApiKey(id: string) {
-    this.db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
+  /** Deletes the key; with a user, only one of theirs. */
+  deleteApiKey(id: string, userId?: string) {
+    if (userId) this.db.prepare('DELETE FROM api_keys WHERE id = ? AND userId = ?').run(id, userId);
+    else this.db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
   }
 
   getSetting<T>(key: string, fallback: T): T {

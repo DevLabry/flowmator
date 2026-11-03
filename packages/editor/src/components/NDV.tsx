@@ -1,14 +1,15 @@
-import { getParameterDisplayed, type INode, type INodeExecutionData, type INodeParameters } from '@8n8/workflow';
-import { ArrowLeft, Copy, Pencil, Pin, PinOff, Play, X } from 'lucide-react';
+import { getNodeParametersWithDefaults, getParameterDisplayed, parseCurl, type INode, type INodeExecutionData, type INodeParameters } from '@flowmator/workflow';
+import { ArrowLeft, Copy, FileInput, Pencil, Pin, PinOff, Play, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Api } from '../lib/api';
 import { getNodeType, useApp } from '../store/app';
+import { useAuth } from '../store/auth';
 import { getNodeInput, staticIO, toWorkflowClass, useWorkflow } from '../store/workflow';
 import { CredentialModal } from './CredentialModal';
 import { DataModeSwitch, DataView, type DataMode } from './DataView';
 import { CodeEditor } from './Editors';
 import { ParameterList } from './ParameterForm';
-import { NodeIcon, Switch } from './ui';
+import { Modal, NodeIcon, Switch } from './ui';
 
 function InputPanel({ node }: { node: INode }) {
   const runData = useWorkflow((s) => s.runData);
@@ -157,10 +158,14 @@ function OutputPanel({ node }: { node: INode }) {
 
 function CredentialsSection({ node }: { node: INode }) {
   const type = getNodeType(node.type)!;
-  const credentials = useApp((s) => s.credentials);
+  const allCredentials = useApp((s) => s.credentials);
   const credentialTypes = useApp((s) => s.credentialTypes);
+  // a workflow can use the credentials its project owns or that are shared with it
+  const home = useWorkflow((s) => s.workflow.homeProject?.id) ?? useAuth.getState().user?.personalProjectId;
+  const credentials = allCredentials.filter((c) => !home || !c.homeProject || c.homeProject.id === home || c.sharedWithProjects?.some((p) => p.id === home));
   const [modal, setModal] = useState<{ type: string; id?: string } | null>(null);
-  const params = node.parameters;
+  // saved workflows (and n8n exports) leave out parameters that are at their default
+  const params = getNodeParametersWithDefaults(type.properties, node.parameters, node.typeVersion);
 
   const wanted = new Set<string>();
   for (const c of type.credentials ?? []) if (getParameterDisplayed({ displayOptions: c.displayOptions } as never, params)) wanted.add(c.name);
@@ -195,7 +200,7 @@ function CredentialsSection({ node }: { node: INode }) {
           </div>
         );
       })}
-      {modal && <CredentialModal type={modal.type} credentialId={modal.id} onClose={() => setModal(null)} onSaved={(c) => setCred(modal.type, c.id)} />}
+      {modal && <CredentialModal type={modal.type} credentialId={modal.id} projectId={home} onClose={() => setModal(null)} onSaved={(c) => setCred(modal.type, c.id)} />}
     </>
   );
 }
@@ -278,10 +283,64 @@ function SettingsTab({ node }: { node: INode }) {
   );
 }
 
+/** HTTP Request: fills the parameters from a pasted cURL command. */
+function CurlImport({ node }: { node: INode }) {
+  const [open, setOpen] = useState(false);
+  const [command, setCommand] = useState('');
+  const [error, setError] = useState('');
+  const apply = () => {
+    try {
+      const parsed = parseCurl(command);
+      // keep the chosen credential; everything else comes from the command
+      const keep = Object.fromEntries(['authentication', 'nodeCredentialType', 'genericAuthType'].filter((k) => node.parameters[k] !== undefined).map((k) => [k, node.parameters[k]]));
+      useWorkflow.getState().setParameters(node.name, { ...keep, ...(parsed as INodeParameters) });
+      useApp.getState().toast('success', 'cURL command imported');
+      setOpen(false);
+      setCommand('');
+      setError('');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="sm" onClick={() => setOpen(true)}><FileInput size={13} /> Import cURL</button>
+      </div>
+      {open && (
+        <Modal
+          title="Import cURL command"
+          width={640}
+          onClose={() => setOpen(false)}
+          footer={
+            <>
+              <button onClick={() => setOpen(false)}>Cancel</button>
+              <button className="primary" disabled={!command.trim()} onClick={apply}>Import</button>
+            </>
+          }
+        >
+          <textarea
+            autoFocus
+            rows={10}
+            value={command}
+            placeholder={"curl -X POST https://api.example.com/items \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"name\": \"pizza\"}'"}
+            onChange={(e) => setCommand(e.target.value)}
+            onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && apply()}
+            style={{ fontFamily: 'var(--mono, monospace)', fontSize: 12.5 }}
+          />
+          {error && <div style={{ color: 'var(--danger, #d63e3e)', marginTop: 8 }}>{error}</div>}
+          <div className="faint" style={{ marginTop: 8 }}>The method, URL, query, headers and body replace the current ones.</div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 export function NDV() {
   const openName = useWorkflow((s) => s.openNode);
   const node = useWorkflow((s) => s.workflow.nodes.find((n) => n.name === s.openNode));
   const readOnly = useWorkflow((s) => s.readOnly);
+  const nodeIO = useWorkflow((s) => (s.openNode ? s.nodeIO[s.openNode] : undefined));
   const [tab, setTab] = useState<'params' | 'settings'>('params');
   const [name, setName] = useState('');
   useEffect(() => setName(openName ?? ''), [openName]);
@@ -293,8 +352,11 @@ export function NDV() {
   if (!openName || !node) return null;
   const type = getNodeType(node.type);
   if (!type) return null;
-  const io = staticIO(node);
-  const hasInput = io.inputs.some((i) => (typeof i === 'string' ? i : i.type) === 'main');
+  const io = nodeIO ?? staticIO(node);
+  const isMain = (x: string | { type: string }) => (typeof x === 'string' ? x : x.type) === 'main';
+  const hasInput = io.inputs.some(isMain);
+  // vector stores are sub-nodes only in their retrieve modes
+  const isSub = type.supplyData && !io.outputs.some(isMain);
   const close = () => useWorkflow.getState().setOpenNode(null);
 
   return (
@@ -313,7 +375,7 @@ export function NDV() {
                 onBlur={() => setName(useWorkflow.getState().renameNode(node.name, name))}
                 onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
               />
-              {!readOnly && (
+              {!readOnly && !isSub && (
                 <button className="primary sm" onClick={() => useWorkflow.getState().run({ destinationNode: node.name })}>
                   <Play size={12} /> {type.isTrigger ? 'Test step' : 'Execute step'}
                 </button>
@@ -329,6 +391,7 @@ export function NDV() {
             {tab === 'params' ? (
               <>
                 {type.hasWebhook && type.isTrigger && <WebhookUrls node={node} />}
+                {node.type.endsWith('.httpRequest') && <CurlImport node={node} />}
                 <CredentialsSection node={node} />
                 <ParameterList
                   properties={type.properties}
@@ -345,7 +408,14 @@ export function NDV() {
             )}
           </div>
         </div>
-        <OutputPanel node={node} />
+        {isSub ? (
+          <div className="ndv-panel">
+            <div className="ndv-panel-head"><strong>Output</strong></div>
+            <div className="empty">This is a sub-node. It runs inside the node it is connected to (for example an AI Agent), so run that node to try it.</div>
+          </div>
+        ) : (
+          <OutputPanel node={node} />
+        )}
       </div>
     </div>
   );

@@ -12,10 +12,10 @@ import {
   type IRunData,
   type ITaskData,
   type IWorkflowSettings,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
 import { create } from 'zustand';
 import { Api, type NodeIO, type WorkflowData } from '../lib/api';
-import { getNodeType, useApp } from './app';
+import { getNodeType, localNodeType, useApp } from './app';
 
 export const pushRef = Math.random().toString(36).slice(2, 12);
 
@@ -57,14 +57,19 @@ interface WorkflowState {
   future: Snapshot[];
 
   load(wf: WorkflowData, opts?: { readOnly?: boolean; runData?: IRunData }): void;
-  newWorkflow(): void;
+  /** A new workflow, saved into `projectId` (default: the personal project) */
+  newWorkflow(projectId?: string): void;
   setName(name: string): void;
   setSettings(settings: IWorkflowSettings): void;
   setTags(tags: string[]): void;
   checkpoint(): void;
   undo(): void;
   redo(): void;
-  addNode(type: string, position: [number, number], opts?: { connectFrom?: { node: string; output: number; type?: ConnectionType }; name?: string; parameters?: INodeParameters }): INode | null;
+  addNode(
+    type: string,
+    position: [number, number],
+    opts?: { connectFrom?: { node: string; output: number; type?: ConnectionType }; name?: string; parameters?: INodeParameters; initialParameters?: INodeParameters },
+  ): INode | null;
   addNodes(nodes: INode[], connections: IConnections): string[];
   updateNode(name: string, patch: Partial<INode>): void;
   setParameters(name: string, parameters: INodeParameters): void;
@@ -78,7 +83,7 @@ interface WorkflowState {
   setSelected(names: string[]): void;
   refreshIO(name: string): void;
   save(): Promise<WorkflowData>;
-  run(opts?: { destinationNode?: string; triggerNode?: string }): Promise<void>;
+  run(opts?: { destinationNode?: string; triggerNode?: string; triggerData?: INodeExecutionData[] }): Promise<void>;
   stop(): Promise<void>;
   clearRunData(): void;
   applyPush(event: { type: string; data: any }): void;
@@ -159,8 +164,8 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
     for (const n of workflow.nodes) if (getNodeType(n.type)?.hasDynamicIO) get().refreshIO(n.name);
   },
 
-  newWorkflow() {
-    get().load(emptyWorkflow());
+  newWorkflow(projectId) {
+    get().load({ ...emptyWorkflow(), homeProject: projectId ? { id: projectId, name: '', type: 'team', icon: null } : null, scopes: ['read', 'update', 'execute', 'delete', 'share', 'move'] });
   },
 
   setName(name) {
@@ -206,7 +211,7 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
       type,
       typeVersion: version,
       position,
-      parameters: opts.parameters ?? getNodeParametersWithDefaults(d.properties.filter((p) => p.type !== 'notice'), {}, version),
+      parameters: opts.parameters ?? getNodeParametersWithDefaults(d.properties.filter((p) => p.type !== 'notice'), opts.initialParameters ?? {}, version),
       ...(d.hasWebhook ? { webhookId: uid() } : {}),
     };
     set({ workflow: { ...workflow, nodes: [...workflow.nodes, node] }, dirty: true });
@@ -224,7 +229,7 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
     for (const n of nodes) {
       const name = uniqueName(n.name, existing);
       renames[n.name] = name;
-      const node = { ...structuredClone(n), id: uid(), name, type: n.type.replace(/^n8n-nodes-base\./, '8n8.') };
+      const node = { ...structuredClone(n), id: uid(), name, type: localNodeType(n.type) };
       existing.push(node);
       added.push(node);
     }
@@ -386,8 +391,9 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
     const body = { name: workflow.name, nodes: workflow.nodes, connections: workflow.connections, settings: workflow.settings, pinData: workflow.pinData, tags: workflow.tags };
     const saved = workflow.id
       ? await Api.updateWorkflow(workflow.id, { ...body, versionId: workflow.versionId })
-      : await Api.createWorkflow(body);
-    set({ workflow: { ...get().workflow, id: saved.id, versionId: saved.versionId, active: saved.active, activationError: saved.activationError }, dirty: false });
+      : await Api.createWorkflow({ ...body, projectId: workflow.homeProject?.id });
+    const { homeProject, sharedWithProjects, scopes } = saved;
+    set({ workflow: { ...get().workflow, id: saved.id, versionId: saved.versionId, active: saved.active, activationError: saved.activationError, homeProject, sharedWithProjects, scopes }, dirty: false });
     return saved;
   },
 
@@ -411,7 +417,7 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
         {
           workflowData: { name: workflow.name, nodes: workflow.nodes, connections: workflow.connections, settings: workflow.settings, pinData: workflow.pinData },
           destinationNode: opts.destinationNode,
-          triggerToStartFrom: opts.triggerNode ? { name: opts.triggerNode } : undefined,
+          triggerToStartFrom: opts.triggerNode ? { name: opts.triggerNode, ...(opts.triggerData ? { data: { main: [opts.triggerData] } } : {}) } : undefined,
           runData: partial ? get().runData : undefined,
           dirtyNodeNames: partial ? get().dirtyNodes : undefined,
         },

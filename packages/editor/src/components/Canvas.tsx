@@ -16,12 +16,13 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
 } from '@xyflow/react';
-import type { ConnectionType, IConnections, INode } from '@8n8/workflow';
-import { Play, Plus, Trash2, Square, Copy } from 'lucide-react';
+import type { ConnectionType, IConnections, INode } from '@flowmator/workflow';
+import { Play, Plus, Trash2, Square, Copy, MessageCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getNodeType, useApp } from '../store/app';
-import { useWorkflow } from '../store/workflow';
+import { staticIO, useWorkflow } from '../store/workflow';
 import { CanvasNode, StickyNode, type CanvasNodeData } from './CanvasNode';
+import { ChatPanel } from './ChatPanel';
 import { NodeCreator } from './NodeCreator';
 
 const nodeTypes = { wf: CanvasNode, sticky: StickyNode };
@@ -33,9 +34,9 @@ function parseHandle(id: string | null | undefined) {
 }
 
 function WorkflowEdge(props: EdgeProps) {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd, style } = props;
-  // loops back to an earlier node: route below instead of through the nodes
-  const backwards = targetX < sourceX - 20;
+  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, sourceHandleId, data, markerEnd, style } = props;
+  // a main connection back to an earlier node: route below instead of through the nodes (sub-node connections run vertically)
+  const backwards = parseHandle(sourceHandleId).type === 'main' && targetX < sourceX - 20;
   let path: string;
   let labelX: number;
   let labelY: number;
@@ -98,10 +99,12 @@ function CanvasInner() {
   const status = useWorkflow((s) => s.status);
   const store = useWorkflow.getState;
   const flow = useReactFlow();
-  const [creator, setCreator] = useState<null | { from?: { node: string; output: number; type: string }; position?: [number, number] }>(null);
+  const [creator, setCreator] = useState<null | { from?: { node: string; output: number; type: string }; to?: { node: string; type: string }; position?: [number, number] }>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const [rfNodes, setRfNodes] = useState<Node[]>([]);
 
   const onAddFrom = useCallback((node: string, output: number, type: string) => setCreator({ from: { node, output, type } }), []);
+  const onAddSubNode = useCallback((node: string, type: string) => setCreator({ to: { node, type } }), []);
 
   // store → React Flow nodes (keep RF's own selection/drag state)
   useEffect(() => {
@@ -115,14 +118,14 @@ function CanvasInner() {
           id: n.name,
           type: isSticky ? 'sticky' : 'wf',
           position: { x: n.position[0], y: n.position[1] },
-          data: { name: n.name, onAddFrom } satisfies CanvasNodeData,
+          data: { name: n.name, onAddFrom, onAddSubNode } satisfies CanvasNodeData,
           selected: old?.selected ?? store().selected.includes(n.name),
           zIndex: isSticky ? -1 : 0,
           ...(isSticky ? { style: { width: p.width ?? 240, height: p.height ?? 160 } } : {}),
         } as Node;
       });
     });
-  }, [wf.nodes, onAddFrom, store]);
+  }, [wf.nodes, onAddFrom, onAddSubNode, store]);
 
   const edges = useMemo<Edge[]>(() => {
     const out: Edge[] = [];
@@ -190,12 +193,32 @@ function CanvasInner() {
       const lastNode = selected ?? s.workflow.nodes.filter((n) => !n.type.endsWith('stickyNote')).at(-1);
       if (lastNode && !getNodeType(type)?.isTrigger) {
         pos = [lastNode.position[0] + 200, lastNode.position[1]];
+        // auto-connect only main output → main input (never from a sub-node's AI output)
+        const isMain = (io: string | { type: string }) => (typeof io === 'string' ? io : io.type) === 'main';
         const lastType = getNodeType(lastNode.type);
-        if (lastType?.outputs.length) connectFrom = { node: lastNode.name, output: 0 };
+        const newType = getNodeType(type);
+        if (lastType?.outputs.some(isMain) && newType?.inputs.some(isMain)) connectFrom = { node: lastNode.name, output: 0 };
       } else {
         const center = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
         pos = [Math.round(center.x - 42), Math.round(center.y - 42)];
       }
+    }
+    if (creator?.to) {
+      // sub-node: below the root node, next to its siblings on the same input, connected upwards
+      const root = s.workflow.nodes.find((n) => n.name === creator.to!.node);
+      if (root) {
+        const siblings = Object.values(s.workflow.connections).filter((byType) => byType[creator.to!.type as ConnectionType]?.some((t) => t?.some((c) => c.node === root.name))).length;
+        // under the input's handle (spread a little so neighbours don't overlap), then right of earlier siblings
+        const aiInputs = (s.nodeIO[root.name] ?? staticIO(root)).inputs.map((i) => (typeof i === 'string' ? i : i.type)).filter((t) => t !== 'main');
+        const n = aiInputs.length;
+        const idx = Math.max(0, aiInputs.indexOf(creator.to.type as ConnectionType));
+        pos = [Math.round(root.position[0] + (280 * (idx + 1)) / (n + 1) - 35 + (idx - (n - 1) / 2) * 60 + siblings * 100), root.position[1] + 200];
+      }
+      const sub = s.addNode(type, pos ?? [0, 0], { initialParameters: getNodeType(type)?.subNodeParameters?.[creator.to.type as ConnectionType] });
+      if (sub && root) s.connect(sub.name, 0, root.name, 0, creator.to.type as ConnectionType);
+      setCreator(null);
+      if (sub) s.setOpenNode(sub.name);
+      return;
     }
     const node = s.addNode(type, pos, { connectFrom });
     setCreator(null);
@@ -279,13 +302,14 @@ function CanvasInner() {
   const realNodes = wf.nodes.filter((n) => !n.type.endsWith('stickyNote'));
   const triggers = wf.nodes.filter((n) => getNodeType(n.type)?.isTrigger && !n.disabled);
   const running = status === 'running' || status === 'waitingForWebhook';
+  const chatTrigger = triggers.find((t) => t.type.endsWith('chatTrigger'));
 
   return (
     <div
       className="canvas-wrap"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
-        const type = e.dataTransfer.getData('application/8n8-node');
+        const type = e.dataTransfer.getData('application/flowmator-node');
         if (!type) return;
         const p = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
         placeNode(type, [Math.round(p.x - 42), Math.round(p.y - 42)]);
@@ -349,6 +373,7 @@ function CanvasInner() {
           {Object.keys(runData).length > 0 && !running && (
             <button onClick={() => store().clearRunData()} title="Clear execution data"><Trash2 size={14} /></button>
           )}
+          {chatTrigger && <button onClick={() => setChatOpen(!chatOpen)}><MessageCircle size={14} /> Chat</button>}
           <button onClick={() => setCreator({})} title="Add node (Tab)"><Plus size={14} /></button>
         </div>
       )}
@@ -356,7 +381,8 @@ function CanvasInner() {
       <WebhookBanner />
       <ErrorBanner />
 
-      {creator && <NodeCreator triggersFirst={!hasTrigger && !creator.from} onPick={(t) => placeNode(t)} onClose={() => setCreator(null)} />}
+      {creator && <NodeCreator triggersFirst={!hasTrigger && !creator.from && !creator.to} subNodeType={creator.to?.type} onPick={(t) => placeNode(t)} onClose={() => setCreator(null)} />}
+      {chatOpen && chatTrigger && <ChatPanel trigger={chatTrigger.name} onClose={() => setChatOpen(false)} />}
     </div>
   );
 }
@@ -369,9 +395,9 @@ function WebhookBanner() {
     <div className="webhook-banner">
       <span className="spin" style={{ display: 'inline-flex' }}>⟳</span>
       <div className="grow">
-        <div style={{ fontWeight: 600 }}>Waiting for a test event</div>
+        <div style={{ fontWeight: 600 }}>{urls.some((u) => u.includes('/form-test/')) ? 'Open the form and submit it' : 'Waiting for a test event'}</div>
         {urls.map((u) => (
-          <div key={u} className="mono ellipsis" style={{ fontSize: 11 }}>{u}</div>
+          <a key={u} href={u} target="_blank" rel="noreferrer" className="mono ellipsis" style={{ fontSize: 11, display: 'block' }}>{u}</a>
         ))}
       </div>
       <button className="sm" onClick={() => navigator.clipboard.writeText(urls[0] ?? '')}><Copy size={12} /> Copy URL</button>

@@ -1,4 +1,4 @@
-import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@8n8/workflow';
+import { NodeOperationError, type IDataObject, type IExecuteFunctions, type INodeExecutionData, type INodeType } from '@flowmator/workflow';
 import { deepCopy, errorItem, fieldList, getValue, setValue, unsetValue } from '../utils/object';
 
 interface Assignment {
@@ -48,7 +48,7 @@ function convert(value: unknown, type: Assignment['type'], name: string, ignoreE
 
 export const EditFields: INodeType = {
   description: {
-    name: '8n8.set',
+    name: 'flowmator.set',
     displayName: 'Edit Fields (Set)',
     description: 'Adds, modifies or removes item fields',
     group: ['input'],

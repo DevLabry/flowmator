@@ -1,6 +1,7 @@
 {
-  "name": "@8n8/core",
+  "name": "@flowmator/core",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "main": "src/index.ts",
   "exports": {
@@ -10,9 +11,16 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@8n8/workflow": "workspace:*"
+    "@flowmator/workflow": "workspace:*"
   },
   "devDependencies": {
-    "@8n8/nodes-base": "workspace:^"
+    "@flowmator/nodes-base": "workspace:^",
+    "@electric-sql/pglite": "0.5.13",
+    "@electric-sql/pglite-pgvector": "0.0.14",
+    "@electric-sql/pglite-socket": "^0.2.16",
+    "@types/ssh2": "1.15.5",
+    "ftp-srv": "4.6.3",
+    "hoodiecrow-imap": "3.3.1",
+    "ssh2": "1.17.0"
   }
 }

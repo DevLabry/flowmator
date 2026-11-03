@@ -1,4 +1,4 @@
-import { WebhookContext, type NodeTypesRegistry } from '@8n8/core';
+import { ExecuteContext, HookContext, WebhookContext, type NodeTypesRegistry } from '@flowmator/core';
 import {
   evaluateExpression,
   getNodeParametersWithDefaults,
@@ -6,14 +6,16 @@ import {
   type IDataObject,
   type INode,
   type INodeExecutionData,
+  type INodeType,
   type IWebhookDescription,
   type IWebhookRequest,
   type IWebhookResponse,
   type IWorkflowBase,
-} from '@8n8/workflow';
+} from '@flowmator/workflow';
+import { formPageOf, parseSubmission, renderForm, renderPage, renderSubmitted, type FormNodePage } from '@flowmator/nodes-base';
 import type { ServerConfig } from './config';
 import type { ExecutionService } from './execution-service';
-import type { Push } from './push';
+import type { PushSender } from './push';
 
 export interface WebhookRegistration {
   workflowId: string;
@@ -44,6 +46,8 @@ export class WebhookError extends Error {
 }
 
 const trimSlashes = (p: string) => p.replace(/^\/+|\/+$/g, '');
+/** Form triggers are served under /form and /form-test instead of /webhook. */
+export const isFormNode = (node: INode) => node.type.endsWith('formTrigger');
 
 /** Resolves a node's webhook description (method/path may be expressions over $parameter). */
 export function resolveWebhook(nodeTypes: NodeTypesRegistry, node: INode, description: IWebhookDescription) {
@@ -88,7 +92,7 @@ export class WebhookService {
     private readonly config: ServerConfig,
     private readonly nodeTypes: NodeTypesRegistry,
     private readonly executions: ExecutionService,
-    private readonly push: Push,
+    private readonly push: PushSender,
     private readonly loadWorkflow: (id: string) => IWorkflowBase | null,
   ) {}
 
@@ -115,9 +119,11 @@ export class WebhookService {
    * Arms test webhooks for a manual run of a workflow whose start node is a webhook trigger.
    * Returns the URLs waiting for a call (they expire after two minutes).
    */
-  registerTest(workflowData: IWorkflowBase, opts: { pushRef?: string; destinationNode?: string; triggerNode?: string }) {
+  async registerTest(workflowData: IWorkflowBase, opts: { pushRef?: string; destinationNode?: string; triggerNode?: string }) {
     this.cancelTest(workflowData.id!);
     const urls: string[] = [];
+    const cleanups: Array<() => Promise<unknown>> = [];
+    const workflow = this.executions.buildWorkflow(workflowData);
     for (const { node, description } of webhookNodesOf(this.nodeTypes, workflowData.nodes)) {
       if (opts.triggerNode && node.name !== opts.triggerNode) continue;
       const r = resolveWebhook(this.nodeTypes, node, description);
@@ -133,12 +139,38 @@ export class WebhookService {
         destinationNode: opts.destinationNode,
         timeout,
       });
-      urls.push(`${this.config.webhookUrl}${this.config.endpoints.webhookTest}/${r.path}`);
+      const endpoint = isFormNode(node) ? this.config.endpoints.formTest : this.config.endpoints.webhookTest;
+      urls.push(`${this.config.webhookUrl}${endpoint}/${r.path}`);
+
+      // services that push to us (Telegram, GitHub…) must be told about the test URL
+      const methods = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion).webhookMethods?.[description.name];
+      if (methods) {
+        const hookCtx = new HookContext(
+          {
+            workflow,
+            node: workflow.getNode(node.name)!,
+            additionalData: { executionId: '', mode: 'manual', credentialsHelper: this.executions.credentialsHelper, timezone: this.config.timezone },
+          },
+          description.name,
+          () => this.webhookUrlFor(node, 'test'),
+        );
+        try {
+          await methods.create.call(hookCtx);
+        } catch (e) {
+          this.cancelTest(workflowData.id!, false);
+          throw new WebhookError(400, `Could not register the test webhook for "${node.name}": ${(e as Error).message}`);
+        }
+        cleanups.push(() => methods.delete.call(hookCtx));
+      }
     }
-    return urls;
+    if (cleanups.length) this.testCleanups.set(workflowData.id!, cleanups);
+    return [...new Set(urls)];
   }
 
-  cancelTest(workflowId: string) {
+  private readonly testCleanups = new Map<string, Array<() => Promise<unknown>>>();
+
+  /** `notify` is false when a test call consumed the registration: the editor then gets executionStarted instead. */
+  cancelTest(workflowId: string, notify = true) {
     let removed = false;
     for (const [k, t] of this.test) {
       if (t.workflowId !== workflowId) continue;
@@ -146,7 +178,9 @@ export class WebhookService {
       this.test.delete(k);
       removed = true;
     }
-    if (removed) this.push.send({ type: 'testWebhookDeleted', data: { workflowId } });
+    for (const cleanup of this.testCleanups.get(workflowId) ?? []) cleanup().catch((e) => console.warn(`Removing test webhook failed: ${(e as Error).message}`));
+    this.testCleanups.delete(workflowId);
+    if (removed && notify) this.push.send({ type: 'testWebhookDeleted', data: { workflowId } });
     return removed;
   }
 
@@ -188,8 +222,11 @@ export class WebhookService {
       throw new WebhookError(404, `The requested webhook "${trimSlashes(path)}" is not registered.`, "Click the 'Execute workflow' button on the canvas, then try again. (In test mode, the webhook only works for one call after you click this button)");
     }
     const t = found.reg;
-    this.cancelTest(t.workflowId);
-    return this.execute(t.workflowData, t.nodeName, t.webhookName, { ...request, params: found.params }, 'manual', t.pushRef, t.destinationNode);
+    // GET on a form only renders it; the submission (POST) is the test event
+    // consumed only once the trigger accepts the call: a rejected request (bad secret, form page view) leaves it armed
+    return this.execute(t.workflowData, t.nodeName, t.webhookName, { ...request, params: found.params }, 'manual', t.pushRef, t.destinationNode, () =>
+      this.cancelTest(t.workflowId, false),
+    );
   }
 
   /** /webhook-waiting/:executionId — resumes an execution paused in a Wait node set to "On Webhook Call". */
@@ -199,12 +236,14 @@ export class WebhookService {
     const workflowData = waiting.execution.workflowData;
     const node = workflowData.nodes.find((n) => n.name === waiting.nodeName)!;
     const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
+    const page = this.waitingFormPage(executionId);
+    if (page) return this.handleWaitingForm(executionId, page, method, request);
     const wanted = String(node.parameters.httpMethod ?? 'POST').toUpperCase();
     if (nodeType.webhook && wanted !== method && node.parameters.resume === 'webhook') {
       throw new WebhookError(405, `This webhook expects ${wanted} requests`);
     }
     const ctx = this.webhookContext(workflowData, node, 'default', request, waiting.execution.mode);
-    const result = nodeType.webhook ? await nodeType.webhook.call(ctx) : { workflowData: [[{ json: { body: request.body as IDataObject } }]] };
+    const result = nodeType.webhook ? await this.callWebhook(nodeType, ctx) : { workflowData: [[{ json: { body: request.body as IDataObject } }]] };
     if (result.webhookResponse && !result.workflowData) return result.webhookResponse;
     const resumeItems = result.workflowData?.[0] as INodeExecutionData[] | undefined;
     // respond right away; the execution continues in the background
@@ -212,12 +251,81 @@ export class WebhookService {
     return result.webhookResponse ?? { statusCode: 200, body: { message: 'Workflow was resumed' } };
   }
 
+  /** The page shown by a Form node (or Wait node set to "On Form Submitted") an execution is paused at. */
+  private waitingFormPage(executionId: string): FormNodePage | null {
+    const waiting = this.executions.getWaitingNode(executionId);
+    if (!waiting) return null;
+    const { execution } = waiting;
+    const workflow = this.executions.buildWorkflow(execution.workflowData);
+    const node = workflow.getNode(waiting.nodeName);
+    if (!node) return null;
+    const state = execution.data!.executionData!;
+    const runData = execution.data!.resultData.runData;
+    // parameters may use expressions over the node's input, like they do when the node runs
+    const ctx = new ExecuteContext({
+      workflow,
+      node,
+      additionalData: this.executions.webhookAdditionalData(execution.mode),
+      runData,
+      executeData: state.nodeExecutionStack[0],
+      runIndex: runData[node.name]?.length ?? 0,
+      contextData: state.contextData ?? {},
+    });
+    return formPageOf(node, (name, fallback) => ctx.getNodeParameter(name, 0, fallback));
+  }
+
+  private formWaitingUrl(executionId: string) {
+    return `${this.config.webhookUrl}${this.config.endpoints.formWaiting}/${executionId}`;
+  }
+
+  /**
+   * Form pages of a paused execution. GET shows the page; POST resumes the execution with the answers and,
+   * once it pauses at the next page, redirects there. A Form Ending is shown on GET and finishes the execution.
+   */
+  private async handleWaitingForm(executionId: string, page: FormNodePage, method: string, request: IWebhookRequest): Promise<IWebhookResponse> {
+    const html = { 'content-type': 'text/html; charset=utf-8' };
+    if (page.kind === 'completion') {
+      if (method !== 'GET') throw new WebhookError(405, 'The form is complete');
+      this.executions.resume(executionId).catch((e) => console.error(`Resume of ${executionId} failed:`, e));
+      if (page.respondWith === 'redirect' && page.redirectUrl) return { statusCode: 302, headers: { location: page.redirectUrl } };
+      if (page.respondWith === 'showText') return { statusCode: 200, headers: html, body: renderPage('Form', page.responseText ?? '') };
+      return { statusCode: 200, headers: html, body: renderSubmitted(page.completionTitle || 'Form', page.completionMessage) };
+    }
+    if (method === 'GET') {
+      return { statusCode: 200, headers: html, body: renderForm({ title: page.title, description: page.description, fields: page.fields, buttonLabel: page.buttonLabel }) };
+    }
+    if (method !== 'POST') throw new WebhookError(405, 'Forms accept GET and POST only');
+    const item = await parseSubmission(request.body, request.files, page.fields, (data, fileName, mimeType) =>
+      this.executions.binaryData.store(data, { fileName, mimeType, fileExtension: fileName.split('.').pop() }, executionId),
+    );
+    return this.formOutcome(executionId, this.executions.resume(executionId, [item]), page.title);
+  }
+
+  /** After a form page is submitted: go to the next page if the execution stops at one, else confirm. */
+  private async formOutcome(executionId: string, run: Promise<{ status: string }>, title?: string, submittedText?: string): Promise<IWebhookResponse> {
+    const html = { 'content-type': 'text/html; charset=utf-8' };
+    const result = await run.catch(() => ({ status: 'error' }));
+    if (result.status === 'waiting' && this.waitingFormPage(executionId)) return { statusCode: 303, headers: { location: this.formWaitingUrl(executionId) } };
+    if (result.status === 'error') return { statusCode: 500, headers: html, body: renderSubmitted('Problem submitting response', 'Please try again or contact support if the problem persists') };
+    return { statusCode: 200, headers: html, body: renderSubmitted(title || 'Form', submittedText) };
+  }
+
   webhookUrlFor(node: INode, mode: 'production' | 'test') {
     const type = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
     const d = type.description.webhooks?.find((w) => w.name === 'default') ?? type.description.webhooks?.[0];
     if (!d) return '';
     const { path } = resolveWebhook(this.nodeTypes, node, d);
-    return `${this.config.webhookUrl}${mode === 'test' ? this.config.endpoints.webhookTest : this.config.endpoints.webhook}/${path}`;
+    const e = this.config.endpoints;
+    const endpoint = isFormNode(node) ? (mode === 'test' ? e.formTest : e.form) : mode === 'test' ? e.webhookTest : e.webhook;
+    return `${this.config.webhookUrl}${endpoint}/${path}`;
+  }
+
+  private async callWebhook(nodeType: INodeType, ctx: WebhookContext) {
+    try {
+      return await nodeType.webhook!.call(ctx);
+    } finally {
+      await ctx.closeSubNodes();
+    }
   }
 
   private webhookContext(workflowData: IWorkflowBase, node: INode, webhookName: string, request: IWebhookRequest, mode: 'manual' | 'webhook' | string) {
@@ -226,13 +334,7 @@ export class WebhookService {
       {
         workflow,
         node: workflow.getNode(node.name)!,
-        additionalData: {
-          executionId: '',
-          mode: mode as 'manual',
-          credentialsHelper: this.executions.credentialsHelper,
-          timezone: this.config.timezone,
-          binaryData: this.executions.binaryData,
-        },
+        additionalData: this.executions.webhookAdditionalData(mode as 'manual'),
       },
       request,
       webhookName,
@@ -248,13 +350,15 @@ export class WebhookService {
     mode: 'manual' | 'webhook',
     pushRef?: string,
     destinationNode?: string,
+    onAccepted?: () => void,
   ): Promise<IWebhookResponse> {
     const node = workflowData.nodes.find((n) => n.name === nodeName);
     if (!node) throw new WebhookError(404, `Node "${nodeName}" not found`);
     const nodeType = this.nodeTypes.getByNameAndVersion(node.type, node.typeVersion);
     const ctx = this.webhookContext(workflowData, node, webhookName, request, mode);
-    const result = await nodeType.webhook!.call(ctx);
+    const result = await this.callWebhook(nodeType, ctx);
     if (!result.workflowData) return result.webhookResponse ?? { statusCode: 200, body: { message: 'Webhook call received' } };
+    onAccepted?.();
 
     const params = getNodeParametersWithDefaults(nodeType.description.properties, node.parameters, node.typeVersion);
     const options = (params.options ?? {}) as IDataObject;
@@ -276,6 +380,11 @@ export class WebhookService {
       onResponse: (r) => respond({ ...r, headers: { ...headers, ...(r.headers ?? {}) } }),
     });
     if (mode === 'manual') this.push.send({ type: 'testWebhookReceived', data: { workflowId: workflowData.id!, executionId } }, pushRef);
+
+    // a form followed by Form nodes continues on their pages
+    if (isFormNode(node) && workflowData.nodes.some((n) => !n.disabled && n.type.endsWith('.form'))) {
+      return this.formOutcome(executionId, promise, String(params.formTitle ?? ''), options.formSubmittedText as string);
+    }
 
     if (result.webhookResponse) return result.webhookResponse;
 
