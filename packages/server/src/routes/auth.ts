@@ -46,8 +46,8 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext) {
   const { users, access, config } = ctx;
   const sessions = new Sessions(config.encryptionKey);
   const mailer = new Mailer();
-  const editorUrl = () => (process.env.N8N_EDITOR_BASE_URL || config.webhookUrl).replace(/\/?$/, '/');
-  const secureCookie = process.env.N8N_SECURE_COOKIE ? process.env.N8N_SECURE_COOKIE === 'true' : config.protocol === 'https';
+  const editorUrl = () => (process.env.FLOWMATOR_EDITOR_BASE_URL || config.webhookUrl).replace(/\/?$/, '/');
+  const secureCookie = process.env.FLOWMATOR_SECURE_COOKIE ? process.env.FLOWMATOR_SECURE_COOKIE === 'true' : config.protocol === 'https';
 
   const setCookie = (reply: FastifyReply, user: User) => {
     const { token, expires } = sessions.issue(user, users.fingerprint(user));

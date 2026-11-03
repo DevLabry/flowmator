@@ -1,6 +1,6 @@
 # Flowmator with its data in a named volume.
 #   docker compose up -d        → http://localhost:5678
-# Settings use the same N8N_* variables as n8n; put overrides in a .env file next to this one.
+# Settings are FLOWMATOR_* variables; put overrides in a .env file next to this one.
 
 services:
   flowmator:
@@ -15,15 +15,15 @@ services:
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Madrid}
       - TZ=${GENERIC_TIMEZONE:-Europe/Madrid}
       # optional: email invitations and password resets (without it the editor gives you links to send)
-      - N8N_EMAIL_MODE=${N8N_EMAIL_MODE:-}
-      - N8N_SMTP_HOST=${N8N_SMTP_HOST:-}
-      - N8N_SMTP_PORT=${N8N_SMTP_PORT:-465}
-      - N8N_SMTP_USER=${N8N_SMTP_USER:-}
-      - N8N_SMTP_PASS=${N8N_SMTP_PASS:-}
-      - N8N_SMTP_SENDER=${N8N_SMTP_SENDER:-}
-      - N8N_SMTP_SSL=${N8N_SMTP_SSL:-true}
+      - FLOWMATOR_EMAIL_MODE=${FLOWMATOR_EMAIL_MODE:-}
+      - FLOWMATOR_SMTP_HOST=${FLOWMATOR_SMTP_HOST:-}
+      - FLOWMATOR_SMTP_PORT=${FLOWMATOR_SMTP_PORT:-465}
+      - FLOWMATOR_SMTP_USER=${FLOWMATOR_SMTP_USER:-}
+      - FLOWMATOR_SMTP_PASS=${FLOWMATOR_SMTP_PASS:-}
+      - FLOWMATOR_SMTP_SENDER=${FLOWMATOR_SMTP_SENDER:-}
+      - FLOWMATOR_SMTP_SSL=${FLOWMATOR_SMTP_SSL:-true}
       # optional: set it to keep credentials readable if the volume's config.json is lost
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-}
+      - FLOWMATOR_ENCRYPTION_KEY=${FLOWMATOR_ENCRYPTION_KEY:-}
     volumes:
       - flowmator_data:/home/node/.flowmator
 

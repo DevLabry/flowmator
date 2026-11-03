@@ -50,7 +50,7 @@ const VALUE_CRITERIA: Record<string, keyof SearchObject> = {
 };
 
 /**
- * Turns n8n's custom search rules (node-imap style, e.g. ["UNSEEN", ["SINCE", "May 20, 2024"]])
+ * Turns custom search rules (node-imap style, e.g. ["UNSEEN", ["SINCE", "May 20, 2024"]])
  * into an imapflow search query. All rules must match.
  */
 export function imapSearchQuery(rules: unknown): SearchObject {

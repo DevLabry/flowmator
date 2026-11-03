@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 const now = () => new Date().toISOString();
 const json = (v: unknown) => (v === undefined ? null : JSON.stringify(v));
 const parse = <T>(v: unknown, fallback: T): T => (typeof v === 'string' && v !== '' ? (JSON.parse(v) as T) : fallback);
-/** Short ids like n8n's (16 alphanumerics) so URLs stay readable. */
+/** Short ids (16 alphanumerics) so URLs stay readable. */
 export const newId = () => randomUUID().replace(/-/g, '').slice(0, 16);
 
 export interface WorkflowEntity extends IWorkflowBase {

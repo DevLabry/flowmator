@@ -291,7 +291,7 @@ export class ExecuteContext extends BaseNodeContext implements IExecuteFunctions
       executionId: this.additionalData.executionId,
       timezone: this.getTimezone(),
       variables: this.additionalData.variables,
-      env: process.env.N8N_BLOCK_ENV_ACCESS_IN_NODE === 'true' ? {} : (process.env as IDataObject),
+      env: process.env.FLOWMATOR_BLOCK_ENV_ACCESS_IN_NODE === 'true' ? {} : (process.env as IDataObject),
       resumeUrl: `${this.additionalData.webhookWaitingBaseUrl ?? ''}/${this.additionalData.executionId}`,
       resumeFormUrl: `${this.additionalData.formWaitingBaseUrl ?? ''}/${this.additionalData.executionId}`,
       customData: this.additionalData.executionCustomData,

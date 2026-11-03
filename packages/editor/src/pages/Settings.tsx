@@ -77,7 +77,7 @@ export function SettingsPage() {
             }
           }}><Plus size={14} /> Create key</button>
         </div>
-        <div className="muted">Use the public API at <code>/api/v1</code> with the header <code>X-N8N-API-KEY</code>. It acts as you, with your permissions.</div>
+        <div className="muted">Use the public API at <code>/api/v1</code> with the header <code>X-FLOWMATOR-API-KEY</code>. It acts as you, with your permissions.</div>
         {newKey && (
           <div className="card row" style={{ padding: 10, borderColor: 'var(--success)' }}>
             <code className="grow ellipsis">{newKey}</code>

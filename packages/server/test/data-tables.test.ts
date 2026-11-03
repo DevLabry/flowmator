@@ -155,9 +155,9 @@ describe('data table REST API', () => {
   it('serves rows on the public API with an API key', async () => {
     const key = (await api('POST', '/rest/api-keys', { label: 'dt' })).body.data.apiKey;
     expect((await api('GET', '/api/v1/data-tables')).status).toBe(401);
-    const list = await api('GET', '/api/v1/data-tables', undefined, { 'x-n8n-api-key': key });
+    const list = await api('GET', '/api/v1/data-tables', undefined, { 'x-flowmator-api-key': key });
     const orders = list.body.data.find((t: { name: string }) => t.name === 'orders');
-    const inserted = await api('POST', `/api/v1/data-tables/${orders.id}/rows`, { data: [{ sku: 'C-9', qty: 3 }] }, { 'x-n8n-api-key': key });
+    const inserted = await api('POST', `/api/v1/data-tables/${orders.id}/rows`, { data: [{ sku: 'C-9', qty: 3 }] }, { 'x-flowmator-api-key': key });
     expect(inserted.body.data[0]).toMatchObject({ sku: 'C-9', qty: 3 });
   });
 });

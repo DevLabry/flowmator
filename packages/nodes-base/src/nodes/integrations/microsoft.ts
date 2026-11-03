@@ -33,7 +33,7 @@ const collection = (name: string, displayName: string, options: INodeProperties[
 
 const OUTLOOK = 'microsoftOutlookOAuth2Api';
 
-/** Flat message with addresses as strings (the shape n8n's "simplify" gives). */
+/** Flat message with addresses as strings. */
 export function simplifyOutlookMessage(m: IDataObject): IDataObject {
   const addr = (r: unknown) => ((r as IDataObject)?.emailAddress as IDataObject)?.address as string | undefined;
   return {

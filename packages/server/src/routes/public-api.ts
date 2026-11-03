@@ -6,8 +6,7 @@ import { dataTableRowRoutes, guardDataTables, visibleTables } from './data-table
 import { HttpError } from './errors';
 
 /**
- * Public REST API (/api/v1), authenticated with an API key in the X-N8N-API-KEY header.
- * Mirrors the shape of n8n's public API so existing scripts keep working.
+ * Public REST API (/api/v1), authenticated with an API key in the X-FLOWMATOR-API-KEY header.
  */
 export async function publicApiRoutes(app: FastifyInstance, ctx: AppContext) {
   const { db, activeWorkflows, access, users } = ctx;
@@ -15,7 +14,7 @@ export async function publicApiRoutes(app: FastifyInstance, ctx: AppContext) {
   await app.register(async (api) => {
     // the API acts as the key's user (keys made before user management act as the owner)
     api.addHook('onRequest', async (req) => {
-      const key = req.headers['x-n8n-api-key'] ?? req.headers['x-flowmator-api-key'];
+      const key = req.headers['x-flowmator-api-key'];
       const found = key ? db.findApiKey(String(key)) : null;
       const user = found ? (found.userId ? users.get(found.userId) : users.owner()) : null;
       if (!user || user.disabled) throw new HttpError(401, 'unauthorized');

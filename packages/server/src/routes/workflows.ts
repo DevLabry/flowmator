@@ -98,7 +98,7 @@ export function workflowRoutes(app: FastifyInstance, ctx: AppContext) {
     return { data: view(wf, req) };
   });
 
-  /** Import workflow JSON (n8n exports work as-is); accepts one workflow or an array. */
+  /** Import workflow JSON; accepts one workflow or an array. */
   app.post('/rest/workflows/import', async (req) => {
     const body = req.body as WorkflowBody | WorkflowBody[];
     const list = Array.isArray(body) ? body : [body];

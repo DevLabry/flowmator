@@ -1,4 +1,4 @@
-# Flowmator: one image for the main process, workers and webhook processes, like n8n's.
+# Flowmator: one image for the main process, workers and webhook processes.
 #   docker run -p 5678:5678 -v flowmator_data:/home/node/.flowmator flowmator
 #   docker run ... flowmator worker      (queue mode)
 
@@ -44,10 +44,10 @@ RUN ln -s /app/packages/server/bin/flowmator.mjs /usr/local/bin/flowmator \
 
 USER node
 ENV NODE_ENV=production \
-  N8N_PORT=5678
+  FLOWMATOR_PORT=5678
 VOLUME /home/node/.flowmator
 EXPOSE 5678
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:' + (process.env.N8N_PORT || 5678) + '/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:' + (process.env.FLOWMATOR_PORT || 5678) + '/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 ENTRYPOINT ["tini", "--", "flowmator"]
 CMD ["start"]

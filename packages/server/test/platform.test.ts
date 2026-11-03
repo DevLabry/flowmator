@@ -373,14 +373,14 @@ describe('templates', () => {
       if (req.url === '/api/workflows/templates/7') return [200, { id: 7, name: 'Slack alerts', workflow: { nodes: [{ name: 'Start', type: 'n8n-nodes-base.manualTrigger' }], connections: {} } }];
       return [404, {}];
     });
-    process.env.N8N_TEMPLATES_HOST = `${lib}/api/`;
+    process.env.FLOWMATOR_TEMPLATES_HOST = `${lib}/api/`;
     try {
       const search = (await api('GET', '/rest/templates/search?search=slack&page=1&rows=20')).body;
       expect(search.workflows[0]).toMatchObject({ id: 7, query: '/api/templates/search?search=slack&page=1&rows=20' });
       expect((await api('GET', '/rest/templates/workflows/7/workflow')).body.workflow.nodes[0].type).toBe('n8n-nodes-base.manualTrigger');
       expect((await api('GET', '/rest/templates/workflows/99')).status).toBe(404);
     } finally {
-      delete process.env.N8N_TEMPLATES_HOST;
+      delete process.env.FLOWMATOR_TEMPLATES_HOST;
     }
   });
 });

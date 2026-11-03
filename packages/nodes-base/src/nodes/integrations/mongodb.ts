@@ -141,7 +141,7 @@ export const MongoDb: INodeType = {
     const op = this.getNodeParameter('operation', 0) as string;
     const out: INodeExecutionData[] = [];
     try {
-      // inserts go in one batch, like n8n
+      // inserts go in one batch
       if (op === 'insert') {
         const docs = items.map((item, i) => {
           const o = this.getNodeParameter('writeOptions', i, {}) as IDataObject;
@@ -207,6 +207,6 @@ async function runMongo(ctx: IExecuteFunctions, db: MongoSession, op: string, i:
   if (op === 'update') await coll.updateOne(filter, { $set: doc }, { upsert });
   else if (op === 'findOneAndUpdate') await coll.findOneAndUpdate(filter, { $set: doc }, { upsert, returnDocument: 'after' });
   else await coll.findOneAndReplace(filter, { [key]: keyValue, ...doc }, { upsert, returnDocument: 'after' });
-  // like n8n, the written fields come out (with the key)
+  // the written fields come out (with the key)
   return [plain({ ...doc, [key]: keyValue })];
 }

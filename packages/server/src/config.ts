@@ -45,25 +45,25 @@ export function defaultUserFolder() {
 }
 
 /**
- * Settings come from N8N_* environment variables (same names n8n uses, so existing setups carry over).
+ * Settings come from FLOWMATOR_* environment variables.
  * The encryption key is generated once and stored in <userFolder>/config.json.
  */
 export function loadConfig(overrides: ConfigOverrides = {}): ServerConfig {
   const env = process.env;
-  const userFolder = overrides.userFolder ?? env.N8N_USER_FOLDER ?? defaultUserFolder();
+  const userFolder = overrides.userFolder ?? env.FLOWMATOR_USER_FOLDER ?? defaultUserFolder();
   mkdirSync(userFolder, { recursive: true });
 
   const configFile = path.join(userFolder, 'config.json');
   const fileConfig: { encryptionKey?: string } = existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) : {};
-  let encryptionKey = overrides.encryptionKey ?? env.N8N_ENCRYPTION_KEY ?? fileConfig.encryptionKey;
+  let encryptionKey = overrides.encryptionKey ?? env.FLOWMATOR_ENCRYPTION_KEY ?? fileConfig.encryptionKey;
   if (!encryptionKey) {
     encryptionKey = randomBytes(24).toString('base64');
     writeFileSync(configFile, JSON.stringify({ ...fileConfig, encryptionKey }, null, 2), { mode: 0o600 });
   }
 
-  const host = overrides.host ?? env.N8N_HOST ?? 'localhost';
-  const port = overrides.port ?? Number(env.N8N_PORT ?? 5678);
-  const protocol = (overrides.protocol ?? env.N8N_PROTOCOL ?? 'http') as 'http' | 'https';
+  const host = overrides.host ?? env.FLOWMATOR_HOST ?? 'localhost';
+  const port = overrides.port ?? Number(env.FLOWMATOR_PORT ?? 5678);
+  const protocol = (overrides.protocol ?? env.FLOWMATOR_PROTOCOL ?? 'http') as 'http' | 'https';
   const baseUrl = overrides.webhookUrl ?? env.WEBHOOK_URL ?? `${protocol}://${host}:${port}/`;
 
   return {
@@ -78,9 +78,9 @@ export function loadConfig(overrides: ConfigOverrides = {}): ServerConfig {
     timezone: overrides.timezone ?? env.GENERIC_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
     endpoints: {
       rest: 'rest',
-      webhook: env.N8N_ENDPOINT_WEBHOOK ?? 'webhook',
-      webhookTest: env.N8N_ENDPOINT_WEBHOOK_TEST ?? 'webhook-test',
-      webhookWaiting: env.N8N_ENDPOINT_WEBHOOK_WAIT ?? 'webhook-waiting',
+      webhook: env.FLOWMATOR_ENDPOINT_WEBHOOK ?? 'webhook',
+      webhookTest: env.FLOWMATOR_ENDPOINT_WEBHOOK_TEST ?? 'webhook-test',
+      webhookWaiting: env.FLOWMATOR_ENDPOINT_WEBHOOK_WAIT ?? 'webhook-waiting',
       form: 'form',
       formTest: 'form-test',
       formWaiting: 'form-waiting',
@@ -110,7 +110,7 @@ export function loadConfig(overrides: ConfigOverrides = {}): ServerConfig {
         active: overrides.queue?.healthCheck?.active ?? env.QUEUE_HEALTH_CHECK_ACTIVE === 'true',
         port: overrides.queue?.healthCheck?.port ?? Number(env.QUEUE_HEALTH_CHECK_PORT ?? 5678),
       },
-      gracefulShutdownSeconds: overrides.queue?.gracefulShutdownSeconds ?? Number(env.N8N_GRACEFUL_SHUTDOWN_TIMEOUT ?? 30),
+      gracefulShutdownSeconds: overrides.queue?.gracefulShutdownSeconds ?? Number(env.FLOWMATOR_GRACEFUL_SHUTDOWN_TIMEOUT ?? 30),
     },
     editorDistDir: overrides.editorDistDir,
   };

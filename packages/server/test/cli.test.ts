@@ -127,7 +127,7 @@ describe('cli: credentials', () => {
 
 describe('cli: launcher', () => {
   it('runs commands through bin/flowmator.mjs', () => {
-    const env = { ...process.env, N8N_USER_FOLDER: overrides.userFolder!, N8N_ENCRYPTION_KEY: 'cli-key' };
+    const env = { ...process.env, FLOWMATOR_USER_FOLDER: overrides.userFolder!, FLOWMATOR_ENCRYPTION_KEY: 'cli-key' };
     expect(execFileSync(process.execPath, [bin, 'list:workflow', '--onlyId'], { env, encoding: 'utf8' }).trim()).toBe('wf-from-n8n');
     const bad = spawnSync(process.execPath, [bin, 'export:workflow'], { env, encoding: 'utf8' });
     expect(bad.status).toBe(1);

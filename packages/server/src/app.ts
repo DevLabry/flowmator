@@ -28,12 +28,12 @@ export interface App {
 }
 
 /**
- * Optional HTTP basic auth for the editor and REST API (N8N_BASIC_AUTH_USER / N8N_BASIC_AUTH_PASSWORD).
+ * Optional HTTP basic auth for the editor and REST API (FLOWMATOR_BASIC_AUTH_USER / FLOWMATOR_BASIC_AUTH_PASSWORD).
  * Webhooks and the public API are never behind it (they have their own auth).
  */
 function basicAuthHook(app: FastifyInstance) {
-  const user = process.env.N8N_BASIC_AUTH_USER;
-  const password = process.env.N8N_BASIC_AUTH_PASSWORD;
+  const user = process.env.FLOWMATOR_BASIC_AUTH_USER;
+  const password = process.env.FLOWMATOR_BASIC_AUTH_PASSWORD;
   if (!user || !password) return;
   const expected = `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
   app.addHook('onRequest', async (req, reply) => {
@@ -82,7 +82,7 @@ export async function createWebhookApp(overrides: ConfigOverrides = {}): Promise
       await ctx.executions.connectQueue();
       await ctx.scaling!.subscribe((m) => m.type === 'workflowChanged' && load(m.workflowId));
       for (const wf of ctx.db.listWorkflows({ active: true })) load(wf.id);
-      const url = await app.listen({ port: ctx.config.port, host: process.env.N8N_LISTEN_ADDRESS ?? '0.0.0.0' });
+      const url = await app.listen({ port: ctx.config.port, host: process.env.FLOWMATOR_LISTEN_ADDRESS ?? '0.0.0.0' });
       started = true;
       return url;
     },
@@ -152,7 +152,7 @@ export async function createApp(overrides: ConfigOverrides = {}): Promise<App> {
       ctx.insights.prune();
       pruneTimer = setInterval(() => ctx.insights.prune(), 3_600_000);
       pruneTimer.unref();
-      const url = await app.listen({ port: ctx.config.port, host: process.env.N8N_LISTEN_ADDRESS ?? '0.0.0.0' });
+      const url = await app.listen({ port: ctx.config.port, host: process.env.FLOWMATOR_LISTEN_ADDRESS ?? '0.0.0.0' });
       started = true;
       return url;
     },

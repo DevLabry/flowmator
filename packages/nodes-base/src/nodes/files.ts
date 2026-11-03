@@ -13,19 +13,19 @@ import { perItem } from './markup';
 /* ---------------- file access rules ---------------- */
 
 /**
- * N8N_RESTRICT_FILE_ACCESS_TO (";"-separated dirs) limits where file nodes may read/write.
+ * FLOWMATOR_RESTRICT_FILE_ACCESS_TO (";"-separated dirs) limits where file nodes may read/write.
  * The Flowmator data folder (database, encryption key) is always off limits unless
- * N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES=false.
+ * FLOWMATOR_BLOCK_FILE_ACCESS_TO_FLOWMATOR_FILES=false.
  */
 export function assertFileAccess(filePath: string) {
   const resolved = path.resolve(filePath.replace(/^~(?=$|\/)/, os.homedir()));
-  const allowed = (process.env.N8N_RESTRICT_FILE_ACCESS_TO ?? '').split(';').map((s) => s.trim()).filter(Boolean).map((d) => path.resolve(d));
+  const allowed = (process.env.FLOWMATOR_RESTRICT_FILE_ACCESS_TO ?? '').split(';').map((s) => s.trim()).filter(Boolean).map((d) => path.resolve(d));
   if (allowed.length && !allowed.some((d) => resolved === d || resolved.startsWith(d + path.sep))) {
     throw new Error(`Access to "${resolved}" is not allowed. Allowed folders: ${allowed.join(', ')}`);
   }
-  if (process.env.N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES !== 'false') {
+  if (process.env.FLOWMATOR_BLOCK_FILE_ACCESS_TO_FLOWMATOR_FILES !== 'false') {
     // ~/.8n8 is where installs from before the rename keep their data
-    const dataDirs = process.env.N8N_USER_FOLDER ? [process.env.N8N_USER_FOLDER] : [path.join(os.homedir(), '.flowmator'), path.join(os.homedir(), '.8n8')];
+    const dataDirs = process.env.FLOWMATOR_USER_FOLDER ? [process.env.FLOWMATOR_USER_FOLDER] : [path.join(os.homedir(), '.flowmator'), path.join(os.homedir(), '.8n8')];
     for (const dir of dataDirs.map((d) => path.resolve(d))) {
       if (resolved === dir || resolved.startsWith(dir + path.sep)) throw new Error(`Access to the Flowmator data folder is not allowed: ${resolved}`);
     }

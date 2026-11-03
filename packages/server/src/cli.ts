@@ -23,7 +23,7 @@ Credentials
 Users
   user-management:reset       Removes the other users and team projects; the owner sets up again
 
-Settings come from environment variables (N8N_USER_FOLDER, N8N_PORT, EXECUTIONS_MODE, QUEUE_BULL_REDIS_HOST, ...).`;
+Settings come from environment variables (FLOWMATOR_USER_FOLDER, FLOWMATOR_PORT, EXECUTIONS_MODE, QUEUE_BULL_REDIS_HOST, ...).`;
 
 const { values: o, positionals } = parseArgs({
   allowPositionals: true,

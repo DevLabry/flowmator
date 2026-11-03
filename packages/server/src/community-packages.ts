@@ -42,7 +42,7 @@ class ApplicationError extends Error {
   }
 }
 
-/** n8n's NodeApiError takes the raw error payload; ours takes an Error, so payloads are wrapped. */
+/** Community nodes pass the raw error payload; NodeApiError takes an Error, so payloads are wrapped. */
 class CompatNodeApiError extends workflow.NodeApiError {
   constructor(node: INode, error: IDataObject | Error, options: { message?: string; description?: string; itemIndex?: number; httpCode?: string } = {}) {
     const e = error instanceof Error ? error : Object.assign(new Error(options.message ?? String(error.message ?? error.description ?? 'The service returned an error')), error);
@@ -112,7 +112,7 @@ function resolveVersioned(instance: IDataObject): INodeType {
 
 /**
  * Community node packages (npm packages with an "n8n" section in package.json), installed into
- * <userFolder>/nodes like n8n does. Node types are registered as "<package>.<node>".
+ * <userFolder>/nodes. Node types are registered as "<package>.<node>".
  */
 export class CommunityPackagesService {
   readonly dir: string;
@@ -206,7 +206,7 @@ export class CommunityPackagesService {
       }
       if (this.installed.has(name) && !this.installed.get(name)!.failedLoading) throw new Error(`${name} is already installed`);
       this.ensureDir();
-      // lifecycle scripts stay off, like n8n's verified install
+      // lifecycle scripts stay off
       await this.npm(['install', '--ignore-scripts', '--omit=dev', '--no-audit', '--no-fund', version ? `${spec}@${version}` : spec], this.dir);
       const installedName = name.startsWith('file:') || path.isAbsolute(spec) ? this.nameFromPath(spec) : name;
       try {

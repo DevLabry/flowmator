@@ -5,7 +5,7 @@ import { Modal } from '../components/ui';
 import { Api, Templates, type TemplateSummary } from '../lib/api';
 import { errorToast, localNodeType, useApp } from '../store/app';
 
-/** Browse n8n's public template library and import a template as a new workflow. */
+/** Browse the template library and import a template as a new workflow. */
 export function TemplatesPage() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -37,7 +37,7 @@ export function TemplatesPage() {
       <div className="page-header">
         <div>
           <h1>Templates</h1>
-          <div className="muted" style={{ marginTop: 4 }}>Workflows from the n8n template library. Importing one creates a new workflow; add your own credentials before activating it.</div>
+          <div className="muted" style={{ marginTop: 4 }}>Workflows from the template library. Importing one creates a new workflow; add your own credentials before activating it.</div>
         </div>
       </div>
       <div className="row" style={{ marginBottom: 16 }}>

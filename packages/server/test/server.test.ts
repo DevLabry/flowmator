@@ -396,7 +396,7 @@ describe('public API', () => {
   it('requires an API key', async () => {
     expect((await api('GET', '/api/v1/workflows')).status).toBe(401);
     const key = (await api('POST', '/rest/api-keys', { label: 'cli' })).body.data.apiKey;
-    const res = await api('GET', '/api/v1/workflows?limit=2', undefined, { 'x-n8n-api-key': key });
+    const res = await api('GET', '/api/v1/workflows?limit=2', undefined, { 'x-flowmator-api-key': key });
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
     expect(res.body.nextCursor).toBeTruthy();

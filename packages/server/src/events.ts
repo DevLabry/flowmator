@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IDataObject } from '@flowmator/workflow';
 
-/** An event as log streaming destinations receive it (n8n's event bus message shape). */
+/** An event as log streaming destinations receive it. */
 export interface BusEvent {
   __type: '$$EventMessageWorkflow' | '$$EventMessageNode' | '$$EventMessageAudit';
   id: string;
@@ -16,7 +16,7 @@ export type BusListener = (event: BusEvent) => void;
 const typeOf = (name: string): BusEvent['__type'] => (name.startsWith('n8n.node.') ? '$$EventMessageNode' : name.startsWith('n8n.audit.') ? '$$EventMessageAudit' : '$$EventMessageWorkflow');
 
 /**
- * In-process event bus with n8n's event names (n8n.workflow.success, n8n.node.started, n8n.audit.workflow.created…).
+ * In-process event bus. Event names (n8n.workflow.success, n8n.node.started, n8n.audit.workflow.created…).
  * Log streaming and insights subscribe to it; listeners must not throw or block.
  */
 export class EventBus {

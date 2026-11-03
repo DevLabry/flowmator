@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from
 import { newId, type Database } from './db';
 
 /**
- * Users, projects and what each project owns or has been given, in n8n's model:
+ * Users, projects and what each project owns or has been given:
  * every user has a personal project, team projects have members with a role, and
  * workflows and credentials belong to one project (owner) and can be shared with others.
  */
@@ -120,7 +120,7 @@ export function verifyPassword(password: string, stored: string | null | undefin
   return timingSafeEqual(actual, expected);
 }
 
-/** Same rules as n8n: 8 to 64 characters with a number and a capital letter. */
+/** 8 to 64 characters with a number and a capital letter. */
 export function checkPasswordStrength(password: unknown) {
   const p = String(password ?? '');
   if (p.length < 8 || p.length > 64) throw new UserError(400, 'Password must be 8 to 64 characters long');

@@ -150,7 +150,7 @@ function DeleteProjectModal({ project, onClose, onDeleted }: { project: Project;
   );
 }
 
-/** Admins: a new team project, then its settings to name it and add members (as n8n does). */
+/** Admins: a new team project, then its settings to name it and add members. */
 export async function createTeamProject(navigate: (to: string) => void) {
   try {
     const project = await Api.createProject('My project');

@@ -55,7 +55,7 @@ export class SourceControlError extends Error {
 }
 
 /**
- * Git-backed environments like n8n's: workflows, credential stubs (no secrets), variable stubs,
+ * Git-backed environments: workflows, credential stubs (no secrets), variable stubs,
  * tags and folders are files in a repository branch; push writes the local versions, pull imports
  * the remote ones. Changes are tracked against the hash of each file at its last sync, so status
  * can tell local edits, remote edits and conflicts apart.

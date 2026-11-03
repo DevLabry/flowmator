@@ -39,7 +39,7 @@ export function UsersPage() {
         <h1>Users</h1>
         <button className="primary" onClick={() => setInviting(true)}><Plus size={14} /> Invite</button>
       </div>
-      {!smtpSetup && <div className="card muted" style={{ padding: 12, marginBottom: 14 }}>Email isn't set up (N8N_EMAIL_MODE=smtp), so invitations and password resets give you a link to send yourself.</div>}
+      {!smtpSetup && <div className="card muted" style={{ padding: 12, marginBottom: 14 }}>Email isn't set up (FLOWMATOR_EMAIL_MODE=smtp), so invitations and password resets give you a link to send yourself.</div>}
       <div className="card">
         <table className="list">
           <thead><tr><th>User</th><th>Role</th><th>Projects</th><th>Last active</th><th style={{ width: 40 }} /></tr></thead>

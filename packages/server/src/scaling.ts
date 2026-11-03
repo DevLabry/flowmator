@@ -5,7 +5,7 @@ import type { ServerConfig } from './config';
 import type { QueuedRunRequest } from './execution-service';
 import type { PushEvent } from './push';
 
-/** Same queue name n8n uses, so a Redis instance can be inspected the same way. */
+/** Queue name in Redis. */
 export const QUEUE_NAME = 'jobs';
 
 /** What a worker is asked to do. Workflow data is read from the execution row, so jobs stay small. */

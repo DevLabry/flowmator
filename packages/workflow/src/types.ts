@@ -45,7 +45,7 @@ export interface IConnection {
   index: number;
 }
 
-/** Same shape as n8n's connection map so exported workflows import unchanged. */
+/** Connections by source node name, output type and output index. */
 export type NodeOutputConnections = Partial<Record<ConnectionType, Array<IConnection[] | null>>>;
 export type IConnections = Record<string, NodeOutputConnections>;
 

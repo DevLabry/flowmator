@@ -15,7 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_insights_ts ON insights_raw(timestamp);
 CREATE INDEX IF NOT EXISTS idx_insights_wf ON insights_raw(workflowId, timestamp);
 `;
 
-/** Executions counted by insights: production runs only, like n8n (no manual, sub-workflow or evaluation runs). */
+/** Executions counted by insights: production runs only (no manual, sub-workflow or evaluation runs). */
 const COUNTED_MODES = new Set(['trigger', 'webhook', 'retry', 'cli', 'internal']);
 
 interface Totals {
@@ -38,7 +38,7 @@ const DAY = 86_400_000;
 export class InsightsService {
   constructor(
     private readonly database: Database,
-    readonly maxAgeDays = Number(process.env.N8N_INSIGHTS_MAX_AGE_DAYS ?? 365),
+    readonly maxAgeDays = Number(process.env.FLOWMATOR_INSIGHTS_MAX_AGE_DAYS ?? 365),
   ) {
     database.db.exec(INSIGHTS_SCHEMA);
   }

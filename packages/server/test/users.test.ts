@@ -230,7 +230,7 @@ describe('users', () => {
   it('gives each user their own public API keys', async () => {
     const key = (await as('alice', 'POST', '/rest/api-keys', { label: 'cli' })).body.data.apiKey;
     expect((await as('owner', 'GET', '/rest/api-keys')).body.data).toEqual([]);
-    const res = await app.app.inject({ method: 'GET', url: '/api/v1/workflows', headers: { 'x-n8n-api-key': key, cookie: '' } });
+    const res = await app.app.inject({ method: 'GET', url: '/api/v1/workflows', headers: { 'x-flowmator-api-key': key, cookie: '' } });
     const names = (JSON.parse(res.body).data as Array<{ name: string }>).map((w) => w.name);
     expect(names).toContain('To move');
     expect(names).not.toContain('Admin only');

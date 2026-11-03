@@ -104,7 +104,7 @@ __r = __user()
 print("__flowmator_RESULT__" + json.dumps(__r, default=str))
 `;
   return new Promise((resolve, reject) => {
-    const proc = spawn(process.env.N8N_PYTHON_BIN ?? 'python3', ['-c', runner], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const proc = spawn(process.env.FLOWMATOR_PYTHON_BIN ?? 'python3', ['-c', runner], { stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '';
     let err = '';
     proc.stdout.on('data', (d) => (out += d));

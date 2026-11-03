@@ -54,11 +54,11 @@ export const useApp = create<AppState>((set, get) => ({
   },
 }));
 
-/** n8n export names (and Flowmator's names from when it was called 8n8) → Flowmator names. */
+/** Legacy and imported node type names → Flowmator names. */
 export const localNodeType = (type: string) =>
   type.replace(/^(n8n-nodes-base|8n8)\./, 'flowmator.').replace(/^(@n8n\/n8n-nodes-langchain|8n8-ai)\./, 'flowmator-ai.');
 
-/** Accepts both Flowmator names and n8n export names. */
+/** Accepts both Flowmator names and imported names. */
 export function getNodeType(type: string): NodeTypeDescription | undefined {
   const types = useApp.getState().nodeTypes;
   return types[type] ?? types[localNodeType(type)];

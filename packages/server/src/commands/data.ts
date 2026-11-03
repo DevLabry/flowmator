@@ -76,7 +76,7 @@ export function exportWorkflows(opts: ExportOptions, overrides: ConfigOverrides 
   });
 }
 
-/** Imports n8n or flowmator workflow exports. IDs are kept, so importing again updates instead of duplicating. */
+/** Imports workflow exports. IDs are kept, so importing again updates instead of duplicating. */
 export function importWorkflows(opts: { input: string; separate?: boolean }, overrides: ConfigOverrides = {}) {
   return withContext(overrides, (ctx) => {
     const entries = readJsonInput(opts.input, !!opts.separate) as Array<Omit<Partial<WorkflowEntity>, 'tags'> & { tags?: Array<string | { name: string }> }>;
@@ -87,7 +87,7 @@ export function importWorkflows(opts: { input: string; separate?: boolean }, ove
       const { tags: rawTags, active: _ignored, createdAt: _c, updatedAt: _u, versionId: _v, ...rest } = raw;
       const wf = normalizeWorkflow(rest);
       const tags = rawTags?.map((t) => (typeof t === 'string' ? t : t.name));
-      // imported workflows start inactive, like n8n; activate them in the editor or with update:workflow
+      // imported workflows start inactive; activate them in the editor or with update:workflow
       if (wf.id && ctx.db.getWorkflow(wf.id)) {
         const current = ctx.db.getWorkflow(wf.id)!;
         if (current.active) ctx.db.updateWorkflow(wf.id, { active: false });
@@ -148,7 +148,7 @@ export function importCredentials(opts: { input: string; separate?: boolean }, o
         try {
           cipher.decrypt(c.data);
         } catch {
-          throw new Error(`Credential "${c.name}" was encrypted with a different key. Export it with --decrypted, or set N8N_ENCRYPTION_KEY to the original key.`);
+          throw new Error(`Credential "${c.name}" was encrypted with a different key. Export it with --decrypted, or set FLOWMATOR_ENCRYPTION_KEY to the original key.`);
         }
         encrypted = c.data;
       } else {

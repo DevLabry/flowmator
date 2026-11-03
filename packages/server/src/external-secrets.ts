@@ -198,7 +198,7 @@ interface StoredProvider {
 
 /**
  * External secrets: providers are configured in the settings page, their secrets are fetched on connect
- * and every N8N_EXTERNAL_SECRETS_UPDATE_INTERVAL seconds, and credentials read them as {{ $secrets.provider.name }}.
+ * and every FLOWMATOR_EXTERNAL_SECRETS_UPDATE_INTERVAL seconds, and credentials read them as {{ $secrets.provider.name }}.
  */
 export class ExternalSecretsService {
   private cache: SecretsCache = {};
@@ -208,7 +208,7 @@ export class ExternalSecretsService {
   constructor(
     private readonly database: Database,
     private readonly cipher: Cipher,
-    readonly intervalSec = Number(process.env.N8N_EXTERNAL_SECRETS_UPDATE_INTERVAL ?? 300),
+    readonly intervalSec = Number(process.env.FLOWMATOR_EXTERNAL_SECRETS_UPDATE_INTERVAL ?? 300),
   ) {}
 
   private load(): Record<string, StoredProvider> {

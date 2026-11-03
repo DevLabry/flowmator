@@ -495,7 +495,7 @@ export interface VectorStoreSpec {
   methods?: INodeType['methods'];
 }
 
-/** Builds a vector store node with n8n's four modes: get many, insert, retrieve (for chains) and retrieve as tool. */
+/** Builds a vector store node with four modes: get many, insert, retrieve (for chains) and retrieve as tool. */
 export function vectorStoreNode(spec: VectorStoreSpec): INodeType {
   const show = (...modes: Mode[]) => ({ show: { mode: modes } });
   const store = (backend: VectorBackend, embeddings: Embeddings): VectorStore => ({
@@ -643,7 +643,7 @@ export function vectorStoreNode(spec: VectorStoreSpec): INodeType {
 
 /* --- Simple (in memory) --- */
 
-/** Shared by every workflow on this instance, like n8n's Simple Vector Store. Lost on restart. */
+/** Shared by every workflow on this instance. Lost on restart. */
 const memoryStores = new Map<string, Array<{ vector: number[]; document: AiDocument }>>();
 
 export const SimpleVectorStore = vectorStoreNode({
@@ -893,7 +893,7 @@ function promptOf(ctx: IExecuteFunctions, item: INodeExecutionData, i: number) {
   return prompt;
 }
 
-/** Runs `fn` for every item with n8n's error handling. */
+/** Runs `fn` for every item with the node's error handling. */
 async function perItem(ctx: IExecuteFunctions, fn: (item: INodeExecutionData, i: number) => Promise<IDataObject>) {
   const out: INodeExecutionData[] = [];
   const items = ctx.getInputData();

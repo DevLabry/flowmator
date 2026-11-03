@@ -164,7 +164,7 @@ function CredentialsSection({ node }: { node: INode }) {
   const home = useWorkflow((s) => s.workflow.homeProject?.id) ?? useAuth.getState().user?.personalProjectId;
   const credentials = allCredentials.filter((c) => !home || !c.homeProject || c.homeProject.id === home || c.sharedWithProjects?.some((p) => p.id === home));
   const [modal, setModal] = useState<{ type: string; id?: string } | null>(null);
-  // saved workflows (and n8n exports) leave out parameters that are at their default
+  // saved and imported workflows leave out parameters that are at their default
   const params = getNodeParametersWithDefaults(type.properties, node.parameters, node.typeVersion);
 
   const wanted = new Set<string>();

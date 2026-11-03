@@ -1,6 +1,6 @@
 # Flowmator
 
-Flowmator is a self-hosted workflow automation platform for personal use. You build workflows on a visual canvas, connect apps and APIs, and run them on triggers, schedules or webhooks. It is written from scratch and can import workflow files exported from other tools in the same JSON format.
+Flowmator is a self-hosted workflow automation platform for personal use. You build workflows on a visual canvas, connect apps and APIs, and run them on triggers, schedules or webhooks. It can import workflow files in a widely used JSON format.
 
 ## Features
 
@@ -10,7 +10,7 @@ Flowmator is a self-hosted workflow automation platform for personal use. You bu
 - **AI**: AI Agent with tools, memory and output parsers; chat models (Anthropic, OpenAI, Gemini, Ollama, Mistral, Groq, Bedrock…), embeddings, vector stores for RAG, MCP client and server, and evaluations.
 - **Platform**: users, roles and team projects, credential encryption, OAuth2, public REST API with API keys, queue mode with workers, source control, external secrets, log streaming and a data tables feature.
 
-See [PLAN.md](PLAN.md) for the full list of what is implemented and what is still missing.
+See [FEATURES.md](FEATURES.md) for the full feature list and what is still missing.
 
 ## Requirements
 
@@ -39,17 +39,18 @@ docker compose up -d --build
 
 ### Settings
 
-Settings are environment variables, using the `N8N_*` names for compatibility with existing setups. Put them in a `.env` file next to `docker-compose.yml`:
+Settings are environment variables. Put them in a `.env` file next to `docker-compose.yml`:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `WEBHOOK_URL` | `http://localhost:5678/` | Public address, used for webhook and OAuth callback URLs |
 | `FLOWMATOR_PORT` | `5678` | Port on your machine |
 | `GENERIC_TIMEZONE` | `Europe/Madrid` | Time zone for schedules and dates |
-| `N8N_EMAIL_MODE`, `N8N_SMTP_HOST`, `N8N_SMTP_PORT`, `N8N_SMTP_USER`, `N8N_SMTP_PASS`, `N8N_SMTP_SENDER`, `N8N_SMTP_SSL` | empty | Email invitations and password resets. Set `N8N_EMAIL_MODE=smtp` to use them. |
-| `N8N_EDITOR_BASE_URL` | `WEBHOOK_URL` | Address used in invitation and password reset links |
-| `N8N_SECURE_COOKIE` | `true` on https | Send the sign-in cookie over https only |
-| `N8N_ENCRYPTION_KEY` | generated | Key that encrypts credentials. It is generated on first start and stored in the volume. |
+| `FLOWMATOR_EMAIL_MODE`, `FLOWMATOR_SMTP_HOST`, `FLOWMATOR_SMTP_PORT`, `FLOWMATOR_SMTP_USER`, `FLOWMATOR_SMTP_PASS`, `FLOWMATOR_SMTP_SENDER`, `FLOWMATOR_SMTP_SSL` | empty | Email invitations and password resets. Set `FLOWMATOR_EMAIL_MODE=smtp` to use them. |
+| `FLOWMATOR_EDITOR_BASE_URL` | `WEBHOOK_URL` | Address used in invitation and password reset links |
+| `FLOWMATOR_SECURE_COOKIE` | `true` on https | Send the sign-in cookie over https only |
+| `FLOWMATOR_ENCRYPTION_KEY` | generated | Key that encrypts credentials. It is generated on first start and stored in the volume. |
+| `FLOWMATOR_TEMPLATES_HOST` | empty | Address of a template library API. Templates are turned off until it is set. |
 
 To back up the encryption key, use this command:
 
@@ -120,7 +121,7 @@ pnpm test
 | `packages/server` | REST API, webhooks, scheduler, persistence and the `flowmator` CLI |
 | `packages/editor` | React editor (Vite, React Flow) |
 
-`PLAN.md` lists what is implemented.
+`FEATURES.md` lists what is implemented.
 
 ## Contributing
 
@@ -134,4 +135,4 @@ Flowmator was called 8n8. If you used 8n8 before, your data and workflows still 
 
 Flowmator is released under the [MIT License](LICENSE).
 
-Flowmator is an independent project. All its code is original and was written from scratch. It is not affiliated with, endorsed by or sponsored by n8n GmbH. "n8n" is a trademark of its owner and is mentioned only to describe compatibility with files and settings (`N8N_*` variables, `n8n-nodes-*` packages); all other product names belong to their owners.
+Flowmator is an independent project and is not affiliated with any other workflow automation product or company. Product and service names mentioned in this repository belong to their owners.

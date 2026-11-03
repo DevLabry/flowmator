@@ -479,7 +479,7 @@ export function CommunityNodesPage() {
       <div className="page-header">
         <div>
           <h1>Community nodes</h1>
-          <div className="muted" style={{ marginTop: 4 }}>Install n8n community node packages from npm (<code>n8n-nodes-*</code>). They run with full access to this machine: only install packages you trust.</div>
+          <div className="muted" style={{ marginTop: 4 }}>Install community node packages from npm (<code>n8n-nodes-*</code>). They run with full access to this machine: only install packages you trust.</div>
         </div>
         <div className="row">
           {list.length > 0 && <button onClick={() => Api.checkPackageUpdates().then(setList, errorToast('Could not check updates'))}><RefreshCw size={13} /> Check updates</button>}

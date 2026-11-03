@@ -59,7 +59,7 @@ export async function startWorker(opts: { concurrency: number }, overrides: Conf
       }
       res.statusCode = 404;
       res.end(JSON.stringify({ status: 'not found' }));
-    }).listen(hc.port, process.env.N8N_LISTEN_ADDRESS ?? '0.0.0.0');
+    }).listen(hc.port, process.env.FLOWMATOR_LISTEN_ADDRESS ?? '0.0.0.0');
   }
 
   const { redis } = ctx.config.queue;
@@ -68,7 +68,7 @@ export async function startWorker(opts: { concurrency: number }, overrides: Conf
   if (health) console.log(`  health check: http://localhost:${hc.port}/healthz`);
 
   const stop = async () => {
-    // finish what's running (up to N8N_GRACEFUL_SHUTDOWN_TIMEOUT), then abort the rest
+    // finish what's running (up to FLOWMATOR_GRACEFUL_SHUTDOWN_TIMEOUT), then abort the rest
     // (aborted executions still report back, so the worker closes after they settle)
     const graceful = ctx.config.queue.gracefulShutdownSeconds;
     const aborting = setTimeout(() => ctx.executions.stopAll(), graceful * 1000);

@@ -7,7 +7,8 @@ import type { Destination } from '../log-streaming';
 import { SourceControlError } from '../source-control';
 import { HttpError } from './errors';
 
-const templatesHost = () => (process.env.N8N_TEMPLATES_HOST ?? 'https://api.n8n.io/api/').replace(/\/?$/, '/');
+/** Template library API base URL; templates are off until it is set. */
+const templatesHost = () => process.env.FLOWMATOR_TEMPLATES_HOST?.replace(/\/?$/, '/');
 
 /** Audit events derived from the REST calls that change things (n8n.audit.*). */
 const AUDIT: Array<[string, RegExp, string]> = [
@@ -170,12 +171,14 @@ export function platformRoutes(app: FastifyInstance, ctx: AppContext) {
     }
   });
 
-  /* ---------------- templates (proxied to the n8n template library) ---------------- */
+  /* ---------------- templates (proxied to the template library at FLOWMATOR_TEMPLATES_HOST) ---------------- */
 
   const templates = async (path: string, query: Record<string, string> = {}) => {
-    const url = new URL(path, templatesHost());
+    const host = templatesHost();
+    if (!host) throw new HttpError(404, 'No template library is set up. Set FLOWMATOR_TEMPLATES_HOST to use templates.');
+    const url = new URL(path, host);
     for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== '') url.searchParams.set(k, v);
-    const res = await fetch(url, { headers: { accept: 'application/json', 'n8n-version': '1.100.0' }, signal: AbortSignal.timeout(15_000) }).catch((e: Error) => {
+    const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15_000) }).catch((e: Error) => {
       throw new HttpError(502, `Template library unreachable: ${e.message}`);
     });
     if (!res.ok) throw new HttpError(res.status === 404 ? 404 : 502, `Template library returned ${res.status}`);

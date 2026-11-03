@@ -195,11 +195,11 @@ describe('files', () => {
     expect((await run(wf)).status).toBe('success');
     expect(readFileSync(target, 'utf8')).toBe('A');
 
-    const prev = process.env.N8N_USER_FOLDER;
-    process.env.N8N_USER_FOLDER = tmp;
+    const prev = process.env.FLOWMATOR_USER_FOLDER;
+    process.env.FLOWMATOR_USER_FOLDER = tmp;
     await expect(runNode('readWriteFile', { operation: 'read', fileSelector: path.join(tmp, 'a.txt') })).rejects.toThrow(/data folder/);
-    if (prev === undefined) delete process.env.N8N_USER_FOLDER;
-    else process.env.N8N_USER_FOLDER = prev;
+    if (prev === undefined) delete process.env.FLOWMATOR_USER_FOLDER;
+    else process.env.FLOWMATOR_USER_FOLDER = prev;
   });
 });
 

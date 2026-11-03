@@ -75,7 +75,7 @@ function WorkflowEdge(props: EdgeProps) {
   );
 }
 
-/** Serializes selected nodes plus the connections between them (n8n-compatible clipboard format). */
+/** Serializes selected nodes plus the connections between them (workflow JSON clipboard format). */
 function selectionToJson(names: string[]) {
   const { workflow } = useWorkflow.getState();
   const set = new Set(names);

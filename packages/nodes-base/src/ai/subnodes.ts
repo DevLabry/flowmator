@@ -198,7 +198,7 @@ export interface AgentMemory {
   clear(): Promise<void>;
 }
 
-/** In-process conversation buffers, keyed by workflow and session. Lost on restart, like n8n's Simple Memory. */
+/** In-process conversation buffers, keyed by workflow and session. Lost on restart. */
 const buffers = new Map<string, HistoryMessage[]>();
 
 export const SimpleMemory: INodeType = {
@@ -242,7 +242,7 @@ function sessionParams(ctx: ISupplyDataFunctions, itemIndex: number) {
   };
 }
 
-/** Messages are stored like LangChain's (and so n8n's) chat histories, so existing tables and keys keep working. */
+/** Messages are stored like LangChain's chat histories, so existing tables and keys keep working. */
 type StoredMessage = { type: 'human' | 'ai'; content?: string; data?: { content: string } };
 const toStored = (role: HistoryMessage['role'], text: string) => ({ type: role === 'user' ? ('human' as const) : ('ai' as const), content: text, additional_kwargs: {}, response_metadata: {} });
 const fromStored = (m: StoredMessage): HistoryMessage => ({ role: m.type === 'human' ? 'user' : 'assistant', text: m.content ?? m.data?.content ?? '' });

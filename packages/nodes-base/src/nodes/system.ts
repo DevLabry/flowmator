@@ -113,8 +113,8 @@ export const ExecuteCommand: INodeType = {
     ],
   },
   async execute(this: IExecuteFunctions) {
-    if (process.env.N8N_DISABLE_EXECUTE_COMMAND === 'true') {
-      throw new NodeOperationError(this.getNode(), 'The Execute Command node is disabled on this instance (N8N_DISABLE_EXECUTE_COMMAND)');
+    if (process.env.FLOWMATOR_DISABLE_EXECUTE_COMMAND === 'true') {
+      throw new NodeOperationError(this.getNode(), 'The Execute Command node is disabled on this instance (FLOWMATOR_DISABLE_EXECUTE_COMMAND)');
     }
     const items = this.getInputData();
     const once = this.getNodeParameter('executeOnce', 0, true) as boolean;

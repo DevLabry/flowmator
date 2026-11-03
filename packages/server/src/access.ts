@@ -10,7 +10,7 @@ const ALL_WORKFLOW: WorkflowScope[] = ['read', 'update', 'delete', 'execute', 's
 const ALL_CREDENTIAL: CredentialScope[] = ['read', 'update', 'delete', 'share', 'move', 'use'];
 const ALL_PROJECT: ProjectScope[] = ['read', 'update', 'delete', 'create'];
 
-/** What a project role allows on an item, by how the item is linked to the project (n8n's role mapping). */
+/** What a project role allows on an item, by how the item is linked to the project. */
 const WORKFLOW_SCOPES: Record<string, Partial<Record<ProjectRole, WorkflowScope[]>>> = {
   'workflow:owner': {
     'project:personalOwner': ALL_WORKFLOW,

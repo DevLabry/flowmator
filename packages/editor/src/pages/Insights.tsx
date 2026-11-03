@@ -24,7 +24,7 @@ const METRICS: Array<{ key: keyof InsightsSummary; label: string; fmt: (v: numbe
   { key: 'averageRunTime', label: 'Run time (avg.)', fmt: fmtMs, lowerIsBetter: true },
 ];
 
-/** Production execution metrics (trigger, webhook and retry runs), like n8n's Insights dashboard. */
+/** Production execution metrics (trigger, webhook and retry runs). */
 export function InsightsPage() {
   const [days, setDays] = useState(7);
   const [summary, setSummary] = useState<InsightsSummary>();
