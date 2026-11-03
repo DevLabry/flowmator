@@ -54,9 +54,9 @@ export const useApp = create<AppState>((set, get) => ({
   },
 }));
 
-/** Legacy and imported node type names → Flowmator names. */
+/** Imported node type names → Flowmator names. */
 export const localNodeType = (type: string) =>
-  type.replace(/^(n8n-nodes-base|8n8)\./, 'flowmator.').replace(/^(@n8n\/n8n-nodes-langchain|8n8-ai)\./, 'flowmator-ai.');
+  type.replace(/^n8n-nodes-base\./, 'flowmator.').replace(/^@n8n\/n8n-nodes-langchain\./, 'flowmator-ai.');
 
 /** Accepts both Flowmator names and imported names. */
 export function getNodeType(type: string): NodeTypeDescription | undefined {

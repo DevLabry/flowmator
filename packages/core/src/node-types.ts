@@ -1,11 +1,9 @@
 import type { ICredentialType, ICredentialTypes, INodeType, INodeTypes } from '@flowmator/workflow';
 
-/** Imported and legacy node type prefixes, mapped onto Flowmator's own names. */
+/** Imported node type prefixes, mapped onto Flowmator's own names. */
 const IMPORT_ALIASES: Array<[string, string]> = [
   ['n8n-nodes-base.', 'flowmator.'],
   ['@n8n/n8n-nodes-langchain.', 'flowmator-ai.'],
-  ['8n8.', 'flowmator.'],
-  ['8n8-ai.', 'flowmator-ai.'],
 ];
 
 export function normalizeNodeTypeName(type: string): string {

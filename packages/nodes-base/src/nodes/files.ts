@@ -24,11 +24,8 @@ export function assertFileAccess(filePath: string) {
     throw new Error(`Access to "${resolved}" is not allowed. Allowed folders: ${allowed.join(', ')}`);
   }
   if (process.env.FLOWMATOR_BLOCK_FILE_ACCESS_TO_FLOWMATOR_FILES !== 'false') {
-    // ~/.8n8 is where installs from before the rename keep their data
-    const dataDirs = process.env.FLOWMATOR_USER_FOLDER ? [process.env.FLOWMATOR_USER_FOLDER] : [path.join(os.homedir(), '.flowmator'), path.join(os.homedir(), '.8n8')];
-    for (const dir of dataDirs.map((d) => path.resolve(d))) {
-      if (resolved === dir || resolved.startsWith(dir + path.sep)) throw new Error(`Access to the Flowmator data folder is not allowed: ${resolved}`);
-    }
+    const dir = path.resolve(process.env.FLOWMATOR_USER_FOLDER ?? path.join(os.homedir(), '.flowmator'));
+    if (resolved === dir || resolved.startsWith(dir + path.sep)) throw new Error(`Access to the Flowmator data folder is not allowed: ${resolved}`);
   }
   return resolved;
 }

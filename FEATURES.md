@@ -4,7 +4,6 @@ Flowmator is a self-hosted workflow automation platform for personal and small-t
 This page lists what it does today and what is still missing.
 
 - Workflows are imported and exported as JSON; node types with other common prefixes are mapped onto `flowmator.*` names.
-- Flowmator was called 8n8 until 2026-10: `8n8.*` / `8n8-ai.*` node types and the `~/.8n8` data folder still work.
 
 ## Stack
 

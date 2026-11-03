@@ -4,7 +4,6 @@
 **/*.sqlite
 .git
 .flowmator
-.8n8
 docker-compose*.yml
 Dockerfile
 packages/*/test

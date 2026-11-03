@@ -127,10 +127,6 @@ pnpm test
 
 Issues and pull requests are welcome. Run `pnpm typecheck` and `pnpm test` before opening a pull request.
 
-Flowmator was called 8n8. If you used 8n8 before, your data and workflows still work:
-- Workflows that use `8n8.*` node types are renamed when the server starts.
-- If `~/.flowmator` does not exist, the server keeps using the `~/.8n8` folder.
-
 ## License
 
 Flowmator is released under the [MIT License](LICENSE).

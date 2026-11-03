@@ -37,20 +37,13 @@ export type ConfigOverrides = Partial<Omit<ServerConfig, 'executions' | 'queue' 
   };
 };
 
-/** ~/.flowmator, or ~/.8n8 when that is where an older install keeps its data. */
-export function defaultUserFolder() {
-  const current = path.join(os.homedir(), '.flowmator');
-  const legacy = path.join(os.homedir(), '.8n8');
-  return !existsSync(current) && existsSync(legacy) ? legacy : current;
-}
-
 /**
  * Settings come from FLOWMATOR_* environment variables.
  * The encryption key is generated once and stored in <userFolder>/config.json.
  */
 export function loadConfig(overrides: ConfigOverrides = {}): ServerConfig {
   const env = process.env;
-  const userFolder = overrides.userFolder ?? env.FLOWMATOR_USER_FOLDER ?? defaultUserFolder();
+  const userFolder = overrides.userFolder ?? env.FLOWMATOR_USER_FOLDER ?? path.join(os.homedir(), '.flowmator');
   mkdirSync(userFolder, { recursive: true });
 
   const configFile = path.join(userFolder, 'config.json');
