@@ -9,7 +9,7 @@ This page lists what it does today and what is still missing.
 
 - pnpm workspaces + Turborepo, TypeScript, Node 22+
 - Packages consume each other's `src/` directly (no build step in dev); `tsx` runs the server, `vitest` runs tests
-- Server: Fastify, WebSocket push, SQLite (better-sqlite3 + Drizzle), optional Postgres; BullMQ + Redis for queue mode
+- Server: Fastify, WebSocket push, SQLite (Node's built-in `node:sqlite`, the only database Flowmator stores its data in); BullMQ + Redis for queue mode
 - Editor: React + Vite + React Flow + Zustand + Monaco
 
 ## Packages
@@ -80,7 +80,7 @@ This page lists what it does today and what is still missing.
 - [x] Public API with per-user API keys
 - [x] Users and sharing: owner setup, sign-in, invitations (SMTP or copyable links), password reset, global roles (owner, admin, member), personal and team projects (admin, editor, viewer), sharing and moving workflows and credentials, `user-management:reset`
 - [x] Queue mode (EXECUTIONS_MODE=queue): BullMQ/Redis, `flowmator worker` (concurrency, health check, graceful shutdown), `flowmator webhook` processes; editor events, Respond to Webhook, waits, stop and retry relayed through Redis; manual runs stay on main unless OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
-- [x] Docker image (`Dockerfile`, `docker-compose.yml`, `docker-compose.queue.yml` with Redis and workers): data in a `/home/node/.flowmator` volume, `start`/`worker`/`webhook` commands
+- [x] Docker image (`Dockerfile`, `docker-compose.yml`, `docker-compose.queue.yml` with Redis and workers; see [docs/](docs/)): data in a `/home/node/.flowmator` volume, `start`/`worker`/`webhook` commands
 - [x] CLI (`flowmator`): start, worker, webhook, execute, import/export workflows and credentials (--decrypted, --backup), list/update workflows
 - [x] Source control (git push/pull of workflows, credential and variable stubs, tags, folders; SSH deploy key or HTTPS; conflicts, read-only branch)
 - [x] External secrets (Vault, AWS, Azure, GCP → `$secrets`)
