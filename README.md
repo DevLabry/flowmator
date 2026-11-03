@@ -96,3 +96,9 @@ pnpm test
 Flowmator was called 8n8. If you used 8n8 before, your data and workflows still work:
 - Workflows that use `8n8.*` node types are renamed when the server starts.
 - If `~/.flowmator` does not exist, the server keeps using the `~/.8n8` folder.
+
+## License
+
+Flowmator is released under the [MIT License](LICENSE).
+
+Flowmator is an independent project. It is not affiliated with or endorsed by n8n GmbH. "n8n" is a trademark of n8n GmbH and is used here only to describe workflow compatibility.
