@@ -1,11 +1,11 @@
 # Flowmator
 
-Self-hosted workflow automation with n8n's editor, nodes and behaviour, built for personal use. Workflows exported from n8n import as they are.
+Flowmator is a self-hosted workflow automation platform for personal use. You build workflows on a visual canvas, connect apps and APIs, and run them on triggers, schedules or webhooks. It is written from scratch and can import workflow files exported from other tools in the same JSON format.
 
 ## Features
 
 - **Visual editor**: canvas, node creator, expression editor with autocomplete, live execution, pinned data, execution history and version history.
-- **n8n compatible**: `n8n-nodes-base.*` node types, n8n workflow JSON and `={{ }}` expressions work unchanged. Community nodes (`n8n-nodes-*`) can be loaded from npm.
+- **Interoperable**: imports workflow JSON files in a widely used format, including their node types and `={{ }}` expressions, and can load compatible community node packages from npm.
 - **Many integrations**: HTTP Request, Webhook, Schedule, Code (JavaScript and Python), Slack, Telegram, GitHub, Notion, Google (Gmail, Sheets, Drive, Calendar), Postgres, MySQL, MongoDB, Redis, S3, Stripe, HubSpot, Jira, Trello, Microsoft (Outlook, Teams, OneDrive), Discord, Airtable, OpenAI and more.
 - **AI**: AI Agent with tools, memory and output parsers; chat models (Anthropic, OpenAI, Gemini, Ollama, Mistral, Groq, Bedrock…), embeddings, vector stores for RAG, MCP client and server, and evaluations.
 - **Platform**: users, roles and team projects, credential encryption, OAuth2, public REST API with API keys, queue mode with workers, source control, external secrets, log streaming and a data tables feature.
@@ -39,7 +39,7 @@ docker compose up -d --build
 
 ### Settings
 
-Settings use the same environment variables as n8n. Put them in a `.env` file next to `docker-compose.yml`:
+Settings are environment variables, using the `N8N_*` names for compatibility with existing setups. Put them in a `.env` file next to `docker-compose.yml`:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
@@ -90,7 +90,7 @@ docker compose -f docker-compose.queue.yml up -d --scale flowmator-worker=2
 
 ### Command line
 
-The image's command is the `flowmator` CLI. These are the same commands n8n has:
+The image's command is the `flowmator` CLI. Common commands:
 
 ```bash
 docker compose exec flowmator flowmator export:workflow --all --output=/home/node/.flowmator/backup.json
@@ -134,4 +134,4 @@ Flowmator was called 8n8. If you used 8n8 before, your data and workflows still 
 
 Flowmator is released under the [MIT License](LICENSE).
 
-Flowmator is an independent project. It is not affiliated with or endorsed by n8n GmbH. "n8n" is a trademark of n8n GmbH and is used here only to describe workflow compatibility.
+Flowmator is an independent project. All its code is original and was written from scratch. It is not affiliated with, endorsed by or sponsored by n8n GmbH. "n8n" is a trademark of its owner and is mentioned only to describe compatibility with files and settings (`N8N_*` variables, `n8n-nodes-*` packages); all other product names belong to their owners.
