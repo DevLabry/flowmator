@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src';
+import { signIn } from './auth-helper';
 import { defaultUserFolder } from '../src/config';
 import { Database } from '../src/db';
 
@@ -27,6 +28,7 @@ describe('data from before the rename', () => {
     db.close();
 
     const app = await createApp({ userFolder, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'k' });
+    await signIn(app);
     try {
       const stored = app.ctx.db.getWorkflow(legacy.id)!;
       expect(stored.nodes.map((n) => n.type)).toEqual(['flowmator.manualTrigger', 'flowmator.set', 'flowmator-ai.agent']);

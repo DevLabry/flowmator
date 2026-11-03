@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util';
-import { executeWorkflow, exportCredentials, exportWorkflows, importCredentials, importWorkflows, listWorkflows, updateWorkflows } from './commands/data';
+import { executeWorkflow, exportCredentials, exportWorkflows, importCredentials, importWorkflows, listWorkflows, resetUserManagement, updateWorkflows } from './commands/data';
 import { startMain, startWebhookProcess, startWorker } from './commands/processes';
 
 const HELP = `Usage: flowmator <command> [options]
@@ -19,6 +19,9 @@ Workflows
 Credentials
   import:credentials --input=<file|folder> [--separate]
   export:credentials --all | --id=<id> [--output=<path>] [--decrypted] [--pretty] [--separate] [--backup]
+
+Users
+  user-management:reset       Removes the other users and team projects; the owner sets up again
 
 Settings come from environment variables (N8N_USER_FOLDER, N8N_PORT, EXECUTIONS_MODE, QUEUE_BULL_REDIS_HOST, ...).`;
 
@@ -92,6 +95,9 @@ try {
         break;
       case 'export:credentials':
         report(await exportCredentials(o));
+        break;
+      case 'user-management:reset':
+        report(await resetUserManagement());
         break;
       default:
         console.error(`Unknown command "${command}"\n\n${HELP}`);

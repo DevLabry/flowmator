@@ -3,6 +3,7 @@ import { ArrowLeft, Copy, FileInput, Pencil, Pin, PinOff, Play, X } from 'lucide
 import { useEffect, useMemo, useState } from 'react';
 import { Api } from '../lib/api';
 import { getNodeType, useApp } from '../store/app';
+import { useAuth } from '../store/auth';
 import { getNodeInput, staticIO, toWorkflowClass, useWorkflow } from '../store/workflow';
 import { CredentialModal } from './CredentialModal';
 import { DataModeSwitch, DataView, type DataMode } from './DataView';
@@ -157,8 +158,11 @@ function OutputPanel({ node }: { node: INode }) {
 
 function CredentialsSection({ node }: { node: INode }) {
   const type = getNodeType(node.type)!;
-  const credentials = useApp((s) => s.credentials);
+  const allCredentials = useApp((s) => s.credentials);
   const credentialTypes = useApp((s) => s.credentialTypes);
+  // a workflow can use the credentials its project owns or that are shared with it
+  const home = useWorkflow((s) => s.workflow.homeProject?.id) ?? useAuth.getState().user?.personalProjectId;
+  const credentials = allCredentials.filter((c) => !home || !c.homeProject || c.homeProject.id === home || c.sharedWithProjects?.some((p) => p.id === home));
   const [modal, setModal] = useState<{ type: string; id?: string } | null>(null);
   // saved workflows (and n8n exports) leave out parameters that are at their default
   const params = getNodeParametersWithDefaults(type.properties, node.parameters, node.typeVersion);
@@ -196,7 +200,7 @@ function CredentialsSection({ node }: { node: INode }) {
           </div>
         );
       })}
-      {modal && <CredentialModal type={modal.type} credentialId={modal.id} onClose={() => setModal(null)} onSaved={(c) => setCred(modal.type, c.id)} />}
+      {modal && <CredentialModal type={modal.type} credentialId={modal.id} projectId={home} onClose={() => setModal(null)} onSaved={(c) => setCred(modal.type, c.id)} />}
     </>
   );
 }

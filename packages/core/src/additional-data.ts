@@ -16,8 +16,8 @@ import type {
 import type { BinaryDataStore } from './binary-data';
 
 export interface ICredentialsHelper {
-  /** Returns decrypted credential data for the node's credential of `type`. */
-  getDecrypted(node: INode, type: string): Promise<IDataObject>;
+  /** Returns decrypted credential data for the node's credential of `type` (`workflowId`: the workflow using it, for access checks). */
+  getDecrypted(node: INode, type: string, workflowId?: string): Promise<IDataObject>;
   /** Applies the credential to a request (headers, query, auth, OAuth tokens...). */
   authenticate(type: string, credentials: IDataObject, request: IHttpRequestOptions, node: INode): Promise<IHttpRequestOptions>;
   /** Optional hook used to refresh OAuth2 tokens on 401 and persist them. */

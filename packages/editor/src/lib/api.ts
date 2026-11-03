@@ -27,16 +27,63 @@ export class ApiError extends Error {
   }
 }
 
+/** Called when a request finds the session gone (expired, signed out elsewhere, password changed). */
+let onUnauthorized: (() => void) | undefined;
+export const setUnauthorizedHandler = (fn: () => void) => (onUnauthorized = fn);
+
 export async function api<T = unknown>(method: string, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await fetch(path, {
     method,
+    credentials: 'same-origin',
     headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), ...headers },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   const json = text ? JSON.parse(text) : {};
+  if (res.status === 401 && path !== '/rest/login') onUnauthorized?.();
   if (!res.ok) throw new ApiError(json.message ?? res.statusText, res.status, json.hint);
   return json.data as T;
+}
+
+export type GlobalRole = 'global:owner' | 'global:admin' | 'global:member';
+export type ProjectRole = 'project:personalOwner' | 'project:admin' | 'project:editor' | 'project:viewer';
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  fullName: string | null;
+  role: GlobalRole;
+  isOwner: boolean;
+  isPending: boolean;
+  disabled: boolean;
+  lastActiveAt: string | null;
+  createdAt: string;
+  settings: IDataObject;
+  personalProjectId?: string;
+  projectRelations?: Array<{ id: string; name: string; role: ProjectRole }>;
+}
+
+export interface ProjectRef {
+  id: string;
+  name: string;
+  type: 'personal' | 'team';
+  icon: { type: string; value: string } | null;
+}
+
+export interface Project extends ProjectRef {
+  description: string | null;
+  role: ProjectRole | null;
+  scopes: string[];
+  relations?: Array<{ id: string; email: string; firstName: string | null; lastName: string | null; role: ProjectRole }>;
+}
+
+/** Ownership and the signed-in user's permissions, on workflows and credentials. */
+export interface Sharing {
+  homeProject?: ProjectRef | null;
+  sharedWithProjects?: ProjectRef[];
+  scopes?: string[];
 }
 
 export interface NodeTypeDescription extends INodeTypeDescription {
@@ -47,7 +94,7 @@ export interface NodeTypeDescription extends INodeTypeDescription {
   loadOptionsMethods: string[];
 }
 
-export interface WorkflowData {
+export interface WorkflowData extends Sharing {
   id?: string;
   name: string;
   active: boolean;
@@ -83,7 +130,7 @@ export interface ExecutionFull extends Omit<ExecutionSummary, 'workflowName'> {
   workflowData: WorkflowData;
 }
 
-export interface CredentialSummary {
+export interface CredentialSummary extends Sharing {
   id: string;
   name: string;
   type: string;
@@ -127,6 +174,34 @@ export interface TestCaseExecution {
 
 export const Api = {
   settings: () => api<IDataObject>('GET', '/rest/settings'),
+
+  currentUser: () => api<User>('GET', '/rest/login'),
+  login: (email: string, password: string) => api<User>('POST', '/rest/login', { emailOrLdapLoginId: email, password }),
+  logout: () => api('POST', '/rest/logout'),
+  setupOwner: (body: { email: string; firstName: string; lastName: string; password: string }) => api<User>('POST', '/rest/owner/setup', body),
+  invitation: (token: string) => api<{ email: string }>('GET', `/rest/invitations/${encodeURIComponent(token)}`),
+  acceptInvitation: (token: string, body: { firstName: string; lastName: string; password: string }) => api<User>('POST', `/rest/invitations/${encodeURIComponent(token)}/accept`, body),
+  forgotPassword: (email: string) => api('POST', '/rest/forgot-password', { email }),
+  resolvePasswordToken: (token: string) => api('GET', `/rest/resolve-password-token?token=${encodeURIComponent(token)}`),
+  changePassword: (token: string, password: string) => api<User>('POST', '/rest/change-password', { token, password }),
+  updateMe: (body: { email?: string; firstName?: string; lastName?: string; currentPassword?: string }) => api<User>('PATCH', '/rest/me', body),
+  updateMyPassword: (currentPassword: string, newPassword: string) => api<User>('PATCH', '/rest/me/password', { currentPassword, newPassword }),
+
+  users: () => api<User[]>('GET', '/rest/users'),
+  invite: (list: Array<{ email: string; role: GlobalRole }>) => api<Array<{ user: { id: string; email: string; inviteAcceptUrl: string; emailSent: boolean } }>>('POST', '/rest/invitations', list),
+  reinvite: (id: string) => api<{ inviteAcceptUrl: string; emailSent: boolean }>('POST', `/rest/users/${id}/reinvite`),
+  setUserRole: (id: string, newRoleName: GlobalRole) => api<User>('PATCH', `/rest/users/${id}/role`, { newRoleName }),
+  deleteUser: (id: string, transferId?: string) => api('DELETE', `/rest/users/${id}${transferId ? `?transferId=${transferId}` : ''}`),
+  passwordResetLink: (id: string) => api<{ link: string }>('GET', `/rest/users/${id}/password-reset-link`),
+
+  projects: () => api<Project[]>('GET', '/rest/projects'),
+  myProjects: () => api<Project[]>('GET', '/rest/projects/my-projects'),
+  project: (id: string) => api<Project>('GET', `/rest/projects/${id}`),
+  createProject: (name: string) => api<Project>('POST', '/rest/projects', { name }),
+  updateProject: (id: string, body: { name?: string; description?: string | null; relations?: Array<{ userId: string; role: ProjectRole }> }) => api<Project>('PATCH', `/rest/projects/${id}`, body),
+  deleteProject: (id: string, transferId?: string) => api('DELETE', `/rest/projects/${id}${transferId ? `?transferId=${transferId}` : ''}`),
+  share: (kind: 'workflows' | 'credentials', id: string, shareWithIds: string[]) => api<Sharing>('PUT', `/rest/${kind}/${id}/share`, { shareWithIds }),
+  transfer: (kind: 'workflows' | 'credentials', id: string, destinationProjectId: string) => api<Sharing>('PUT', `/rest/${kind}/${id}/transfer`, { destinationProjectId }),
   nodeTypes: () => api<NodeTypeDescription[]>('GET', '/rest/node-types'),
   nodeIO: (type: string, parameters: IDataObject, onError?: string) => api<NodeIO>('POST', '/rest/node-types/io', { type, parameters, onError }),
   loadOptions: (body: IDataObject) => api<INodePropertyOption[] | { results: INodePropertyOption[] }>('POST', '/rest/dynamic-node-parameters/options', body),
@@ -135,8 +210,8 @@ export const Api = {
 
   workflows: (query = '') => api<WorkflowData[]>('GET', `/rest/workflows${query}`),
   workflow: (id: string) => api<WorkflowData>('GET', `/rest/workflows/${id}`),
-  createWorkflow: (wf: Partial<WorkflowData>) => api<WorkflowData>('POST', '/rest/workflows', wf),
-  importWorkflows: (wf: unknown) => api<WorkflowData[]>('POST', '/rest/workflows/import', wf),
+  createWorkflow: (wf: Partial<WorkflowData> & { projectId?: string }) => api<WorkflowData>('POST', '/rest/workflows', wf),
+  importWorkflows: (wf: unknown, projectId?: string) => api<WorkflowData[]>('POST', `/rest/workflows/import${projectId ? `?projectId=${projectId}` : ''}`, wf),
   updateWorkflow: (id: string, wf: Partial<WorkflowData>, force = false) => api<WorkflowData>('PATCH', `/rest/workflows/${id}${force ? '?forceSave=true' : ''}`, wf),
   deleteWorkflow: (id: string) => api('DELETE', `/rest/workflows/${id}`),
   copyWorkflow: (id: string) => api<WorkflowData>('POST', `/rest/workflows/${id}/copy`),
@@ -166,9 +241,9 @@ export const Api = {
   cancelTestRun: (workflowId: string, runId: string) => api<TestRun>('POST', `/rest/workflows/${workflowId}/test-runs/${runId}/cancel`),
   deleteTestRun: (workflowId: string, runId: string) => api('DELETE', `/rest/workflows/${workflowId}/test-runs/${runId}`),
 
-  credentials: (type?: string) => api<CredentialSummary[]>('GET', `/rest/credentials${type ? `?type=${type}` : ''}`),
+  credentials: (query: { type?: string; projectId?: string } = {}) => api<CredentialSummary[]>('GET', `/rest/credentials?${new URLSearchParams(Object.entries(query).filter(([, v]) => v) as string[][])}`),
   credential: (id: string) => api<CredentialSummary>('GET', `/rest/credentials/${id}?includeData=true`),
-  createCredential: (c: { name: string; type: string; data: IDataObject }) => api<CredentialSummary>('POST', '/rest/credentials', c),
+  createCredential: (c: { name: string; type: string; data: IDataObject; projectId?: string }) => api<CredentialSummary>('POST', '/rest/credentials', c),
   updateCredential: (id: string, c: { name?: string; data?: IDataObject }) => api<CredentialSummary>('PATCH', `/rest/credentials/${id}`, c),
   deleteCredential: (id: string) => api('DELETE', `/rest/credentials/${id}`),
   testCredential: (c: { id?: string; type: string; data: IDataObject }) => api<{ status: string; message: string }>('POST', '/rest/credentials/test', { credentials: c }),
@@ -179,9 +254,9 @@ export const Api = {
   createVariable: (key: string, value: string) => api('POST', '/rest/variables', { key, value }),
   updateVariable: (id: string, key: string, value: string) => api('PATCH', `/rest/variables/${id}`, { key, value }),
   deleteVariable: (id: string) => api('DELETE', `/rest/variables/${id}`),
-  dataTables: () => api<Array<IDataTable & { rowCount: number }>>('GET', '/rest/data-tables'),
+  dataTables: (projectId?: string) => api<Array<IDataTable & { rowCount: number }>>('GET', `/rest/data-tables${projectId ? `?projectId=${projectId}` : ''}`),
   dataTable: (id: string) => api<IDataTable>('GET', `/rest/data-tables/${id}`),
-  createDataTable: (body: { name: string; columns?: Array<{ name: string; type: DataTableColumnType }>; rows?: DataTableRow[] }) => api<IDataTable>('POST', '/rest/data-tables', body),
+  createDataTable: (body: { name: string; projectId?: string; columns?: Array<{ name: string; type: DataTableColumnType }>; rows?: DataTableRow[] }) => api<IDataTable>('POST', '/rest/data-tables', body),
   renameDataTable: (id: string, name: string) => api<IDataTable>('PATCH', `/rest/data-tables/${id}`, { name }),
   deleteDataTable: (id: string) => api('DELETE', `/rest/data-tables/${id}`),
   addDataTableColumn: (id: string, column: { name: string; type: DataTableColumnType }) => api('POST', `/rest/data-tables/${id}/columns`, column),

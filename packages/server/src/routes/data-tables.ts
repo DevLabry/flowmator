@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { DataTableColumnType, DataTableRow, IDataTableFilter } from '@flowmator/workflow';
+import type { AccessService } from '../access';
+import type { User } from '../users';
 import type { AppContext } from '../context';
 import type { DataTableService } from '../data-tables';
 
@@ -15,6 +17,26 @@ function parseSort(sortBy?: string) {
 function parseFilter(filter?: string | IDataTableFilter): IDataTableFilter | undefined {
   if (!filter) return undefined;
   return typeof filter === 'string' ? (JSON.parse(filter) as IDataTableFilter) : filter;
+}
+
+/**
+ * Every `${prefix}/:id...` route needs the table's project: reading for GET, creating (editing) otherwise.
+ * Register before the routes so the hook covers them.
+ */
+export function guardDataTables(app: FastifyInstance, access: AccessService, prefix: string) {
+  app.addHook('preHandler', async (req) => {
+    const url = req.routeOptions.url ?? '';
+    const id = (req.params as Partial<Params> | undefined)?.id;
+    if (!id || !url.startsWith(`${prefix}/:id`)) return;
+    access.requireProjectItem(req.user!, 'data_tables', id, req.method === 'GET' ? 'read' : 'create');
+  });
+}
+
+/** Tables the user can see, optionally of one project. */
+export function visibleTables<T extends { id: string }>(access: AccessService, req: { user: User | null }, tables: T[], projectId?: string) {
+  if (projectId) access.requireProject(req.user!, projectId, 'read');
+  const visible = access.projectItems('data_tables', req.user!, projectId);
+  return tables.filter((t) => !visible || visible.has(t.id));
 }
 
 /** Row routes shared by the editor (/rest) and the public API (/api/v1). */
@@ -53,12 +75,19 @@ export function dataTableRowRoutes(app: FastifyInstance, dataTables: DataTableSe
 }
 
 export function dataTableRoutes(app: FastifyInstance, ctx: AppContext) {
-  const { dataTables } = ctx;
+  const { dataTables, access, users } = ctx;
+  guardDataTables(app, access, '/rest/data-tables');
 
-  app.get('/rest/data-tables', async (req) => ({ data: dataTables.listWithStats({ name: (req.query as { name?: string }).name }) }));
+  app.get('/rest/data-tables', async (req) => {
+    const q = req.query as { name?: string; projectId?: string };
+    return { data: visibleTables(access, req, dataTables.listWithStats({ name: q.name }), q.projectId) };
+  });
   app.post('/rest/data-tables', async (req) => {
-    const b = req.body as { name: string; columns?: Array<{ name: string; type: DataTableColumnType }>; rows?: DataTableRow[] };
+    const b = req.body as { name: string; columns?: Array<{ name: string; type: DataTableColumnType }>; rows?: DataTableRow[]; projectId?: string };
+    const projectId = b.projectId || users.personalProject(req.user!.id).id;
+    access.requireProject(req.user!, projectId, 'create');
     const table = dataTables.createTableSync(b.name, b.columns ?? []);
+    access.setItemProject('data_tables', table.id, projectId);
     // created from a CSV upload: the editor sends the parsed rows along
     if (b.rows?.length) {
       try {

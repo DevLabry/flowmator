@@ -33,7 +33,16 @@ function sourceControlError(e: unknown): never {
 }
 
 export function platformRoutes(app: FastifyInstance, ctx: AppContext) {
-  const { events, insights, logStreaming, externalSecrets, sourceControl, communityPackages } = ctx;
+  const { events, insights, logStreaming, externalSecrets, sourceControl, communityPackages, access } = ctx;
+
+  // instance settings are for owners and admins; members may only read what the editor needs
+  const ADMIN_ONLY = /^\/rest\/(eventbus|insights|external-secrets|source-control|community-packages)(\/|$)/;
+  const MEMBER_READS = new Set(['/rest/external-secrets/secrets', '/rest/source-control/preferences', '/rest/community-packages']);
+  app.addHook('preHandler', async (req) => {
+    const url = req.routeOptions.url ?? '';
+    if (!ADMIN_ONLY.test(url) || (req.method === 'GET' && MEMBER_READS.has(url))) return;
+    access.requireAdmin(req.user!);
+  });
 
   app.addHook('onSend', async (req, reply, payload) => {
     if (reply.statusCode >= 400) return payload;
@@ -48,7 +57,8 @@ export function platformRoutes(app: FastifyInstance, ctx: AppContext) {
     } catch {}
     const id = data.id ?? path.split('/')[3];
     const kind = match[2].split('.')[2] === 'user' ? 'credentialId' : match[2].includes('variable') ? 'variableId' : 'workflowId';
-    events.emit(match[2], { [kind]: id, ...(data.name ? { [kind.replace('Id', 'Name')]: data.name } : {}) });
+    const user = req.user ? { userId: req.user.id, userEmail: req.user.email } : {};
+    events.emit(match[2], { [kind]: id, ...(data.name ? { [kind.replace('Id', 'Name')]: data.name } : {}), ...user });
     return payload;
   });
 
@@ -126,7 +136,8 @@ export function platformRoutes(app: FastifyInstance, ctx: AppContext) {
   app.get('/rest/source-control/get-status', async () => sc(() => sourceControl.status()));
   app.get('/rest/source-control/diff', async (req) => sc(() => sourceControl.diff(String((req.query as { file?: string }).file))));
   app.post('/rest/source-control/push-workfolder', async (req) => sc(() => sourceControl.push(req.body as { commitMessage?: string; fileNames?: string[]; force?: boolean })));
-  app.post('/rest/source-control/pull-workfolder', async (req) => sc(() => sourceControl.pull(req.body as { force?: boolean })));
+  // pulled workflows and credentials nobody owns yet go to the owner
+  app.post('/rest/source-control/pull-workfolder', async (req) => sc(() => sourceControl.pull(req.body as { force?: boolean }).finally(() => access.claimOrphans())));
   app.post('/rest/source-control/disconnect', async () => sc(() => sourceControl.disconnect().then(() => sourceControl.publicPreferences())));
 
   /* ---------------- community packages ---------------- */

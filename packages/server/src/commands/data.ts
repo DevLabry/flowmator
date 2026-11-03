@@ -199,3 +199,11 @@ export function executeWorkflow(opts: { id?: string; file?: string; rawOutput?: 
     return run.status === 'success' || run.status === 'waiting' ? 0 : 1;
   });
 }
+
+/** Back to one owner who signs up again on the next visit; everything is kept and goes to them. */
+export function resetUserManagement(overrides: ConfigOverrides = {}) {
+  return withContext(overrides, (ctx) => {
+    const removed = ctx.access.reset();
+    return `User management reset: ${removed} user(s) removed, all workflows and credentials now belong to the owner. Open the editor to set up the owner again.`;
+  });
+}

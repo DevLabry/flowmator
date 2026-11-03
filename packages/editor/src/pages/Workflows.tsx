@@ -1,35 +1,44 @@
-import { Archive, Copy, Ellipsis, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Archive, ArrowRightLeft, Copy, Ellipsis, Plus, Search, Share2, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MoveModal, ProjectBadge, ShareModal } from '../components/Sharing';
 import { Popover, Switch, timeAgo } from '../components/ui';
 import { Api, type WorkflowData } from '../lib/api';
 import { errorToast, useApp } from '../store/app';
 
 function RowMenu({ wf, refresh }: { wf: WorkflowData; refresh: () => void }) {
   const [open, setOpen] = useState(false);
+  const [modal, setModal] = useState<'share' | 'move' | null>(null);
   const navigate = useNavigate();
+  const can = (scope: string) => !!wf.scopes?.includes(scope);
   return (
     <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
       <button className="ghost icon sm" onClick={() => setOpen(!open)}><Ellipsis size={15} /></button>
       <Popover open={open} onClose={() => setOpen(false)} style={{ right: 0, top: 28 }}>
-        <button onClick={async () => { setOpen(false); const c = await Api.copyWorkflow(wf.id!); navigate(`/workflow/${c.id}`); }}><Copy size={14} /> Duplicate</button>
+        <button onClick={async () => { setOpen(false); const c = await Api.copyWorkflow(wf.id!).catch(errorToast('Could not duplicate')); if (c) navigate(`/workflow/${c.id}`); }}><Copy size={14} /> Duplicate</button>
+        <button onClick={() => { setOpen(false); setModal('share'); }}><Share2 size={14} /> Share…</button>
+        <button disabled={!can('move')} onClick={() => { setOpen(false); setModal('move'); }}><ArrowRightLeft size={14} /> Move to project…</button>
+        <hr />
         {wf.isArchived ? (
-          <button onClick={async () => { setOpen(false); await Api.unarchive(wf.id!); refresh(); }}><Archive size={14} /> Unarchive</button>
+          <button disabled={!can('delete')} onClick={async () => { setOpen(false); await Api.unarchive(wf.id!); refresh(); }}><Archive size={14} /> Unarchive</button>
         ) : (
-          <button onClick={async () => { setOpen(false); await Api.archive(wf.id!); refresh(); }}><Archive size={14} /> Archive</button>
+          <button disabled={!can('delete')} onClick={async () => { setOpen(false); await Api.archive(wf.id!); refresh(); }}><Archive size={14} /> Archive</button>
         )}
-        <button className="danger" onClick={async () => {
+        <button className="danger" disabled={!can('delete')} onClick={async () => {
           setOpen(false);
           if (!confirm(`Delete “${wf.name}”? Its executions stay in the list.`)) return;
           await Api.deleteWorkflow(wf.id!);
           refresh();
         }}><Trash2 size={14} /> Delete</button>
       </Popover>
+      {modal === 'share' && <ShareModal kind="workflows" item={wf} onClose={() => setModal(null)} onChange={refresh} />}
+      {modal === 'move' && <MoveModal kind="workflows" item={wf} onClose={() => setModal(null)} onChange={refresh} />}
     </div>
   );
 }
 
-export function WorkflowsPage() {
+/** All workflows the user can see, or (inside a project page) the ones of that project. */
+export function WorkflowsPage({ projectId, canCreate = true }: { projectId?: string; canCreate?: boolean }) {
   const navigate = useNavigate();
   const [list, setList] = useState<WorkflowData[]>([]);
   const [q, setQ] = useState('');
@@ -39,8 +48,9 @@ export function WorkflowsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(() => {
-    Api.workflows(`?archived=${archived}`).then(setList, errorToast('Could not load workflows'));
-  }, [archived]);
+    Api.workflows(`?archived=${archived}${projectId ? `&projectId=${projectId}` : ''}`).then(setList, errorToast('Could not load workflows'));
+  }, [archived, projectId]);
+  const newUrl = `/workflow/new${projectId ? `?projectId=${projectId}` : ''}`;
   useEffect(refresh, [refresh]);
 
   const tags = [...new Set(list.flatMap((w) => w.tags))].sort();
@@ -59,7 +69,7 @@ export function WorkflowsPage() {
 
   const importFile = async (file: File) => {
     try {
-      const created = await Api.importWorkflows(JSON.parse(await file.text()));
+      const created = await Api.importWorkflows(JSON.parse(await file.text()), projectId);
       useApp.getState().toast('success', `Imported ${created.length} workflow${created.length === 1 ? '' : 's'}`);
       if (created.length === 1) navigate(`/workflow/${created[0].id}`);
       else refresh();
@@ -71,10 +81,10 @@ export function WorkflowsPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Workflows</h1>
+        <h1>{projectId ? '' : 'Workflows'}</h1>
         <div className="row">
-          <button onClick={() => fileRef.current?.click()}><Upload size={14} /> Import</button>
-          <button className="primary" onClick={() => navigate('/workflow/new')}><Plus size={14} /> Create workflow</button>
+          <button disabled={!canCreate} onClick={() => fileRef.current?.click()}><Upload size={14} /> Import</button>
+          <button className="primary" disabled={!canCreate} onClick={() => navigate(newUrl)}><Plus size={14} /> Create workflow</button>
           <input ref={fileRef} type="file" accept=".json" hidden onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
         </div>
       </div>
@@ -97,7 +107,7 @@ export function WorkflowsPage() {
       <div className="card">
         <table className="list">
           <thead>
-            <tr><th>Name</th><th>Tags</th><th>Last updated</th><th style={{ width: 90 }}>Active</th><th style={{ width: 40 }} /></tr>
+            <tr><th>Name</th><th>Tags</th><th>Owner</th><th>Last updated</th><th style={{ width: 90 }}>Active</th><th style={{ width: 40 }} /></tr>
           </thead>
           <tbody>
             {shown.map((w) => (
@@ -107,8 +117,9 @@ export function WorkflowsPage() {
                   <div className="faint" style={{ fontSize: 12 }}>{w.nodes.filter((n) => !n.type.endsWith('stickyNote')).length} nodes{w.activationError ? ' · activation failed' : ''}</div>
                 </td>
                 <td>{w.tags.map((t) => <span key={t} className="badge" style={{ marginRight: 4 }}>{t}</span>)}</td>
+                <td><ProjectBadge project={w.homeProject} shared={w.sharedWithProjects?.length} /></td>
                 <td className="muted">{timeAgo(w.updatedAt)}</td>
-                <td onClick={(e) => e.stopPropagation()}><Switch checked={w.active} disabled={w.isArchived} onChange={(v) => toggle(w, v)} /></td>
+                <td onClick={(e) => e.stopPropagation()}><Switch checked={w.active} disabled={w.isArchived || !w.scopes?.includes('update')} onChange={(v) => toggle(w, v)} /></td>
                 <td><RowMenu wf={w} refresh={refresh} /></td>
               </tr>
             ))}
@@ -120,7 +131,7 @@ export function WorkflowsPage() {
               <div className="col" style={{ alignItems: 'center' }}>
                 <h2>Build your first workflow</h2>
                 <div className="muted">Connect apps, transform data and automate tasks.</div>
-                <button className="primary" onClick={() => navigate('/workflow/new')}><Plus size={14} /> Start from scratch</button>
+                {canCreate && <button className="primary" onClick={() => navigate(newUrl)}><Plus size={14} /> Start from scratch</button>}
               </div>
             )}
           </div>

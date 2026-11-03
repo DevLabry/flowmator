@@ -57,7 +57,8 @@ interface WorkflowState {
   future: Snapshot[];
 
   load(wf: WorkflowData, opts?: { readOnly?: boolean; runData?: IRunData }): void;
-  newWorkflow(): void;
+  /** A new workflow, saved into `projectId` (default: the personal project) */
+  newWorkflow(projectId?: string): void;
   setName(name: string): void;
   setSettings(settings: IWorkflowSettings): void;
   setTags(tags: string[]): void;
@@ -163,8 +164,8 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
     for (const n of workflow.nodes) if (getNodeType(n.type)?.hasDynamicIO) get().refreshIO(n.name);
   },
 
-  newWorkflow() {
-    get().load(emptyWorkflow());
+  newWorkflow(projectId) {
+    get().load({ ...emptyWorkflow(), homeProject: projectId ? { id: projectId, name: '', type: 'team', icon: null } : null, scopes: ['read', 'update', 'execute', 'delete', 'share', 'move'] });
   },
 
   setName(name) {
@@ -390,8 +391,9 @@ export const useWorkflow = create<WorkflowState>((set, get) => ({
     const body = { name: workflow.name, nodes: workflow.nodes, connections: workflow.connections, settings: workflow.settings, pinData: workflow.pinData, tags: workflow.tags };
     const saved = workflow.id
       ? await Api.updateWorkflow(workflow.id, { ...body, versionId: workflow.versionId })
-      : await Api.createWorkflow(body);
-    set({ workflow: { ...get().workflow, id: saved.id, versionId: saved.versionId, active: saved.active, activationError: saved.activationError }, dirty: false });
+      : await Api.createWorkflow({ ...body, projectId: workflow.homeProject?.id });
+    const { homeProject, sharedWithProjects, scopes } = saved;
+    set({ workflow: { ...get().workflow, id: saved.id, versionId: saved.versionId, active: saved.active, activationError: saved.activationError, homeProject, sharedWithProjects, scopes }, dirty: false });
     return saved;
   },
 

@@ -11,8 +11,13 @@ x-shared: &shared
     - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
     - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Madrid}
     - TZ=${GENERIC_TIMEZONE:-Europe/Madrid}
-    - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-}
-    - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-}
+    - N8N_EMAIL_MODE=${N8N_EMAIL_MODE:-}
+    - N8N_SMTP_HOST=${N8N_SMTP_HOST:-}
+    - N8N_SMTP_PORT=${N8N_SMTP_PORT:-465}
+    - N8N_SMTP_USER=${N8N_SMTP_USER:-}
+    - N8N_SMTP_PASS=${N8N_SMTP_PASS:-}
+    - N8N_SMTP_SENDER=${N8N_SMTP_SENDER:-}
+    - N8N_SMTP_SSL=${N8N_SMTP_SSL:-true}
     - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-}
   volumes:
     - flowmator_data:/home/node/.flowmator

@@ -136,6 +136,18 @@ export class Database {
     retryWhileLocked(() => this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;'));
     retryWhileLocked(() => this.db.exec(SCHEMA));
     retryWhileLocked(() => this.renameLegacyNodeTypes());
+    retryWhileLocked(() => this.addOwnerColumns());
+  }
+
+  /** Since user management, folders belong to a project and API keys to a user. */
+  private addOwnerColumns() {
+    for (const [table, column] of [
+      ['folders', 'projectId'],
+      ['api_keys', 'userId'],
+    ]) {
+      const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+      if (!columns.some((c) => c.name === column)) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+    }
   }
 
   /** Flowmator was called 8n8: stored node types move from 8n8.x / 8n8-ai.x to flowmator.x / flowmator-ai.x. */
@@ -406,12 +418,16 @@ export class Database {
     return r ? this.toExecution(r) : null;
   }
 
-  listExecutions(filter: { workflowId?: string; status?: ExecutionStatus[]; limit?: number; lastId?: string; startedAfter?: string; startedBefore?: string } = {}): { results: ExecutionSummary[]; count: number } {
+  listExecutions(filter: { workflowId?: string; workflowIds?: string[]; status?: ExecutionStatus[]; limit?: number; lastId?: string; startedAfter?: string; startedBefore?: string } = {}): { results: ExecutionSummary[]; count: number } {
     const where: string[] = [];
     const args: Array<string | number> = [];
     if (filter.workflowId) {
       where.push('e.workflowId = ?');
       args.push(filter.workflowId);
+    }
+    if (filter.workflowIds) {
+      where.push(filter.workflowIds.length ? `e.workflowId IN (${filter.workflowIds.map(() => '?').join(',')})` : '0');
+      args.push(...filter.workflowIds);
     }
     if (filter.status?.length) {
       where.push(`e.status IN (${filter.status.map(() => '?').join(',')})`);
@@ -498,22 +514,25 @@ export class Database {
     this.db.prepare('DELETE FROM variables WHERE id = ?').run(id);
   }
 
-  listApiKeys() {
-    return this.db.prepare('SELECT id, label, substr(apiKey, 1, 6) || \'…\' AS apiKey, createdAt FROM api_keys').all();
+  listApiKeys(userId?: string) {
+    const sql = 'SELECT id, label, substr(apiKey, 1, 6) || \'…\' AS apiKey, createdAt FROM api_keys';
+    return userId ? this.db.prepare(`${sql} WHERE userId = ?`).all(userId) : this.db.prepare(sql).all();
   }
 
-  createApiKey(label: string, apiKey: string) {
+  createApiKey(label: string, apiKey: string, userId: string | null = null) {
     const id = newId();
-    this.db.prepare('INSERT INTO api_keys (id, label, apiKey, createdAt) VALUES (?,?,?,?)').run(id, label, apiKey, now());
+    this.db.prepare('INSERT INTO api_keys (id, label, apiKey, userId, createdAt) VALUES (?,?,?,?,?)').run(id, label, apiKey, userId, now());
     return { id, label, apiKey };
   }
 
   findApiKey(apiKey: string) {
-    return this.db.prepare('SELECT id FROM api_keys WHERE apiKey = ?').get(apiKey) ?? null;
+    return (this.db.prepare('SELECT id, userId FROM api_keys WHERE apiKey = ?').get(apiKey) as { id: string; userId: string | null } | undefined) ?? null;
   }
 
-  deleteApiKey(id: string) {
-    this.db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
+  /** Deletes the key; with a user, only one of theirs. */
+  deleteApiKey(id: string, userId?: string) {
+    if (userId) this.db.prepare('DELETE FROM api_keys WHERE id = ? AND userId = ?').run(id, userId);
+    else this.db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
   }
 
   getSetting<T>(key: string, fallback: T): T {

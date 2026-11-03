@@ -11,8 +11,16 @@ export function onPush(fn: Listener) {
 
 let socket: WebSocket | null = null;
 let retry = 0;
+let wanted = false;
+
+/** Live events need a session: connect after signing in, disconnect when signing out. */
+export function disconnectPush() {
+  wanted = false;
+  socket?.close();
+}
 
 export function connectPush() {
+  wanted = true;
   if (socket && socket.readyState <= 1) return;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   socket = new WebSocket(`${proto}://${location.host}/rest/push?pushRef=${pushRef}`);
@@ -24,6 +32,6 @@ export function connectPush() {
   };
   socket.onclose = () => {
     socket = null;
-    setTimeout(connectPush, Math.min(10_000, 500 * 2 ** retry++));
+    if (wanted) setTimeout(() => wanted && connectPush(), Math.min(10_000, 500 * 2 ** retry++));
   };
 }

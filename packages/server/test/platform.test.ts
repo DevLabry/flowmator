@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src';
+import { signIn } from './auth-helper';
 import { CommunityPackagesService } from '../src/community-packages';
 import { sentryEndpoint, syslogMessage } from '../src/log-streaming';
 
@@ -32,6 +33,7 @@ async function serve(handler: (req: { method: string; url: string; headers: Reco
 beforeAll(async () => {
   dir = mkdtempSync(path.join(os.tmpdir(), 'flowmator-platform-'));
   app = await createApp({ userFolder: dir, port: 0, webhookUrl: 'http://localhost:5678/', encryptionKey: 'test-key' });
+  await signIn(app);
   await app.ctx.executions.start();
 });
 

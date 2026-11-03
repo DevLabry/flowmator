@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, createContext, createWebhookApp, type App, type AppContext, type ConfigOverrides, type PushEvent } from '../src';
+import { signIn } from './auth-helper';
 
 /** Queue mode needs a real Redis: these tests start a throwaway redis-server and skip without one. */
 const redisBinary = process.env.REDIS_SERVER ?? spawnSync('which', ['redis-server'], { encoding: 'utf8' }).stdout.trim();
@@ -54,6 +55,7 @@ describe.skipIf(!redisBinary)('queue mode', () => {
     const end = Date.now() + 5000;
     for (;;) {
       main = await createApp(overrides);
+      await signIn(main);
       try {
         await main.ctx.scaling!.ping();
         break;

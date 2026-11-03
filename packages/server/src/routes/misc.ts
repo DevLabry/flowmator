@@ -1,14 +1,21 @@
 import { randomBytes } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { LoadOptionsContext } from '@flowmator/core';
 import { Workflow, type INode, type INodeParameters } from '@flowmator/workflow';
 import type { AppContext } from '../context';
+import { Mailer } from '../mailer';
 import { HttpError } from './errors';
 
 export const VERSION = '0.1.0';
 
 export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
-  const { db, nodeTypes, config } = ctx;
+  const { db, nodeTypes, config, access, users } = ctx;
+  const userOf = (req: FastifyRequest) => req.user!;
+  const mailer = new Mailer();
+  /** Loading options with a credential needs permission to use it. */
+  const checkCredentials = (req: FastifyRequest, credentials: INode['credentials']) => {
+    for (const c of Object.values(credentials ?? {})) if (c?.id) access.requireCredential(userOf(req), c.id, 'use');
+  };
 
   app.get('/healthz', async () => ({ status: 'ok' }));
 
@@ -26,6 +33,7 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
       saveManualExecutions: config.executions.saveManual,
       executionTimeout: config.executions.timeoutSeconds,
       executionMode: config.executions.mode,
+      userManagement: { showSetupOnFirstLoad: !users.isSetUp(), smtpSetup: mailer.enabled },
     },
   }));
 
@@ -60,6 +68,7 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
   /** Dynamic dropdown values (loadOptions / listSearch methods on a node type). */
   app.post('/rest/dynamic-node-parameters/options', async (req) => {
     const body = req.body as { nodeTypeAndVersion: { name: string; version?: number }; methodName: string; currentNodeParameters: INodeParameters; credentials?: INode['credentials']; filter?: string; paginationToken?: string };
+    checkCredentials(req, body.credentials);
     const type = nodeTypes.getByNameAndVersion(body.nodeTypeAndVersion.name);
     const node: INode = { id: 'tmp', name: 'tmp', type: type.description.name, typeVersion: body.nodeTypeAndVersion.version ?? 1, position: [0, 0], parameters: body.currentNodeParameters ?? {}, credentials: body.credentials };
     const workflow = new Workflow({ name: 'tmp', nodes: [node], connections: {}, nodeTypes });
@@ -77,6 +86,7 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
     const type = nodeTypes.getByNameAndVersion(body.nodeTypeAndVersion.name);
     const method = type.methods?.resourceMapping?.[body.methodName];
     if (!method) throw new HttpError(404, `Method "${body.methodName}" not found on ${type.description.name}`);
+    checkCredentials(req, body.credentials);
     const node: INode = { id: 'tmp', name: 'tmp', type: type.description.name, typeVersion: body.nodeTypeAndVersion.version ?? 1, position: [0, 0], parameters: body.currentNodeParameters ?? {}, credentials: body.credentials };
     const workflow = new Workflow({ name: 'tmp', nodes: [node], connections: {}, nodeTypes });
     const lctx = new LoadOptionsContext({ workflow, node, additionalData: { executionId: '', mode: 'internal', credentialsHelper: ctx.credentialsHelper, timezone: config.timezone, dataTables: ctx.dataTables } });
@@ -98,23 +108,40 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
     return { data: true };
   });
 
-  /* folders */
-  app.get('/rest/folders', async () => ({ data: db.listFolders() }));
+  /* folders (each belongs to a project) */
+  app.get('/rest/folders', async (req) => {
+    const { projectId } = req.query as { projectId?: string };
+    if (projectId) access.requireProject(userOf(req), projectId, 'read');
+    const visible = access.projectItems('folders', userOf(req), projectId);
+    return { data: db.listFolders().filter((f) => !visible || visible.has(f.id as string)) };
+  });
   app.post('/rest/folders', async (req) => {
-    const b = req.body as { name: string; parentFolderId?: string };
-    return { data: db.createFolder(b.name, b.parentFolderId ?? null) };
+    const b = req.body as { name: string; parentFolderId?: string; projectId?: string };
+    const projectId = b.projectId || users.personalProject(userOf(req).id).id;
+    access.requireProject(userOf(req), projectId, 'create');
+    if (b.parentFolderId) access.requireProjectItem(userOf(req), 'folders', b.parentFolderId, 'create');
+    const folder = db.createFolder(b.name, b.parentFolderId ?? null);
+    access.setItemProject('folders', folder.id, projectId);
+    return { data: { ...folder, projectId } };
   });
   app.patch('/rest/folders/:id', async (req) => {
-    db.updateFolder((req.params as { id: string }).id, req.body as { name?: string; parentFolderId?: string | null });
+    const { id } = req.params as { id: string };
+    access.requireProjectItem(userOf(req), 'folders', id, 'create');
+    db.updateFolder(id, req.body as { name?: string; parentFolderId?: string | null });
     return { data: true };
   });
   app.delete('/rest/folders/:id', async (req) => {
-    db.deleteFolder((req.params as { id: string }).id);
+    const { id } = req.params as { id: string };
+    access.requireProjectItem(userOf(req), 'folders', id, 'create');
+    db.deleteFolder(id);
     return { data: true };
   });
 
-  /* variables ($vars) */
+  /* variables ($vars): everyone reads them, owners and admins change them */
   app.get('/rest/variables', async () => ({ data: db.listVariables() }));
+  app.addHook('preHandler', async (req) => {
+    if (req.method !== 'GET' && req.routeOptions.url?.startsWith('/rest/variables')) access.requireAdmin(userOf(req));
+  });
   app.post('/rest/variables', async (req) => {
     const b = req.body as { key: string; value: string };
     try {
@@ -129,14 +156,14 @@ export function miscRoutes(app: FastifyInstance, ctx: AppContext) {
     return { data: true };
   });
 
-  /* API keys for the public API */
-  app.get('/rest/api-keys', async () => ({ data: db.listApiKeys() }));
+  /* API keys for the public API: each user has their own and the API acts as them */
+  app.get('/rest/api-keys', async (req) => ({ data: db.listApiKeys(userOf(req).id) }));
   app.post('/rest/api-keys', async (req) => {
     const label = (req.body as { label?: string })?.label ?? 'My API key';
-    return { data: db.createApiKey(label, `flowmator_api_${randomBytes(24).toString('hex')}`) };
+    return { data: db.createApiKey(label, `flowmator_api_${randomBytes(24).toString('hex')}`, userOf(req).id) };
   });
   app.delete('/rest/api-keys/:id', async (req) => {
-    db.deleteApiKey((req.params as { id: string }).id);
+    db.deleteApiKey((req.params as { id: string }).id, userOf(req).id);
     return { data: true };
   });
 }
