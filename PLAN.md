@@ -1,6 +1,6 @@
 # Flowmator — build plan
 
-Personal-use workflow automation platform with n8n-equivalent functionality.
+Personal-use workflow automation platform.
 All code is written from scratch (n8n's source is under the Sustainable Use License, so nothing is copied).
 Workflows exported from n8n can be imported: `n8n-nodes-base.*` node types are aliased to `flowmator.*`.
 Flowmator was called 8n8 until 2026-10: `8n8.*` / `8n8-ai.*` node types and the `~/.8n8` data folder still work.
