@@ -1,5 +1,9 @@
 # Flowmator
 
+<p align="center">
+  <img src=".github/social-preview.png" alt="Flowmator: self-hosted workflow automation" width="100%">
+</p>
+
 Flowmator is a self-hosted workflow automation platform for personal use. You build workflows on a visual canvas, connect apps and APIs, and run them on triggers, schedules or webhooks. It can import workflow files in a widely used JSON format.
 
 ## Features
