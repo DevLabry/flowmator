@@ -50,6 +50,16 @@ services:
     healthcheck:
       test: ["CMD", "node", "-e", "process.exit(0)"]
 
+  # optional: production webhooks only, executions go to the workers
+  #   docker compose -f docker-compose.queue.yml --profile webhook up -d
+  # Route /webhook/*, /form/* and /webhook-waiting/* to it in your reverse proxy.
+  flowmator-webhook:
+    <<: *shared
+    command: webhook
+    profiles: ["webhook"]
+    ports:
+      - "${FLOWMATOR_WEBHOOK_PORT:-5679}:5678"
+
 volumes:
   flowmator_data:
   redis_data:

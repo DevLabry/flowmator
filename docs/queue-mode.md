@@ -92,15 +92,13 @@ Workers have no HTTP port by default, so the compose file only checks that the p
 
 ## Webhook processes
 
-Add them when the main process is slow to answer webhooks. Add this service to `docker-compose.queue.yml`, under `services:`. It reuses the shared settings of the file and keeps the image's own health check (`/healthz`):
+Add them when the main process is slow to answer webhooks. The compose file has a `flowmator-webhook` service that is off by default. Start it with the `webhook` profile:
 
-```yaml
-  flowmator-webhook:
-    <<: *shared
-    command: webhook
-    ports:
-      - "5679:5678"
+```bash
+docker compose -f docker-compose.queue.yml --profile webhook up -d
 ```
+
+It listens on port 5679 of your machine (`FLOWMATOR_WEBHOOK_PORT` changes it) and uses the image's `/healthz` health check. Use `--profile webhook` with the other `docker compose` commands too, or Compose will ignore it.
 
 Then make your reverse proxy send production webhook traffic to it and everything else to the main process:
 

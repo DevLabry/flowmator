@@ -107,7 +107,7 @@ By default one process does everything. Queue mode adds Redis and worker process
 docker compose -f docker-compose.queue.yml up -d --scale flowmator-worker=2
 ```
 
-This starts Redis, the main process (editor, API, triggers and webhooks) and two workers. All of them share the same data volume and encryption key, and they must run on the same machine, because Flowmator stores its data in a SQLite file. Use `-f docker-compose.queue.yml` with every other `docker compose` command for this setup too. [Queue mode](docs/queue-mode.md) explains how the processes work, how to scale and stop workers, webhook processes, and what to do when something goes wrong.
+This starts Redis, the main process (editor, API, triggers and webhooks) and two workers. All of them share the same data volume and encryption key, and they must run on the same machine, because Flowmator stores its data in a SQLite file. Use `-f docker-compose.queue.yml` with every other `docker compose` command for this setup too. An optional webhook process is available with `--profile webhook`. [Queue mode](docs/queue-mode.md) explains how the processes work, how to scale and stop workers, webhook processes, and what to do when something goes wrong.
 
 ### Command line
 
