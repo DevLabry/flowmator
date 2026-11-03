@@ -1,16 +1,35 @@
 # Flowmator
 
-Workflow automation with n8n's editor, nodes and behaviour, for personal use. Workflows exported from n8n import as they are.
+Self-hosted workflow automation with n8n's editor, nodes and behaviour, built for personal use. Workflows exported from n8n import as they are.
 
-## Install with Docker
+## Features
 
-Build the image and start it with Docker Compose. Run these commands from this folder:
+- **Visual editor**: canvas, node creator, expression editor with autocomplete, live execution, pinned data, execution history and version history.
+- **n8n compatible**: `n8n-nodes-base.*` node types, n8n workflow JSON and `={{ }}` expressions work unchanged. Community nodes (`n8n-nodes-*`) can be loaded from npm.
+- **Many integrations**: HTTP Request, Webhook, Schedule, Code (JavaScript and Python), Slack, Telegram, GitHub, Notion, Google (Gmail, Sheets, Drive, Calendar), Postgres, MySQL, MongoDB, Redis, S3, Stripe, HubSpot, Jira, Trello, Microsoft (Outlook, Teams, OneDrive), Discord, Airtable, OpenAI and more.
+- **AI**: AI Agent with tools, memory and output parsers; chat models (Anthropic, OpenAI, Gemini, Ollama, Mistral, Groq, Bedrock…), embeddings, vector stores for RAG, MCP client and server, and evaluations.
+- **Platform**: users, roles and team projects, credential encryption, OAuth2, public REST API with API keys, queue mode with workers, source control, external secrets, log streaming and a data tables feature.
+
+See [PLAN.md](PLAN.md) for the full list of what is implemented and what is still missing.
+
+## Requirements
+
+- **Docker** with Docker Compose (to run it), or
+- **Node 22 or later** and **pnpm 9** (to run it from source, see [Development](#development)).
+
+## Quick start
 
 ```bash
+git clone https://github.com/DevLabry/flowmator.git
+cd flowmator
 docker compose up -d
 ```
 
-Open http://localhost:5678 and create the owner account. Your workflows, credentials and executions are kept in the `flowmator_data` volume, so they survive restarts and upgrades.
+Open http://localhost:5678 and create the owner account.
+
+## Install with Docker
+
+The Quick start above builds the image and starts it with Docker Compose. Run all `docker compose` commands from the repository folder. Your workflows, credentials and executions are kept in the `flowmator_data` volume, so they survive restarts and upgrades.
 
 To upgrade after pulling new code:
 
@@ -91,7 +110,21 @@ pnpm dev          # server and editor with live reload
 pnpm test
 ```
 
+### Project layout
+
+| Package | Role |
+| --- | --- |
+| `packages/workflow` | Types, workflow graph helpers and expression engine, shared with the editor |
+| `packages/core` | Execution engine, credential encryption, binary data |
+| `packages/nodes-base` | Built-in nodes and credential types |
+| `packages/server` | REST API, webhooks, scheduler, persistence and the `flowmator` CLI |
+| `packages/editor` | React editor (Vite, React Flow) |
+
 `PLAN.md` lists what is implemented.
+
+## Contributing
+
+Issues and pull requests are welcome. Run `pnpm typecheck` and `pnpm test` before opening a pull request.
 
 Flowmator was called 8n8. If you used 8n8 before, your data and workflows still work:
 - Workflows that use `8n8.*` node types are renamed when the server starts.
